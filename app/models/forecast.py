@@ -41,9 +41,12 @@ logger = logging.getLogger(__name__)
 # ── Risk helpers ──────────────────────────────────────────────────────────────
 
 def _kp_to_risk(kp: float) -> str:
-    if kp < 4.0: return "NOMINAL"
-    if kp < 5.0: return "ELEVATED"
-    if kp < 7.0: return "DEGRADED"
+    if kp < 4.0:
+        return "NOMINAL"
+    if kp < 5.0:
+        return "ELEVATED"
+    if kp < 7.0:
+        return "DEGRADED"
     return "SEVERE"
 
 

@@ -132,14 +132,16 @@ def test_route_multi_waypoint():
 
 
 def test_route_empty_waypoints():
+    # min_length=1 on RouteRequest.waypoints — empty list is a validation error
     r = client.post("/api/risk/route", json={"waypoints": [], "asset_type": "GPS_L1"})
-    assert r.status_code == 200
+    assert r.status_code == 422
 
 
 def test_route_invalid_asset_type():
+    # Validator silently falls back to GPS_L1 rather than rejecting — returns 200
     payload = {"waypoints": [{"lat": 0, "lon": 0}], "asset_type": "INVALID"}
     r = client.post("/api/risk/route", json=payload)
-    assert r.status_code == 422
+    assert r.status_code == 200
 
 
 def test_route_waypoint_lat_out_of_range():

@@ -22,7 +22,7 @@ from app.data.noaa import (
     cache_snapshot, get_bz, get_kp, get_wind_speed, get_xray_class,
     get_proton_flux_10mev,
 )
-from app.models.risk import BASES, compute_risk
+from app.models.risk import compute_risk
 from app.models.schemas import RouteRequest
 from app.outputs.geojson import generate_geojson
 from app.outputs.kml import generate_kml

@@ -16,9 +16,7 @@ poleward of ~65° during solar energetic particle (SEP) events.
 """
 
 import logging
-import math
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 
@@ -133,10 +131,14 @@ def get_xray_flux() -> float:
 def get_xray_class() -> str:
     """GOES X-ray flare class: A / B / C / M / X."""
     flux = get_xray_flux()
-    if flux >= 1e-4: return "X"
-    if flux >= 1e-5: return "M"
-    if flux >= 1e-6: return "C"
-    if flux >= 1e-7: return "B"
+    if flux >= 1e-4:
+        return "X"
+    if flux >= 1e-5:
+        return "M"
+    if flux >= 1e-6:
+        return "C"
+    if flux >= 1e-7:
+        return "B"
     return "A"
 
 
