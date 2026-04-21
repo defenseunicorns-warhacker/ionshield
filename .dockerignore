@@ -1,0 +1,48 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Secrets — never bake into image
+.env
+*.key
+*.pem
+*.p12
+secrets.json
+
+# Python artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Dev tooling
+requirements-dev.txt
+tests/
+ruff.toml
+.ruff_cache/
+
+# Build artefacts
+dist/
+build/
+*.egg-info/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code project files
+.claude/
+
+# Docs
+README.md

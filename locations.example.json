@@ -1,0 +1,65 @@
+[
+  {
+    "id":              "peterson_sfc",
+    "name":            "Peterson SFC",
+    "lat":             38.8197,
+    "lon":             -104.7005,
+    "asset_type":      "GPS_L1",
+    "alert_threshold": "ELEVATED",
+    "notes":           "NORAD/USSPACECOM — GPS L1 primary nav"
+  },
+  {
+    "id":              "pituffik",
+    "name":            "Pituffik Space Base",
+    "lat":             76.531,
+    "lon":             -68.703,
+    "asset_type":      "GPS_L1",
+    "alert_threshold": "NOMINAL",
+    "notes":           "High-latitude — maximum auroral/PCA exposure; alert at any degradation"
+  },
+  {
+    "id":              "andersen_afb",
+    "name":            "Andersen AFB",
+    "lat":             13.584,
+    "lon":             144.929,
+    "asset_type":      "GPS_L1L2",
+    "alert_threshold": "ELEVATED",
+    "notes":           "Guam — equatorial scintillation zone post-sunset"
+  },
+  {
+    "id":              "ramstein",
+    "name":            "Ramstein AB",
+    "lat":             49.437,
+    "lon":             7.600,
+    "asset_type":      "GPS_INS",
+    "alert_threshold": "DEGRADED",
+    "notes":           "USAFE HQ — INS backup; only alert at DEGRADED+"
+  },
+  {
+    "id":              "camp_lemonnier",
+    "name":            "Camp Lemonnier",
+    "lat":             11.553,
+    "lon":             43.145,
+    "asset_type":      "SBAS",
+    "alert_threshold": "ELEVATED",
+    "notes":           "Djibouti — near equatorial anomaly, SBAS (EGNOS) corrected"
+  },
+  {
+    "id":              "diego_garcia",
+    "name":            "Diego Garcia",
+    "lat":             -7.312,
+    "lon":             72.411,
+    "asset_type":      "GPS_L1",
+    "alert_threshold": "ELEVATED",
+    "notes":           "BIOT — southern equatorial anomaly belt, high post-sunset scintillation risk"
+  },
+  {
+    "id":              "thule_aux",
+    "name":            "Thule Aux Field",
+    "lat":             77.470,
+    "lon":             -69.230,
+    "asset_type":      "GPS_L1L5",
+    "alert_threshold": "NOMINAL",
+    "notes":           "Arctic — dual-freq modernized; alert immediately on any disturbance"
+  }
+]

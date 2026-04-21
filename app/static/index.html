@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IonShield — Operational Space Weather Intelligence</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nominal:  '#10B981',
+            elevated: '#F59E0B',
+            degraded: '#F97316',
+            severe:   '#EF4444',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-200 flex flex-col h-full overflow-hidden">
+
+  <!-- ═══════════════════════════════════════════════════════
+       HEADER — logo · global risk · solar drivers · data age
+       ═══════════════════════════════════════════════════════ -->
+  <header id="header"
+    class="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-4 shrink-0 z-20 transition-colors duration-700">
+
+    <!-- Logo -->
+    <div class="flex items-center gap-2.5 shrink-0">
+      <div class="w-8 h-8 rounded-md bg-blue-600 flex items-center justify-center">
+        <svg viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-white" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+          <path d="M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-white font-bold text-sm tracking-wide leading-tight">IonShield</div>
+        <div class="text-slate-400 text-xs leading-tight">Space Weather Intel</div>
+      </div>
+    </div>
+
+    <div class="h-8 w-px bg-slate-600 shrink-0"></div>
+
+    <!-- Global risk badge -->
+    <div class="shrink-0">
+      <div class="text-slate-500 text-xs font-medium tracking-widest mb-1">GLOBAL</div>
+      <div id="global-risk-badge"
+        class="px-3 py-0.5 rounded text-xs font-bold tracking-wider text-white bg-slate-600 transition-colors duration-500">
+        LOADING
+      </div>
+    </div>
+
+    <div class="h-8 w-px bg-slate-600 shrink-0"></div>
+
+    <!-- Solar driver mini-cards -->
+    <div class="flex gap-2 flex-1 min-w-0 overflow-x-auto">
+
+      <div class="driver-card">
+        <div class="driver-label">Kp INDEX</div>
+        <div class="driver-value" id="val-kp">—</div>
+      </div>
+
+      <div class="driver-card">
+        <div class="driver-label">IMF Bz</div>
+        <div class="driver-value" id="val-bz">—</div>
+      </div>
+
+      <div class="driver-card">
+        <div class="driver-label">X-RAY</div>
+        <div class="driver-value" id="val-xray">—</div>
+      </div>
+
+      <div class="driver-card">
+        <div class="driver-label">SOLAR WIND</div>
+        <div class="driver-value" id="val-wind">—</div>
+      </div>
+
+      <div class="driver-card">
+        <div class="driver-label">PROTON ≥10MeV</div>
+        <div class="driver-value" id="val-proton">—</div>
+      </div>
+
+    </div>
+
+    <div class="h-8 w-px bg-slate-600 shrink-0"></div>
+
+    <!-- 24h forecast mini-card -->
+    <div class="driver-card shrink-0 cursor-pointer" onclick="switchTab('forecast')">
+      <div class="driver-label">24H OUTLOOK</div>
+      <div class="driver-value" id="val-forecast-peak" style="font-size:13px">—</div>
+      <div id="val-forecast-badge" class="forecast-mini-badge">—</div>
+    </div>
+
+    <!-- Active alerts badge (hidden when zero) -->
+    <div id="alert-badge-wrap" class="shrink-0 hidden">
+      <div class="text-slate-500 text-xs font-medium tracking-widest mb-1">ALERTS</div>
+      <div id="alert-badge"
+        class="px-3 py-0.5 rounded text-xs font-bold tracking-wider text-white bg-red-600 animate-pulse cursor-pointer"
+        onclick="switchTab('alerts')">
+        0 ACTIVE
+      </div>
+    </div>
+
+    <div class="h-8 w-px bg-slate-600 shrink-0"></div>
+
+    <!-- Refresh / data age -->
+    <div class="shrink-0 text-right">
+      <div id="data-age" class="text-slate-400 text-xs mb-0.5">Connecting…</div>
+      <div class="flex items-center justify-end gap-2">
+        <span id="refresh-countdown" class="text-slate-500 text-xs"></span>
+        <button onclick="doRefresh()"
+          class="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium">
+          ↻ Now
+        </button>
+      </div>
+    </div>
+
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       BODY — map (left) + sidebar (right)
+       ═══════════════════════════════════════════════════════ -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Leaflet map -->
+    <div id="map" class="flex-1 relative z-0"></div>
+
+    <!-- Map hint overlay (shown when click mode is active) -->
+    <div id="map-hint" class="hidden absolute bottom-10 left-1/2 -translate-x-1/2 z-30
+      bg-blue-600 text-white text-sm px-4 py-2 rounded-full shadow-lg pointer-events-none">
+      Click anywhere on the map to add a point
+    </div>
+
+    <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+    <aside class="w-[390px] bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-10">
+
+      <!-- Tabs -->
+      <div class="flex border-b border-slate-700 shrink-0">
+        <button id="tab-btn-location" onclick="switchTab('location')"
+          class="flex-1 py-3 text-sm font-medium tab-btn tab-active">
+          Location Risk
+        </button>
+        <button id="tab-btn-route" onclick="switchTab('route')"
+          class="flex-1 py-3 text-sm font-medium tab-btn tab-inactive">
+          Route
+        </button>
+        <button id="tab-btn-forecast" onclick="switchTab('forecast')"
+          class="flex-1 py-3 text-sm font-medium tab-btn tab-inactive">
+          Forecast
+        </button>
+      </div>
+
+      <!-- ── LOCATION TAB ── -->
+      <div id="panel-location" class="flex-1 overflow-y-auto p-4 space-y-4">
+
+        <p class="text-slate-400 text-xs leading-relaxed">
+          Enter coordinates or <button onclick="activateClickMode('location')"
+            class="text-blue-400 hover:underline">click the map</button>
+          to assess ionospheric risk at any location.
+        </p>
+
+        <!-- Inputs -->
+        <div class="space-y-3">
+          <div class="flex gap-2">
+            <div class="flex-1">
+              <label class="block text-xs text-slate-400 mb-1">Latitude</label>
+              <input id="loc-lat" type="number" step="0.0001" min="-90" max="90"
+                placeholder="38.8"
+                class="ion-input w-full">
+            </div>
+            <div class="flex-1">
+              <label class="block text-xs text-slate-400 mb-1">Longitude</label>
+              <input id="loc-lon" type="number" step="0.0001" min="-180" max="180"
+                placeholder="-104.5"
+                class="ion-input w-full">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Asset Type</label>
+            <select id="loc-asset" class="ion-select w-full">
+              <option value="GPS_L1">GPS L1 — civilian single-frequency</option>
+              <option value="GPS_L1L2">GPS L1/L2 — dual-frequency (mil)</option>
+              <option value="GPS_L1L5">GPS L1/L5 — modernized dual-freq</option>
+              <option value="GPS_INS">GPS + Inertial (INS)</option>
+              <option value="SBAS">SBAS / WAAS corrected</option>
+            </select>
+          </div>
+          <button onclick="assessLocation()"
+            class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold py-2 rounded transition-colors">
+            Assess Location
+          </button>
+        </div>
+
+        <!-- Result area -->
+        <div id="loc-result"></div>
+
+      </div>
+
+      <!-- ── ROUTE TAB ── -->
+      <div id="panel-route" class="hidden flex-1 overflow-y-auto p-4 space-y-4">
+
+        <p class="text-slate-400 text-xs leading-relaxed">
+          Add waypoints below or <button onclick="activateClickMode('route')"
+            class="text-blue-400 hover:underline">click the map</button>
+          to build a route. IonShield assesses ionospheric risk at each point.
+        </p>
+
+        <!-- Asset type -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Asset Type</label>
+          <select id="route-asset" class="ion-select w-full">
+            <option value="GPS_L1">GPS L1 — civilian single-frequency</option>
+            <option value="GPS_L1L2">GPS L1/L2 — dual-frequency (mil)</option>
+            <option value="GPS_L1L5">GPS L1/L5 — modernized dual-freq</option>
+            <option value="GPS_INS">GPS + Inertial (INS)</option>
+            <option value="SBAS">SBAS / WAAS corrected</option>
+          </select>
+        </div>
+
+        <!-- Waypoint list -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-400 tracking-wider">
+              WAYPOINTS (<span id="wp-count">0</span>)
+            </span>
+            <button onclick="clearWaypoints()"
+              class="text-xs text-slate-500 hover:text-red-400 transition-colors">
+              Clear all
+            </button>
+          </div>
+          <div id="wp-list" class="space-y-1 max-h-48 overflow-y-auto pr-1">
+            <div id="wp-empty" class="text-center text-slate-600 text-xs py-4">
+              No waypoints yet
+            </div>
+          </div>
+        </div>
+
+        <!-- Add waypoint form -->
+        <div class="bg-slate-750 border border-slate-700 rounded-lg p-3 space-y-2">
+          <div class="text-xs font-semibold text-slate-400 tracking-wider">ADD WAYPOINT</div>
+          <div class="flex gap-2">
+            <input id="wp-lat" type="number" step="0.0001" min="-90" max="90" placeholder="Lat"
+              class="ion-input flex-1">
+            <input id="wp-lon" type="number" step="0.0001" min="-180" max="180" placeholder="Lon"
+              class="ion-input flex-1">
+          </div>
+          <div class="flex gap-2">
+            <input id="wp-name" type="text" maxlength="64" placeholder="Name (optional)"
+              class="ion-input flex-1"
+              onkeydown="if(event.key==='Enter') addWaypoint()">
+            <button onclick="addWaypoint()"
+              class="bg-slate-600 hover:bg-slate-500 text-white text-sm px-3 py-1.5 rounded transition-colors whitespace-nowrap">
+              + Add
+            </button>
+          </div>
+        </div>
+
+        <!-- Analyze button -->
+        <button onclick="analyzeRoute()"
+          class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold py-2 rounded transition-colors">
+          Analyze Route
+        </button>
+
+        <!-- Result area -->
+        <div id="route-result"></div>
+
+      </div>
+
+      <!-- ── FORECAST TAB ── -->
+      <div id="panel-forecast" class="hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="ion-loading">Loading forecast…</div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════ -->
+  <footer class="bg-slate-800 border-t border-slate-700 px-4 py-1.5 flex items-center justify-between shrink-0 z-10">
+    <span class="text-slate-500 text-xs">
+      Data: NOAA SWPC (live) &nbsp;·&nbsp; Models: IonShield v3 (approximate, see API for provenance)
+    </span>
+    <span class="text-slate-600 text-xs font-medium">
+      NOT FOR SAFETY-OF-LIFE NAVIGATION
+    </span>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+
+</body>
+</html>
