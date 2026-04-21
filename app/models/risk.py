@@ -23,8 +23,12 @@ import math
 from datetime import datetime, timezone
 
 from app.data.noaa import (
-    get_kp, get_xray_flux, get_wind_speed,
-    get_bz, get_proton_flux_10mev, data_age_seconds,
+    get_kp,
+    get_xray_flux,
+    get_wind_speed,
+    get_bz,
+    get_proton_flux_10mev,
+    data_age_seconds,
 )
 
 # ── Asset type iono-correction factors ───────────────────────────────────────
@@ -34,30 +38,31 @@ from app.data.noaa import (
 # via ground-network TEC maps; corrections degrade during rapid storm-time
 # TEC gradients (Kp ≥ 5, per WAAS MOPS DO-229E).
 ASSET_IONO_FACTOR: dict[str, float] = {
-    "GPS_L1":   1.00,   # full iono error — civilian standard
-    "GPS_L1L2": 0.05,   # ~95% reduction via iono-free combination (IS-GPS-200)
-    "GPS_L1L5": 0.05,   # same as L1/L2 with modernized signal
-    "GPS_INS":  0.40,   # INS absorbs short-term iono, but re-initialises on GPS fix
-    "SBAS":     0.30,   # partial correction; factor degrades during storms (see below)
+    "GPS_L1": 1.00,  # full iono error — civilian standard
+    "GPS_L1L2": 0.05,  # ~95% reduction via iono-free combination (IS-GPS-200)
+    "GPS_L1L5": 0.05,  # same as L1/L2 with modernized signal
+    "GPS_INS": 0.40,  # INS absorbs short-term iono, but re-initialises on GPS fix
+    "SBAS": 0.30,  # partial correction; factor degrades during storms (see below)
 }
 DEFAULT_ASSET = "GPS_L1"
 
 # ── Known military installations ─────────────────────────────────────────────
 BASES: list[dict] = [
-    {"name": "Thule AB, Greenland",    "lat": 76.5,  "lon": -68.7},
-    {"name": "Clear SFS, Alaska",      "lat": 64.3,  "lon": -149.2},
-    {"name": "Schriever SFB, CO",      "lat": 38.8,  "lon": -104.5},
-    {"name": "Vandenberg SFB, CA",     "lat": 34.7,  "lon": -120.6},
-    {"name": "Cape Canaveral, FL",     "lat": 28.5,  "lon": -80.6},
-    {"name": "Diego Garcia",           "lat": -7.3,  "lon":  72.4},
-    {"name": "Ramstein AB, Germany",   "lat": 49.4,  "lon":   7.6},
-    {"name": "Kadena AB, Japan",       "lat": 26.4,  "lon": 127.8},
-    {"name": "Camp Humphreys, ROK",    "lat": 36.9,  "lon": 127.0},
-    {"name": "Al Udeid AB, Qatar",     "lat": 25.1,  "lon":  51.3},
+    {"name": "Thule AB, Greenland", "lat": 76.5, "lon": -68.7},
+    {"name": "Clear SFS, Alaska", "lat": 64.3, "lon": -149.2},
+    {"name": "Schriever SFB, CO", "lat": 38.8, "lon": -104.5},
+    {"name": "Vandenberg SFB, CA", "lat": 34.7, "lon": -120.6},
+    {"name": "Cape Canaveral, FL", "lat": 28.5, "lon": -80.6},
+    {"name": "Diego Garcia", "lat": -7.3, "lon": 72.4},
+    {"name": "Ramstein AB, Germany", "lat": 49.4, "lon": 7.6},
+    {"name": "Kadena AB, Japan", "lat": 26.4, "lon": 127.8},
+    {"name": "Camp Humphreys, ROK", "lat": 36.9, "lon": 127.0},
+    {"name": "Al Udeid AB, Qatar", "lat": 25.1, "lon": 51.3},
 ]
 
 
 # ── Geometry helpers ─────────────────────────────────────────────────────────
+
 
 def local_solar_time(lon: float) -> float:
     """Approximate local solar time in hours (0–24)."""
@@ -78,11 +83,9 @@ def solar_zenith_angle(lat: float, lon: float) -> float:
     decl = 23.45 * math.sin(math.radians(360.0 / 365.0 * (doy - 81)))
     lst = local_solar_time(lon)
     ha = (lst - 12.0) * 15.0  # hour angle in degrees
-    cos_sza = (
-        math.sin(math.radians(lat)) * math.sin(math.radians(decl))
-        + math.cos(math.radians(lat)) * math.cos(math.radians(decl))
-        * math.cos(math.radians(ha))
-    )
+    cos_sza = math.sin(math.radians(lat)) * math.sin(math.radians(decl)) + math.cos(
+        math.radians(lat)
+    ) * math.cos(math.radians(decl)) * math.cos(math.radians(ha))
     # Clamp to valid range before acos
     return math.degrees(math.acos(max(-1.0, min(1.0, cos_sza))))
 
@@ -103,15 +106,16 @@ def lat_zone(lat: float) -> dict:
     """
     a = abs(lat)
     if a > 70:
-        return {"zone": "polar",        "multiplier": 1.8}
+        return {"zone": "polar", "multiplier": 1.8}
     if a > 55:
-        return {"zone": "sub-auroral",  "multiplier": 1.3}
+        return {"zone": "sub-auroral", "multiplier": 1.3}
     if a > 25:
         return {"zone": "mid-latitude", "multiplier": 1.0}
-    return      {"zone": "equatorial",  "multiplier": 1.4}
+    return {"zone": "equatorial", "multiplier": 1.4}
 
 
 # ── S4 scintillation index ───────────────────────────────────────────────────
+
 
 def compute_s4(lat: float, lon: float, kp: float) -> float:
     """
@@ -165,7 +169,7 @@ def compute_s4(lat: float, lon: float, kp: float) -> float:
     else:
         # Equatorial: plasma bubble regime
         # Post-sunset window ~19:00–02:00 LT; strong enhancement
-        post_sunset = (lst >= 19.0 or lst <= 2.0)
+        post_sunset = lst >= 19.0 or lst <= 2.0
         evening_factor = 2.2 if post_sunset else 0.4
         s4 = min(1.0, (0.04 + kp * 0.015) * evening_factor)
 
@@ -174,7 +178,10 @@ def compute_s4(lat: float, lon: float, kp: float) -> float:
 
 # ── GPS error model ──────────────────────────────────────────────────────────
 
-def compute_gps_error(lat: float, s4: float, kp: float, asset_type: str = DEFAULT_ASSET) -> dict:
+
+def compute_gps_error(
+    lat: float, s4: float, kp: float, asset_type: str = DEFAULT_ASSET
+) -> dict:
     """
     Estimate GPS positioning error in metres.
 
@@ -241,15 +248,16 @@ def compute_gps_error(lat: float, s4: float, kp: float, asset_type: str = DEFAUL
     total_error = round(max(1.5, corrected + 1.5), 1)
 
     return {
-        "gps_error_m":          total_error,
-        "gps_error_range":      [round(total_error * 0.7, 1), round(total_error * 1.6, 1)],
-        "vtec_estimate_tecu":   round(total_vtec, 1),
-        "asset_type":           asset_type,
+        "gps_error_m": total_error,
+        "gps_error_range": [round(total_error * 0.7, 1), round(total_error * 1.6, 1)],
+        "vtec_estimate_tecu": round(total_vtec, 1),
+        "asset_type": asset_type,
         "iono_correction_active": factor < 1.0,
     }
 
 
 # ── HF communications risk ───────────────────────────────────────────────────
+
 
 def compute_hf_risk(lat: float, lon: float, kp: float) -> dict:
     """
@@ -281,10 +289,10 @@ def compute_hf_risk(lat: float, lon: float, kp: float) -> dict:
     Frequency note: output normalised to ~10 MHz. Absorption scales as ~1/f²
     so 5 MHz circuits face ~4× this absorption; 20 MHz ~¼.
     """
-    xray_flux   = get_xray_flux()
+    xray_flux = get_xray_flux()
     proton_flux = get_proton_flux_10mev()
-    sza         = solar_zenith_angle(lat, lon)
-    a           = abs(lat)
+    sza = solar_zenith_angle(lat, lon)
+    a = abs(lat)
 
     # 1. SID — dayside only
     cos_sza = max(0.0, math.cos(math.radians(sza)))
@@ -306,7 +314,7 @@ def compute_hf_risk(lat: float, lon: float, kp: float) -> dict:
     # 3. PCA (polar latitudes only, ≥10 pfu threshold)
     pca_abs = 0.0
     if a > 65 and proton_flux >= 10.0:
-        s_level = math.log10(proton_flux / 10.0)   # 0 at S1, 1 at S2, 2 at S3
+        s_level = math.log10(proton_flux / 10.0)  # 0 at S1, 1 at S2, 2 at S3
         pca_abs = min(50.0, 10.0 * (1.0 + s_level))
 
     total_abs = sid_abs + storm_abs + pca_abs
@@ -315,18 +323,19 @@ def compute_hf_risk(lat: float, lon: float, kp: float) -> dict:
     blackout_prob = round(min(1.0, total_abs / 25.0), 2)
 
     return {
-        "hf_absorption_db":          round(total_abs,  1),
-        "hf_sid_db":                 round(sid_abs,    1),
-        "hf_storm_db":               round(storm_abs,  1),
-        "hf_pca_db":                 round(pca_abs,    1),
-        "hf_blackout_probability":   blackout_prob,
-        "solar_zenith_deg":          round(sza, 1),
-        "hf_dayside":                cos_sza > 0.1,
-        "pca_active":                pca_abs > 0.0,
+        "hf_absorption_db": round(total_abs, 1),
+        "hf_sid_db": round(sid_abs, 1),
+        "hf_storm_db": round(storm_abs, 1),
+        "hf_pca_db": round(pca_abs, 1),
+        "hf_blackout_probability": blackout_prob,
+        "solar_zenith_deg": round(sza, 1),
+        "hf_dayside": cos_sza > 0.1,
+        "pca_active": pca_abs > 0.0,
     }
 
 
 # ── SATCOM scintillation risk ────────────────────────────────────────────────
+
 
 def compute_satcom_risk(s4: float) -> dict:
     """
@@ -349,7 +358,7 @@ def compute_satcom_risk(s4: float) -> dict:
     if s4 <= 0.01:
         fade_db = 0.0
     elif s4 < 0.60:
-        denominator = max(1e-3, 1.0 - s4 ** 2)
+        denominator = max(1e-3, 1.0 - s4**2)
         fade_db = min(15.0, -10.0 * math.log10(denominator))
     else:
         # Strong scintillation — empirical blend
@@ -359,13 +368,14 @@ def compute_satcom_risk(s4: float) -> dict:
     outage_prob = round(min(1.0, max(0.0, (fade_db - 0.5) / 12.0)), 2)
 
     return {
-        "satcom_fade_db":          round(fade_db, 1),
+        "satcom_fade_db": round(fade_db, 1),
         "satcom_outage_probability": outage_prob,
-        "satcom_applies_to":       "Ku/Ka GEO SATCOM (L-band significantly more robust)",
+        "satcom_applies_to": "Ku/Ka GEO SATCOM (L-band significantly more robust)",
     }
 
 
 # ── Radar / sensing impact ───────────────────────────────────────────────────
+
 
 def compute_radar_impact(kp: float, s4: float, lat: float) -> dict:
     """
@@ -401,18 +411,19 @@ def compute_radar_impact(kp: float, s4: float, lat: float) -> dict:
 
     # L-band range bias (1.3 GHz)
     f_l = 1.3e9
-    range_bias_lband = (40.3e16 * total_vtec / f_l ** 2) * m
+    range_bias_lband = (40.3e16 * total_vtec / f_l**2) * m
 
     coherence_degraded = s4 > 0.30
 
     return {
-        "radar_range_bias_lband_m":        round(range_bias_lband, 1),
-        "radar_coherence_degraded":        coherence_degraded,
+        "radar_range_bias_lband_m": round(range_bias_lband, 1),
+        "radar_coherence_degraded": coherence_degraded,
         "radar_note": "L-band most affected. Scale by (1.3/f_GHz)² for other bands.",
     }
 
 
 # ── Master risk computation ──────────────────────────────────────────────────
+
 
 def compute_risk(
     lat: float,
@@ -443,22 +454,22 @@ def compute_risk(
     if kp is None:
         kp = get_kp()
 
-    bz    = get_bz()
-    zone  = lat_zone(lat)
-    m     = zone["multiplier"]
+    bz = get_bz()
+    zone = lat_zone(lat)
+    m = zone["multiplier"]
 
     # Sub-models
-    s4     = compute_s4(lat, lon, kp)
-    gps    = compute_gps_error(lat, s4, kp, asset_type)
-    hf     = compute_hf_risk(lat, lon, kp)
+    s4 = compute_s4(lat, lon, kp)
+    gps = compute_gps_error(lat, s4, kp, asset_type)
+    hf = compute_hf_risk(lat, lon, kp)
     satcom = compute_satcom_risk(s4)
-    radar  = compute_radar_impact(kp, s4, lat)
+    radar = compute_radar_impact(kp, s4, lat)
 
     # Risk score
-    kp_comp  = min(30.0, kp * 3.33)
-    s4_comp  = min(25.0, s4 * 50.0)
-    hf_comp  = min(20.0, hf["hf_blackout_probability"] * 20.0)
-    gps_m    = gps["gps_error_m"]
+    kp_comp = min(30.0, kp * 3.33)
+    s4_comp = min(25.0, s4 * 50.0)
+    hf_comp = min(20.0, hf["hf_blackout_probability"] * 20.0)
+    gps_m = gps["gps_error_m"]
     gps_comp = min(20.0, max(0.0, (gps_m - 2.0) / 23.0 * 20.0))
     # Southward Bz boosts score: −10 nT adds ~5 pts, −20 nT adds ~10 pts
     bz_boost = min(10.0, max(0.0, (-bz - 5.0) * 0.5)) if bz < -5.0 else 0.0
@@ -513,54 +524,54 @@ def compute_risk(
         )
 
     return {
-        "lat":                  lat,
-        "lon":                  lon,
-        "zone":                 zone["zone"],
-        "zone_multiplier":      m,
-        "kp_current":           round(kp, 1),
-        "bz_current_nt":        round(bz, 1),
-        "solar_wind_km_s":      round(get_wind_speed()),
+        "lat": lat,
+        "lon": lon,
+        "zone": zone["zone"],
+        "zone_multiplier": m,
+        "kp_current": round(kp, 1),
+        "bz_current_nt": round(bz, 1),
+        "solar_wind_km_s": round(get_wind_speed()),
         "assessment": {
-            "risk_score":        score,
-            "risk_level":        level,
-            "recommendation":    rec,
-            "watch_notes":       watch_notes,
+            "risk_score": score,
+            "risk_level": level,
+            "recommendation": rec,
+            "watch_notes": watch_notes,
             # GPS
-            "gps_error_m":               gps["gps_error_m"],
-            "gps_error_range":           gps["gps_error_range"],
-            "vtec_estimate_tecu":        gps["vtec_estimate_tecu"],
-            "asset_type":                gps["asset_type"],
-            "iono_correction_active":    gps["iono_correction_active"],
+            "gps_error_m": gps["gps_error_m"],
+            "gps_error_range": gps["gps_error_range"],
+            "vtec_estimate_tecu": gps["vtec_estimate_tecu"],
+            "asset_type": gps["asset_type"],
+            "iono_correction_active": gps["iono_correction_active"],
             # HF
-            "hf_absorption_db":          hf["hf_absorption_db"],
-            "hf_sid_db":                 hf["hf_sid_db"],
-            "hf_storm_db":               hf["hf_storm_db"],
-            "hf_pca_db":                 hf["hf_pca_db"],
-            "hf_blackout_probability":   hf["hf_blackout_probability"],
-            "hf_dayside":                hf["hf_dayside"],
-            "pca_active":                hf["pca_active"],
-            "solar_zenith_deg":          hf["solar_zenith_deg"],
+            "hf_absorption_db": hf["hf_absorption_db"],
+            "hf_sid_db": hf["hf_sid_db"],
+            "hf_storm_db": hf["hf_storm_db"],
+            "hf_pca_db": hf["hf_pca_db"],
+            "hf_blackout_probability": hf["hf_blackout_probability"],
+            "hf_dayside": hf["hf_dayside"],
+            "pca_active": hf["pca_active"],
+            "solar_zenith_deg": hf["solar_zenith_deg"],
             # SATCOM
-            "satcom_fade_db":            satcom["satcom_fade_db"],
+            "satcom_fade_db": satcom["satcom_fade_db"],
             "satcom_outage_probability": satcom["satcom_outage_probability"],
-            "satcom_applies_to":         satcom["satcom_applies_to"],
+            "satcom_applies_to": satcom["satcom_applies_to"],
             # Radar
-            "radar_range_bias_lband_m":     radar["radar_range_bias_lband_m"],
-            "radar_coherence_degraded":     radar["radar_coherence_degraded"],
-            "radar_note":                   radar["radar_note"],
+            "radar_range_bias_lband_m": radar["radar_range_bias_lband_m"],
+            "radar_coherence_degraded": radar["radar_coherence_degraded"],
+            "radar_note": radar["radar_note"],
             # Scintillation
-            "s4_index":                  s4,
+            "s4_index": s4,
         },
         "model_provenance": {
-            "kp":       "[MEASURED] NOAA SWPC planetary_k_index_1m",
-            "bz":       "[MEASURED] NOAA SWPC solar-wind/mag-2-hour (IMF Bz GSM)",
-            "proton":   "[MEASURED] NOAA GOES integral-protons-1-hour (≥10 MeV)",
-            "s4":       "[MODELED] Basu 1988 / Aquino 2005 (simplified lat-regime)",
-            "gps":      "[MODELED] VTEC L1 iono delay; Mannucci 2005 storm scaling",
-            "hf":       "[MODELED] CCIR-888 SID + auroral absorption + PCA (Bailey 1964)",
-            "satcom":   "[MODELED] ITU-R P.531-14 Nakagami fade (Ku/Ka GEO)",
-            "radar":    "[MODELED] L-band group delay from estimated VTEC",
+            "kp": "[MEASURED] NOAA SWPC planetary_k_index_1m",
+            "bz": "[MEASURED] NOAA SWPC solar-wind/mag-2-hour (IMF Bz GSM)",
+            "proton": "[MEASURED] NOAA GOES integral-protons-1-hour (≥10 MeV)",
+            "s4": "[MODELED] Basu 1988 / Aquino 2005 (simplified lat-regime)",
+            "gps": "[MODELED] VTEC L1 iono delay; Mannucci 2005 storm scaling",
+            "hf": "[MODELED] CCIR-888 SID + auroral absorption + PCA (Bailey 1964)",
+            "satcom": "[MODELED] ITU-R P.531-14 Nakagami fade (Ku/Ka GEO)",
+            "radar": "[MODELED] L-band group delay from estimated VTEC",
         },
-        "timestamp":        datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "data_age_seconds": data_age_seconds(),
     }

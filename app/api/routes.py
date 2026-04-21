@@ -19,7 +19,11 @@ from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.data.noaa import (
-    cache_snapshot, get_bz, get_kp, get_wind_speed, get_xray_class,
+    cache_snapshot,
+    get_bz,
+    get_kp,
+    get_wind_speed,
+    get_xray_class,
     get_proton_flux_10mev,
 )
 from app.models.risk import compute_risk
@@ -30,11 +34,12 @@ from app.outputs.cot import build_cot_feed
 
 logger = logging.getLogger(__name__)
 
-router    = APIRouter()
-limiter   = Limiter(key_func=get_remote_address)
+router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ── Auth dependency ──────────────────────────────────────────────────────────
+
 
 def verify_api_key(request: Request) -> None:
     """Reject requests missing a valid X-API-Key header when auth is enabled."""
@@ -54,6 +59,7 @@ _auth = Depends(verify_api_key)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @router.get("/", include_in_schema=False)
 async def root():
@@ -82,21 +88,21 @@ async def api_status(request: Request, _: None = _auth):
 
     snap = cache_snapshot()
     return {
-        "ionshield_version":    settings.app_version,
-        "timestamp":            datetime.now(timezone.utc).isoformat(),
+        "ionshield_version": settings.app_version,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "solar_drivers": {
-            "kp_current":           round(kp, 1),
-            "xray_class":           get_xray_class(),
-            "bz_nt":                round(get_bz(), 1),
-            "solar_wind_km_s":      round(get_wind_speed()),
+            "kp_current": round(kp, 1),
+            "xray_class": get_xray_class(),
+            "bz_nt": round(get_bz(), 1),
+            "solar_wind_km_s": round(get_wind_speed()),
             "proton_flux_10mev_pfu": round(get_proton_flux_10mev(), 2),
         },
-        "global_risk_level":    global_risk,
-        "data_source":          "NOAA SWPC",
-        "last_fetch":           snap["last_fetch"],
-        "data_age_seconds":     snap["data_age_seconds"],
-        "fetch_source":         snap["fetch_source"],
-        "feed_status":          snap["fetch_status"],
+        "global_risk_level": global_risk,
+        "data_source": "NOAA SWPC",
+        "last_fetch": snap["last_fetch"],
+        "data_age_seconds": snap["data_age_seconds"],
+        "fetch_source": snap["fetch_source"],
+        "feed_status": snap["fetch_status"],
     }
 
 
@@ -104,8 +110,8 @@ async def api_status(request: Request, _: None = _auth):
 @limiter.limit(settings.rate_limit)
 async def risk_location(
     request: Request,
-    lat: float = Query(..., ge=-90,   le=90,  description="Latitude  (decimal degrees)"),
-    lon: float = Query(..., ge=-180,  le=180, description="Longitude (decimal degrees)"),
+    lat: float = Query(..., ge=-90, le=90, description="Latitude  (decimal degrees)"),
+    lon: float = Query(..., ge=-180, le=180, description="Longitude (decimal degrees)"),
     asset_type: str = Query(
         default="GPS_L1",
         description="GPS asset type: GPS_L1, GPS_L1L2, GPS_L1L5, GPS_INS, SBAS",
@@ -126,47 +132,47 @@ async def risk_route(request: Request, req: RouteRequest, _: None = _auth):
             detail=f"Route exceeds maximum of {settings.max_route_waypoints} waypoints.",
         )
 
-    kp      = get_kp()
+    kp = get_kp()
     results = []
     worst_score = -1
-    worst_idx   = 0
+    worst_idx = 0
 
     _RISK_FILL = {
-        "SEVERE":   "#EF4444",
+        "SEVERE": "#EF4444",
         "DEGRADED": "#F97316",
         "ELEVATED": "#F59E0B",
-        "NOMINAL":  "#10B981",
+        "NOMINAL": "#10B981",
     }
 
     for i, wp in enumerate(req.waypoints):
         risk = compute_risk(wp.lat, wp.lon, kp, asset_type=req.asset_type)
-        a    = risk["assessment"]
+        a = risk["assessment"]
         entry = {
-            "index":        i,
-            "name":         wp.name or f"WP{i:03d}",
-            "lat":          wp.lat,
-            "lon":          wp.lon,
-            "zone":         risk["zone"],
-            "risk_level":   a["risk_level"],
-            "risk_score":   a["risk_score"],
-            "risk_color":   _RISK_FILL.get(a["risk_level"], "#10B981"),
-            "gps_error_m":          a["gps_error_m"],
-            "hf_absorption_db":     a["hf_absorption_db"],
-            "hf_blackout_prob":     a["hf_blackout_probability"],
-            "satcom_fade_db":       a["satcom_fade_db"],
-            "s4_index":             a["s4_index"],
-            "pca_active":           a["pca_active"],
-            "watch_notes":          a["watch_notes"],
+            "index": i,
+            "name": wp.name or f"WP{i:03d}",
+            "lat": wp.lat,
+            "lon": wp.lon,
+            "zone": risk["zone"],
+            "risk_level": a["risk_level"],
+            "risk_score": a["risk_score"],
+            "risk_color": _RISK_FILL.get(a["risk_level"], "#10B981"),
+            "gps_error_m": a["gps_error_m"],
+            "hf_absorption_db": a["hf_absorption_db"],
+            "hf_blackout_prob": a["hf_blackout_probability"],
+            "satcom_fade_db": a["satcom_fade_db"],
+            "s4_index": a["s4_index"],
+            "pca_active": a["pca_active"],
+            "watch_notes": a["watch_notes"],
         }
         results.append(entry)
         if a["risk_score"] > worst_score:
             worst_score = a["risk_score"]
-            worst_idx   = i
+            worst_idx = i
 
     worst = results[worst_idx] if results else None
-    w_name  = worst["name"]     if worst else "—"
-    w_err   = worst["gps_error_m"] if worst else 0
-    w_level = worst["risk_level"]  if worst else "NOMINAL"
+    w_name = worst["name"] if worst else "—"
+    w_err = worst["gps_error_m"] if worst else 0
+    w_level = worst["risk_level"] if worst else "NOMINAL"
 
     if worst_score >= 60:
         route_rec = (
@@ -188,18 +194,18 @@ async def risk_route(request: Request, req: RouteRequest, _: None = _auth):
 
     return {
         "route_summary": {
-            "total_waypoints":      len(results),
+            "total_waypoints": len(results),
             "worst_waypoint_index": worst_idx,
-            "worst_gps_error_m":    w_err,
-            "max_risk_level":       w_level,
-            "max_risk_score":       worst_score,
+            "worst_gps_error_m": w_err,
+            "max_risk_level": w_level,
+            "max_risk_score": worst_score,
             "route_recommendation": route_rec,
-            "asset_type":           req.asset_type,
+            "asset_type": req.asset_type,
         },
-        "waypoints":    results,
-        "kp_current":   round(kp, 1),
+        "waypoints": results,
+        "kp_current": round(kp, 1),
         "bz_current_nt": round(get_bz(), 1),
-        "timestamp":    datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -219,6 +225,7 @@ async def api_forecast(request: Request, _: None = _auth):
       - IonShield 1-min Kp trend extrapolation (estimated, 1h, clearly labelled)
     """
     from app.models.forecast import build_forecast
+
     try:
         return build_forecast()
     except Exception as exc:
@@ -253,11 +260,12 @@ async def overlay_kml(request: Request, _: None = _auth):
 async def api_locations(request: Request, _: None = _auth):
     """All configured locations with their latest risk assessment and alert state."""
     from app.data.locations import get_all, location_count
+
     locations = get_all()
     return {
-        "count":        location_count(),
-        "locations":    locations,
-        "timestamp":    datetime.now(timezone.utc).isoformat(),
+        "count": location_count(),
+        "locations": locations,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -266,6 +274,7 @@ async def api_locations(request: Request, _: None = _auth):
 async def api_location_by_id(request: Request, loc_id: str, _: None = _auth):
     """Single configured location with full risk assessment."""
     from app.data.locations import get_by_id
+
     item = get_by_id(loc_id)
     if item is None:
         raise HTTPException(
@@ -280,12 +289,13 @@ async def api_location_by_id(request: Request, loc_id: str, _: None = _auth):
 async def api_alerts(request: Request, _: None = _auth):
     """Active alerts across all configured locations."""
     from app.data.locations import get_active_alerts, location_count
+
     alerts = get_active_alerts()
     return {
-        "active_count":     len(alerts),
-        "total_locations":  location_count(),
-        "alerts":           alerts,
-        "timestamp":        datetime.now(timezone.utc).isoformat(),
+        "active_count": len(alerts),
+        "total_locations": location_count(),
+        "alerts": alerts,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -294,6 +304,7 @@ async def api_alerts(request: Request, _: None = _auth):
 async def overlay_cot(request: Request, _: None = _auth):
     """ATAK/WinTAK CoT XML feed of all configured IonShield locations."""
     from app.data.locations import get_all
+
     locations = get_all()
     if not locations:
         raise HTTPException(

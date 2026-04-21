@@ -18,6 +18,7 @@ client = TestClient(app, raise_server_exceptions=True)
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
 
+
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200
@@ -39,6 +40,7 @@ def test_dashboard_serves_html():
 
 # ── /api/status ───────────────────────────────────────────────────────────────
 
+
 def test_status_shape():
     r = client.get("/api/status")
     assert r.status_code == 200
@@ -46,16 +48,28 @@ def test_status_shape():
     assert "global_risk_level" in data
     assert "solar_drivers" in data
     drivers = data["solar_drivers"]
-    for key in ("kp_current", "xray_class", "bz_nt", "solar_wind_km_s", "proton_flux_10mev_pfu"):
+    for key in (
+        "kp_current",
+        "xray_class",
+        "bz_nt",
+        "solar_wind_km_s",
+        "proton_flux_10mev_pfu",
+    ):
         assert key in drivers, f"Missing solar driver key: {key}"
 
 
 def test_status_global_risk_is_valid():
     r = client.get("/api/status")
-    assert r.json()["global_risk_level"] in {"NOMINAL", "ELEVATED", "DEGRADED", "SEVERE"}
+    assert r.json()["global_risk_level"] in {
+        "NOMINAL",
+        "ELEVATED",
+        "DEGRADED",
+        "SEVERE",
+    }
 
 
 # ── /api/risk/location ────────────────────────────────────────────────────────
+
 
 def test_risk_location_nominal():
     r = client.get("/api/risk/location?lat=38.8&lon=-104.5&asset_type=GPS_L1")
@@ -70,11 +84,11 @@ def test_risk_location_nominal():
 
 def test_risk_location_dual_freq_lower_error():
     """Dual-frequency GPS should have dramatically lower GPS error than L1-only."""
-    r_l1  = client.get("/api/risk/location?lat=38.8&lon=-104.5&asset_type=GPS_L1")
+    r_l1 = client.get("/api/risk/location?lat=38.8&lon=-104.5&asset_type=GPS_L1")
     r_l1l2 = client.get("/api/risk/location?lat=38.8&lon=-104.5&asset_type=GPS_L1L2")
     assert r_l1.status_code == 200
     assert r_l1l2.status_code == 200
-    err_l1   = r_l1.json()["assessment"]["gps_error_m"]
+    err_l1 = r_l1.json()["assessment"]["gps_error_m"]
     err_l1l2 = r_l1l2.json()["assessment"]["gps_error_m"]
     assert err_l1l2 < err_l1, "Dual-freq GPS should have lower error than L1-only"
 
@@ -102,6 +116,7 @@ def test_risk_location_missing_params():
 
 # ── /api/risk/route ───────────────────────────────────────────────────────────
 
+
 def test_route_single_waypoint():
     payload = {
         "waypoints": [{"lat": 38.8, "lon": -104.5, "name": "Alpha"}],
@@ -118,9 +133,9 @@ def test_route_single_waypoint():
 def test_route_multi_waypoint():
     payload = {
         "waypoints": [
-            {"lat": 38.8,  "lon": -104.5},
-            {"lat": 65.0,  "lon": -18.0},   # sub-auroral
-            {"lat": -10.0, "lon": 30.0},    # equatorial
+            {"lat": 38.8, "lon": -104.5},
+            {"lat": 65.0, "lon": -18.0},  # sub-auroral
+            {"lat": -10.0, "lon": 30.0},  # equatorial
         ],
         "asset_type": "GPS_INS",
     }
@@ -152,6 +167,7 @@ def test_route_waypoint_lat_out_of_range():
 
 # ── /api/forecast ─────────────────────────────────────────────────────────────
 
+
 def test_forecast_shape():
     r = client.get("/api/forecast")
     assert r.status_code == 200
@@ -163,7 +179,13 @@ def test_forecast_shape():
 def test_forecast_summary_keys():
     data = client.get("/api/forecast").json()
     summary = data["summary"]
-    for key in ("max_kp_24h", "max_kp_72h", "storm_watch", "storm_warning", "outlook_text"):
+    for key in (
+        "max_kp_24h",
+        "max_kp_72h",
+        "storm_watch",
+        "storm_warning",
+        "outlook_text",
+    ):
         assert key in summary, f"Missing summary key: {key}"
 
 
@@ -175,11 +197,19 @@ def test_forecast_has_seven_windows():
 def test_forecast_window_shape():
     data = client.get("/api/forecast").json()
     for w in data["windows"]:
-        for key in ("label", "kp_forecast", "risk_level", "gps_impact", "hf_impact", "source"):
+        for key in (
+            "label",
+            "kp_forecast",
+            "risk_level",
+            "gps_impact",
+            "hf_impact",
+            "source",
+        ):
             assert key in w, f"Window missing key: {key}"
 
 
 # ── /api/locations ────────────────────────────────────────────────────────────
+
 
 def test_locations_returns_list():
     r = client.get("/api/locations")
@@ -194,14 +224,26 @@ def test_locations_returns_list():
 def test_locations_shape_when_populated(tmp_path, monkeypatch):
     """Write a locations.json, reload it via the API layer, verify structure."""
     import json
+
     loc_file = tmp_path / "locations.json"
-    loc_file.write_text(json.dumps([
-        {"id": "test_site", "name": "Test Site", "lat": 38.8, "lon": -104.5,
-         "asset_type": "GPS_L1", "alert_threshold": "ELEVATED"},
-    ]))
+    loc_file.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "test_site",
+                    "name": "Test Site",
+                    "lat": 38.8,
+                    "lon": -104.5,
+                    "asset_type": "GPS_L1",
+                    "alert_threshold": "ELEVATED",
+                },
+            ]
+        )
+    )
     # Call the location store directly (same in-process state the API uses)
     from app.data.locations import load_locations, assess_all
     from app.data.noaa import FALLBACK
+
     load_locations(str(loc_file), "ELEVATED")
     assess_all(FALLBACK["kp"])
 
@@ -213,7 +255,7 @@ def test_locations_shape_when_populated(tmp_path, monkeypatch):
     assert loc is not None
     assert "assessment" in loc
     assert "alert" in loc
-    assert loc["alert"]["active"] is False   # not enough consecutive hits yet
+    assert loc["alert"]["active"] is False  # not enough consecutive hits yet
 
 
 def test_location_by_id_not_found():
@@ -222,6 +264,7 @@ def test_location_by_id_not_found():
 
 
 # ── /api/alerts ───────────────────────────────────────────────────────────────
+
 
 def test_alerts_shape():
     r = client.get("/api/alerts")
@@ -236,9 +279,11 @@ def test_alerts_shape():
 
 # ── /overlay/ionshield.cot ────────────────────────────────────────────────────
 
+
 def test_cot_feed_no_locations():
     """Returns 404 when no locations are configured."""
     from app.data import locations as loc_mod
+
     original = loc_mod._locations[:]
     loc_mod._locations.clear()
     try:
@@ -254,9 +299,13 @@ def test_cot_feed_with_locations(tmp_path, monkeypatch):
     from app.data.noaa import FALLBACK
 
     loc_file = tmp_path / "locations.json"
-    loc_file.write_text(json.dumps([
-        {"id": "cot_test", "name": "CoT Test", "lat": 38.8, "lon": -104.5},
-    ]))
+    loc_file.write_text(
+        json.dumps(
+            [
+                {"id": "cot_test", "name": "CoT Test", "lat": 38.8, "lon": -104.5},
+            ]
+        )
+    )
     load_locations(str(loc_file))
     assess_all(FALLBACK["kp"])
 
@@ -271,15 +320,21 @@ def test_cot_feed_with_locations(tmp_path, monkeypatch):
 
 # ── CoT XML unit tests ────────────────────────────────────────────────────────
 
+
 def test_cot_event_well_formed():
     """build_cot_event must produce valid XML with required CoT attributes."""
     import xml.etree.ElementTree as ET
     from app.outputs.cot import build_cot_event
 
     loc = {
-        "id": "test", "name": "Test", "lat": 38.8, "lon": -104.5,
-        "asset_type": "GPS_L1", "alert_threshold": "ELEVATED",
-        "assessment": None, "alert": {"active": False, "risk_level": "NOMINAL"},
+        "id": "test",
+        "name": "Test",
+        "lat": 38.8,
+        "lon": -104.5,
+        "asset_type": "GPS_L1",
+        "alert_threshold": "ELEVATED",
+        "assessment": None,
+        "alert": {"active": False, "risk_level": "NOMINAL"},
     }
     xml_str = build_cot_event(loc)
     root = ET.fromstring(xml_str)
@@ -294,11 +349,15 @@ def test_cot_event_well_formed():
 def test_cot_argb_values():
     """ARGB values must be valid signed int32 in ATAK's expected range."""
     from app.outputs.cot import _RISK_ARGB
+
     for level, argb in _RISK_ARGB.items():
-        assert -(2**31) <= argb < 0, f"{level} ARGB should be negative signed int32, got {argb}"
+        assert (
+            -(2**31) <= argb < 0
+        ), f"{level} ARGB should be negative signed int32, got {argb}"
 
 
 # ── Security headers ──────────────────────────────────────────────────────────
+
 
 def test_security_headers_present():
     r = client.get("/health")

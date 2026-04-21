@@ -25,11 +25,11 @@ logger = logging.getLogger(__name__)
 # ── NOAA endpoints ────────────────────────────────────────────────────────────
 
 NOAA_ENDPOINTS: dict[str, str] = {
-    "kp":          "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",
-    "xray":        "https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json",
-    "wind":        "https://services.swpc.noaa.gov/json/solar-wind/plasma-2-hour.json",
-    "mag":         "https://services.swpc.noaa.gov/json/solar-wind/mag-2-hour.json",
-    "proton":      "https://services.swpc.noaa.gov/json/goes/primary/integral-protons-1-hour.json",
+    "kp": "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",
+    "xray": "https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json",
+    "wind": "https://services.swpc.noaa.gov/json/solar-wind/plasma-2-hour.json",
+    "mag": "https://services.swpc.noaa.gov/json/solar-wind/mag-2-hour.json",
+    "proton": "https://services.swpc.noaa.gov/json/goes/primary/integral-protons-1-hour.json",
     # 3-day Kp forecast: header row + [time_tag, kp, observed|predicted, noaa_scale] rows
     "kp_forecast": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json",
 }
@@ -38,30 +38,31 @@ NOAA_ENDPOINTS: dict[str, str] = {
 # These represent roughly median solar-minimum conditions — not worst-case,
 # not best-case. Operators should treat fallback data as less reliable.
 FALLBACK: dict[str, float] = {
-    "kp":               2.0,    # K-index (0–9 scale)
-    "xray_flux":        3e-7,   # W/m² (high-B / low-C boundary)
-    "wind_speed":       400.0,  # km/s (typical slow solar wind)
-    "wind_density":     5.0,    # cm⁻³
-    "bz":               0.0,    # nT (neutral — neither geoeffective nor protective)
-    "proton_flux_10mev": 0.1,   # pfu — background below S1 threshold (10 pfu)
+    "kp": 2.0,  # K-index (0–9 scale)
+    "xray_flux": 3e-7,  # W/m² (high-B / low-C boundary)
+    "wind_speed": 400.0,  # km/s (typical slow solar wind)
+    "wind_density": 5.0,  # cm⁻³
+    "bz": 0.0,  # nT (neutral — neither geoeffective nor protective)
+    "proton_flux_10mev": 0.1,  # pfu — background below S1 threshold (10 pfu)
 }
 
 # ── In-memory cache ──────────────────────────────────────────────────────────
 
 _cache: dict = {
-    "kp":          None,
-    "xray":        None,
-    "wind":        None,
-    "mag":         None,
-    "proton":      None,
+    "kp": None,
+    "xray": None,
+    "wind": None,
+    "mag": None,
+    "proton": None,
     "kp_forecast": None,  # NOAA 3-day Kp forecast (list with header row)
-    "last_fetch":  None,
-    "fetch_status": {},   # key → "ok" | "timeout" | "http_NNN" | "error"
+    "last_fetch": None,
+    "fetch_status": {},  # key → "ok" | "timeout" | "http_NNN" | "error"
     "fetch_source": "startup",  # "live" | "fallback" | "startup"
 }
 
 
 # ── Fetcher ──────────────────────────────────────────────────────────────────
+
 
 async def fetch_noaa(timeout: float = 10.0) -> None:
     """Fetch all NOAA endpoints. Each feed fails independently."""
@@ -93,11 +94,14 @@ async def fetch_noaa(timeout: float = 10.0) -> None:
     _cache["fetch_source"] = "live" if ok_count > 0 else "fallback"
     logger.info(
         "NOAA fetch complete: %d/%d feeds live (status: %s)",
-        ok_count, len(NOAA_ENDPOINTS), _cache["fetch_status"],
+        ok_count,
+        len(NOAA_ENDPOINTS),
+        _cache["fetch_status"],
     )
 
 
 # ── Derived value accessors ──────────────────────────────────────────────────
+
 
 def get_kp() -> float:
     """Current planetary K-index (0–9)."""
@@ -232,7 +236,7 @@ def data_age_seconds() -> int:
 def cache_snapshot() -> dict:
     """Return a read-only snapshot of cache metadata for the status endpoint."""
     return {
-        "last_fetch":   _cache["last_fetch"],
+        "last_fetch": _cache["last_fetch"],
         "fetch_source": _cache["fetch_source"],
         "fetch_status": dict(_cache["fetch_status"]),
         "data_age_seconds": data_age_seconds(),

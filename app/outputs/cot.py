@@ -34,10 +34,10 @@ def _argb(r: int, g: int, b: int) -> int:
 
 
 _RISK_ARGB: dict[str, int] = {
-    "NOMINAL":  _argb(0x10, 0xB9, 0x81),   # #10B981 green
-    "ELEVATED": _argb(0xF5, 0x9E, 0x0B),   # #F59E0B amber
-    "DEGRADED": _argb(0xF9, 0x73, 0x16),   # #F97316 orange
-    "SEVERE":   _argb(0xEF, 0x44, 0x44),   # #EF4444 red
+    "NOMINAL": _argb(0x10, 0xB9, 0x81),  # #10B981 green
+    "ELEVATED": _argb(0xF5, 0x9E, 0x0B),  # #F59E0B amber
+    "DEGRADED": _argb(0xF9, 0x73, 0x16),  # #F97316 orange
+    "SEVERE": _argb(0xEF, 0x44, 0x44),  # #EF4444 red
 }
 
 
@@ -48,6 +48,7 @@ def _cot_ts(dt: datetime) -> str:
 
 # ── Event builder ─────────────────────────────────────────────────────────────
 
+
 def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
     """
     Build a single CoT XML event string for an IonShield-monitored location.
@@ -55,19 +56,21 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
     The event UID (IONSHIELD-{id}) is stable across refreshes, so ATAK updates
     the existing marker rather than creating a duplicate.
     """
-    now   = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
     stale = now + timedelta(minutes=stale_minutes)
 
     assessment = location.get("assessment") or {}
-    a          = assessment.get("assessment") or {}
-    risk_level = location.get("alert", {}).get("risk_level") or a.get("risk_level", "NOMINAL")
+    a = assessment.get("assessment") or {}
+    risk_level = location.get("alert", {}).get("risk_level") or a.get(
+        "risk_level", "NOMINAL"
+    )
     risk_score = a.get("risk_score", 0)
-    gps_error  = a.get("gps_error_m", 0.0)
-    kp_val     = assessment.get("kp_current", "?")
+    gps_error = a.get("gps_error_m", 0.0)
+    kp_val = assessment.get("kp_current", "?")
 
-    uid      = f"IONSHIELD-{location['id']}"
-    callsign = f"IS-{location['name'][:16]}"   # ATAK callsign length limit ≈ 16-32
-    argb     = _RISK_ARGB.get(risk_level, _RISK_ARGB["NOMINAL"])
+    uid = f"IONSHIELD-{location['id']}"
+    callsign = f"IS-{location['name'][:16]}"  # ATAK callsign length limit ≈ 16-32
+    argb = _RISK_ARGB.get(risk_level, _RISK_ARGB["NOMINAL"])
 
     alert_flag = " ⚠ALERT" if location.get("alert", {}).get("active") else ""
     remarks = (
@@ -76,22 +79,29 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
         f"Asset: {location.get('asset_type', 'GPS_L1')}"
     )
 
-    event = ET.Element("event", {
-        "version": "2.0",
-        "uid":     uid,
-        "type":    _COT_TYPE,
-        "time":    _cot_ts(now),
-        "start":   _cot_ts(now),
-        "stale":   _cot_ts(stale),
-        "how":     "m-g",
-    })
-    ET.SubElement(event, "point", {
-        "lat": str(round(location["lat"], 6)),
-        "lon": str(round(location["lon"], 6)),
-        "hae": "9999999.0",
-        "ce":  "9999999.0",
-        "le":  "9999999.0",
-    })
+    event = ET.Element(
+        "event",
+        {
+            "version": "2.0",
+            "uid": uid,
+            "type": _COT_TYPE,
+            "time": _cot_ts(now),
+            "start": _cot_ts(now),
+            "stale": _cot_ts(stale),
+            "how": "m-g",
+        },
+    )
+    ET.SubElement(
+        event,
+        "point",
+        {
+            "lat": str(round(location["lat"], 6)),
+            "lon": str(round(location["lon"], 6)),
+            "hae": "9999999.0",
+            "ce": "9999999.0",
+            "le": "9999999.0",
+        },
+    )
     detail = ET.SubElement(event, "detail")
     ET.SubElement(detail, "contact", {"callsign": callsign})
     ET.SubElement(detail, "remarks").text = remarks
@@ -102,6 +112,7 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
 
 
 # ── Feed builder ──────────────────────────────────────────────────────────────
+
 
 def build_cot_feed(locations: list[dict], stale_minutes: int = 10) -> str:
     """
@@ -121,6 +132,7 @@ def build_cot_feed(locations: list[dict], stale_minutes: int = 10) -> str:
 
 
 # ── TCP push client ───────────────────────────────────────────────────────────
+
 
 async def push_cot_to_server(
     host: str,
@@ -152,7 +164,10 @@ async def push_cot_to_server(
         writer.close()
         await writer.wait_closed()
         logger.info(
-            "CoT push: sent %d event(s) to %s:%d", len(xml_events), host, port,
+            "CoT push: sent %d event(s) to %s:%d",
+            len(xml_events),
+            host,
+            port,
         )
     except asyncio.TimeoutError:
         logger.warning("CoT push: connection to %s:%d timed out", host, port)

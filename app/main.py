@@ -40,6 +40,7 @@ _STATIC_DIR = Path(__file__).parent / "static"
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 
+
 def _configure_logging() -> None:
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -57,6 +58,7 @@ logger = logging.getLogger(__name__)
 
 # ── Location + CoT helpers ───────────────────────────────────────────────────
 
+
 def _reload_locations() -> None:
     """Reload locations.json and run risk model against current NOAA data."""
     load_locations(settings.locations_file, settings.alert_threshold)
@@ -66,6 +68,7 @@ def _reload_locations() -> None:
 async def _push_cot() -> None:
     """Push CoT events for in-alert locations to the configured TAK server."""
     from app.outputs.cot import push_cot_to_server
+
     alerts = get_active_alerts()
     if alerts:
         await push_cot_to_server(
@@ -77,6 +80,7 @@ async def _push_cot() -> None:
 
 
 # ── Background refresh loop ──────────────────────────────────────────────────
+
 
 async def _refresh_loop() -> None:
     """Fetch NOAA data on a fixed interval, then reload locations. Never fatal."""
@@ -98,13 +102,17 @@ async def _refresh_loop() -> None:
 
 # ── Lifespan ─────────────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _configure_logging()
-    logger.info("IonShield v%s starting — performing initial NOAA fetch…", settings.app_version)
+    logger.info(
+        "IonShield v%s starting — performing initial NOAA fetch…", settings.app_version
+    )
     await fetch_noaa(timeout=settings.noaa_timeout_seconds)
     _reload_locations()
     from app.data.locations import location_count
+
     logger.info(
         "Initial fetch complete — %d location(s) loaded. Launching background refresh loop.",
         location_count(),
@@ -120,6 +128,7 @@ async def lifespan(app: FastAPI):
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
+
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -153,12 +162,16 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
         response = await call_next(request)
-        response.headers["X-Content-Type-Options"]  = "nosniff"
-        response.headers["X-Frame-Options"]         = "DENY"
-        response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"]      = "geolocation=(), camera=(), microphone=()"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), camera=(), microphone=()"
+        )
         # HSTS: only set when behind TLS (PaaS platforms handle TLS termination)
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         return response
 
     # Static assets (CSS, JS)

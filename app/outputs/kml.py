@@ -17,21 +17,21 @@ from app.models.risk import compute_risk, BASES
 
 # Latitude band definitions: (display_name, lat_min, lat_max, zone_type)
 LAT_BANDS: list[tuple[str, float, float, str]] = [
-    ("Polar North (>70°N)",           70,  90, "polar"),
-    ("Sub-Auroral North (55–70°N)",   55,  70, "sub-auroral"),
-    ("Mid-Latitude North (25–55°N)",  25,  55, "mid-latitude"),
-    ("Equatorial (25°S–25°N)",       -25,  25, "equatorial"),
+    ("Polar North (>70°N)", 70, 90, "polar"),
+    ("Sub-Auroral North (55–70°N)", 55, 70, "sub-auroral"),
+    ("Mid-Latitude North (25–55°N)", 25, 55, "mid-latitude"),
+    ("Equatorial (25°S–25°N)", -25, 25, "equatorial"),
     ("Mid-Latitude South (25–55°S)", -55, -25, "mid-latitude"),
-    ("Sub-Auroral South (55–70°S)",  -70, -55, "sub-auroral"),
-    ("Polar South (>70°S)",          -90, -70, "polar"),
+    ("Sub-Auroral South (55–70°S)", -70, -55, "sub-auroral"),
+    ("Polar South (>70°S)", -90, -70, "polar"),
 ]
 
 # KML colours by risk level: AABBGGRR
 _RISK_COLORS: dict[str, dict[str, str]] = {
-    "NOMINAL":   {"poly": "1400b310", "line": "4400b310"},  # green, low alpha
-    "ELEVATED":  {"poly": "1a009ef5", "line": "4d009ef5"},  # amber
-    "DEGRADED":  {"poly": "260000ee", "line": "660000ee"},  # orange-red
-    "SEVERE":    {"poly": "400000cc", "line": "990000cc"},  # deep red
+    "NOMINAL": {"poly": "1400b310", "line": "4400b310"},  # green, low alpha
+    "ELEVATED": {"poly": "1a009ef5", "line": "4d009ef5"},  # amber
+    "DEGRADED": {"poly": "260000ee", "line": "660000ee"},  # orange-red
+    "SEVERE": {"poly": "400000cc", "line": "990000cc"},  # deep red
 }
 
 
@@ -47,7 +47,7 @@ def _kml_style(style_id: str, risk_level: str) -> str:
 
 def generate_kml() -> str:
     """Build and return a complete ATAK-compatible KML document string."""
-    kp  = get_kp()
+    kp = get_kp()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Pre-compute zone risk assessments (use lon=0 for zonal average assessment)
@@ -55,8 +55,15 @@ def generate_kml() -> str:
     for name, lat_min, lat_max, ztype in LAT_BANDS:
         mid_lat = (lat_min + lat_max) / 2.0
         risk = compute_risk(mid_lat, 0.0, kp)
-        zone_risks.append({"name": name, "lat_min": lat_min, "lat_max": lat_max,
-                            "ztype": ztype, "risk": risk})
+        zone_risks.append(
+            {
+                "name": name,
+                "lat_min": lat_min,
+                "lat_max": lat_max,
+                "ztype": ztype,
+                "risk": risk,
+            }
+        )
 
     # Dynamic styles — one per zone, keyed by band index to allow different levels
     styles_kml = ""
@@ -67,8 +74,8 @@ def generate_kml() -> str:
     # Zone polygons
     zones_kml = ""
     for i, zr in enumerate(zone_risks):
-        r  = zr["risk"]
-        a  = r["assessment"]
+        r = zr["risk"]
+        a = r["assessment"]
         lat_min, lat_max = zr["lat_min"], zr["lat_max"]
         desc = (
             f"<b>IonShield Zone Assessment</b><br/>"
@@ -103,7 +110,7 @@ def generate_kml() -> str:
     bases_kml = ""
     for base in BASES:
         risk = compute_risk(base["lat"], base["lon"], kp)
-        a    = risk["assessment"]
+        a = risk["assessment"]
         watch = (" | ".join(a["watch_notes"])) if a["watch_notes"] else "None"
         desc = (
             f"<b>{base['name']}</b><br/>"
@@ -134,19 +141,19 @@ def generate_kml() -> str:
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<kml xmlns="http://www.opengis.net/kml/2.2">\n'
-        '<Document>\n'
-        f'  <name>IonShield Ionospheric Risk</name>\n'
-        f'  <description>Real-time ionospheric risk zones and installation assessments. '
-        f'Kp: {kp}. Generated: {now}. Source: NOAA SWPC + IonShield v3.</description>\n'
-        f'{styles_kml}'
-        f'  <Folder>\n'
-        f'    <name>Ionospheric Risk Zones</name>\n'
-        f'{zones_kml}'
-        f'  </Folder>\n'
-        f'  <Folder>\n'
-        f'    <name>Military Installations</name>\n'
-        f'{bases_kml}'
-        f'  </Folder>\n'
-        '</Document>\n'
-        '</kml>'
+        "<Document>\n"
+        f"  <name>IonShield Ionospheric Risk</name>\n"
+        f"  <description>Real-time ionospheric risk zones and installation assessments. "
+        f"Kp: {kp}. Generated: {now}. Source: NOAA SWPC + IonShield v3.</description>\n"
+        f"{styles_kml}"
+        f"  <Folder>\n"
+        f"    <name>Ionospheric Risk Zones</name>\n"
+        f"{zones_kml}"
+        f"  </Folder>\n"
+        f"  <Folder>\n"
+        f"    <name>Military Installations</name>\n"
+        f"{bases_kml}"
+        f"  </Folder>\n"
+        "</Document>\n"
+        "</kml>"
     )

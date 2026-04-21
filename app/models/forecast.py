@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 # ── Risk helpers ──────────────────────────────────────────────────────────────
 
+
 def _kp_to_risk(kp: float) -> str:
     if kp < 4.0:
         return "NOMINAL"
@@ -53,32 +54,33 @@ def _kp_to_risk(kp: float) -> str:
 def _kp_to_gps_impact(kp: float, risk: str) -> str:
     """GPS impact summary string keyed to risk level."""
     return {
-        "NOMINAL":  "Minimal — <3 m additional L1 error",
+        "NOMINAL": "Minimal — <3 m additional L1 error",
         "ELEVATED": "Moderate — 5–15 m additional L1 error",
         "DEGRADED": "Significant — 15–30 m L1 error; precision ops affected",
-        "SEVERE":   "Severe — >30 m L1 error; precision GPS unreliable",
+        "SEVERE": "Severe — >30 m L1 error; precision GPS unreliable",
     }[risk]
 
 
 def _kp_to_hf_impact(kp: float, risk: str) -> str:
     return {
-        "NOMINAL":  "Minimal",
+        "NOMINAL": "Minimal",
         "ELEVATED": "Possible disruption at polar/sub-auroral paths",
         "DEGRADED": "Disruption likely at high latitudes; PCA risk if SEP event",
-        "SEVERE":   "Widespread blackout likely; all high-latitude HF circuits at risk",
+        "SEVERE": "Widespread blackout likely; all high-latitude HF circuits at risk",
     }[risk]
 
 
 def _kp_to_satcom_impact(risk: str) -> str:
     return {
-        "NOMINAL":  "Minimal",
+        "NOMINAL": "Minimal",
         "ELEVATED": "Minor scintillation possible (Ku/Ka GEO)",
         "DEGRADED": "Moderate fading expected on Ku/Ka GEO links",
-        "SEVERE":   "Strong fading; link outage possible on Ku/Ka GEO",
+        "SEVERE": "Strong fading; link outage possible on Ku/Ka GEO",
     }[risk]
 
 
 # ── NOAA forecast parser ──────────────────────────────────────────────────────
+
 
 def parse_kp_forecast(raw: list) -> list[dict]:
     """
@@ -102,15 +104,17 @@ def parse_kp_forecast(raw: list) -> list[dict]:
             time_str = str(row[0]).strip().replace(" ", "T")
             if "+" not in time_str and not time_str.endswith("Z"):
                 time_str += "+00:00"
-            ts  = datetime.fromisoformat(time_str)
-            kp  = round(float(row[1]), 2)
+            ts = datetime.fromisoformat(time_str)
+            kp = round(float(row[1]), 2)
             is_forecast = str(row[2]).strip().lower() in ("predicted", "estimated")
-            entries.append({
-                "time":       ts,
-                "kp":         kp,
-                "type":       "forecast" if is_forecast else "observed",
-                "risk_level": _kp_to_risk(kp),
-            })
+            entries.append(
+                {
+                    "time": ts,
+                    "kp": kp,
+                    "type": "forecast" if is_forecast else "observed",
+                    "risk_level": _kp_to_risk(kp),
+                }
+            )
         except (ValueError, TypeError, IndexError) as exc:
             logger.debug("parse_kp_forecast: skipping row %s — %s", row, exc)
 
@@ -118,6 +122,7 @@ def parse_kp_forecast(raw: list) -> list[dict]:
 
 
 # ── 1-minute Kp trend extrapolation ──────────────────────────────────────────
+
 
 def compute_kp_trend_1h() -> Optional[float]:
     """
@@ -150,11 +155,11 @@ def compute_kp_trend_1h() -> Optional[float]:
     if len(vals) < 5:
         return None
 
-    n      = len(vals)
+    n = len(vals)
     x_mean = (n - 1) / 2.0
     y_mean = sum(vals) / n
-    numer  = sum((i - x_mean) * (vals[i] - y_mean) for i in range(n))
-    denom  = sum((i - x_mean) ** 2 for i in range(n))
+    numer = sum((i - x_mean) * (vals[i] - y_mean) for i in range(n))
+    denom = sum((i - x_mean) ** 2 for i in range(n))
 
     slope = numer / denom if abs(denom) > 1e-9 else 0.0  # Kp / minute
     kp_1h = vals[-1] + slope * 60.0
@@ -163,7 +168,10 @@ def compute_kp_trend_1h() -> Optional[float]:
 
 # ── Window builder ────────────────────────────────────────────────────────────
 
-def _window_kp(entries: list[dict], t_start: datetime, t_end: datetime) -> Optional[float]:
+
+def _window_kp(
+    entries: list[dict], t_start: datetime, t_end: datetime
+) -> Optional[float]:
     """Mean Kp for entries whose timestamps fall in [t_start, t_end)."""
     window = [e["kp"] for e in entries if t_start <= e["time"] < t_end]
     if window:
@@ -176,18 +184,19 @@ def _window_kp(entries: list[dict], t_start: datetime, t_end: datetime) -> Optio
 def _build_window(label: str, horizon_h: float, kp: float, source: str) -> dict:
     risk = _kp_to_risk(kp)
     return {
-        "label":          label,
-        "horizon_h":      horizon_h,
-        "kp_forecast":    kp,
-        "risk_level":     risk,
-        "gps_impact":     _kp_to_gps_impact(kp, risk),
-        "hf_impact":      _kp_to_hf_impact(kp, risk),
-        "satcom_impact":  _kp_to_satcom_impact(risk),
-        "source":         source,
+        "label": label,
+        "horizon_h": horizon_h,
+        "kp_forecast": kp,
+        "risk_level": risk,
+        "gps_impact": _kp_to_gps_impact(kp, risk),
+        "hf_impact": _kp_to_hf_impact(kp, risk),
+        "satcom_impact": _kp_to_satcom_impact(risk),
+        "source": source,
     }
 
 
 # ── Outlook text generator ────────────────────────────────────────────────────
+
 
 def _outlook_text(
     current_kp: float,
@@ -208,20 +217,20 @@ def _outlook_text(
 
     if max_kp_72h >= 7:
         severity = f"G{g_level} geomagnetic storm"
-        impact   = (
+        impact = (
             "Significant GPS degradation expected at all latitudes. "
             "HF blackout likely at high latitudes. "
             "GPS-dependent operations should be delayed or augmented with INS backup."
         )
     elif max_kp_72h >= 5:
         severity = "G1 storm conditions"
-        impact   = (
+        impact = (
             "Elevated GPS error (5–15 m L1) and HF disruption at high latitudes. "
             "Monitor conditions; activate backup navigation if precision is critical."
         )
     else:
         severity = "Active geomagnetic conditions"
-        impact   = "Minor GPS degradation possible. Standard precautions advised."
+        impact = "Minor GPS degradation possible. Standard precautions advised."
 
     if peak_time:
         dt_h = (peak_time - now).total_seconds() / 3600.0
@@ -240,6 +249,7 @@ def _outlook_text(
 
 # ── Master forecast builder ───────────────────────────────────────────────────
 
+
 def build_forecast() -> dict:
     """
     Build the complete IonShield forecast response.
@@ -247,8 +257,8 @@ def build_forecast() -> dict:
     Combines the NOAA 3-day Kp forecast with a 1-hour trend estimate derived
     from real-time 1-minute Kp observations.
     """
-    now        = datetime.now(timezone.utc)
-    raw        = noaa_cache.get("kp_forecast")
+    now = datetime.now(timezone.utc)
+    raw = noaa_cache.get("kp_forecast")
     current_kp = get_kp()
 
     # Parse NOAA forecast
@@ -256,8 +266,7 @@ def build_forecast() -> dict:
 
     # Split observed (past) and forecast (future) by type label, then by time
     forecast_entries = [
-        e for e in all_entries
-        if e["type"] == "forecast" or e["time"] > now
+        e for e in all_entries if e["type"] == "forecast" or e["time"] > now
     ]
     if not forecast_entries:
         forecast_entries = [e for e in all_entries if e["time"] > now]
@@ -265,33 +274,35 @@ def build_forecast() -> dict:
     has_noaa = len(forecast_entries) > 0
 
     # ── 1h trend ──────────────────────────────────────────────────────────
-    kp_1h      = compute_kp_trend_1h()
+    kp_1h = compute_kp_trend_1h()
     kp_1h_risk = _kp_to_risk(kp_1h) if kp_1h is not None else _kp_to_risk(current_kp)
 
     # ── Operational time windows ──────────────────────────────────────────
     windows: list[dict] = []
 
     # 1-hour trend (sub-NOAA resolution, estimated)
-    windows.append(_build_window(
-        label     = "Next 1h",
-        horizon_h = 1.0,
-        kp        = kp_1h if kp_1h is not None else current_kp,
-        source    = "[ESTIMATED] Linear trend from 1-min Kp data",
-    ))
+    windows.append(
+        _build_window(
+            label="Next 1h",
+            horizon_h=1.0,
+            kp=kp_1h if kp_1h is not None else current_kp,
+            source="[ESTIMATED] Linear trend from 1-min Kp data",
+        )
+    )
 
     # NOAA 3-hour windows (official)
     noaa_source = "NOAA SWPC 3-day Kp forecast"
     for label, h0, h1 in [
-        ("0–3h",   0,  3),
-        ("3–6h",   3,  6),
-        ("6–12h",  6, 12),
+        ("0–3h", 0, 3),
+        ("3–6h", 3, 6),
+        ("6–12h", 6, 12),
         ("12–24h", 12, 24),
         ("24–48h", 24, 48),
         ("48–72h", 48, 72),
     ]:
-        t0  = now + timedelta(hours=h0)
-        t1  = now + timedelta(hours=h1)
-        kp  = _window_kp(forecast_entries, t0, t1) or current_kp
+        t0 = now + timedelta(hours=h0)
+        t1 = now + timedelta(hours=h1)
+        kp = _window_kp(forecast_entries, t0, t1) or current_kp
         windows.append(_build_window(label, h1, kp, noaa_source))
 
     # ── Summary statistics ────────────────────────────────────────────────
@@ -305,23 +316,22 @@ def build_forecast() -> dict:
     max_kp_24h = round(max(kps_24h), 1) if kps_24h else current_kp
 
     peak_entry = max(future_72h, key=lambda e: e["kp"], default=None)
-    peak_time  = peak_entry["time"] if peak_entry else None
+    peak_time = peak_entry["time"] if peak_entry else None
     hours_to_peak = (
-        round((peak_time - now).total_seconds() / 3600, 1)
-        if peak_time else None
+        round((peak_time - now).total_seconds() / 3600, 1) if peak_time else None
     )
 
-    storm_watch   = max_kp_72h >= 5.0
+    storm_watch = max_kp_72h >= 5.0
     storm_warning = max_kp_72h >= 7.0
-    storm_level   = f"G{min(5, int(max_kp_72h) - 4)}" if max_kp_72h >= 5 else None
+    storm_level = f"G{min(5, int(max_kp_72h) - 4)}" if max_kp_72h >= 5 else None
 
     # ── Timeline (past 24h observed + next 72h forecast) ──────────────────
     t_start = now - timedelta(hours=24)
     timeline = [
         {
-            "time":       e["time"].isoformat(),
-            "kp":         e["kp"],
-            "type":       e["type"],
+            "time": e["time"].isoformat(),
+            "kp": e["kp"],
+            "type": e["type"],
             "risk_level": e["risk_level"],
         }
         for e in all_entries
@@ -335,34 +345,40 @@ def build_forecast() -> dict:
             default=now + timedelta(hours=24),
         )
         if nearest_future > now + timedelta(hours=2):
-            timeline.append({
-                "time":       (now + timedelta(hours=1)).isoformat(),
-                "kp":         kp_1h,
-                "type":       "trend_estimate",
-                "risk_level": kp_1h_risk,
-            })
+            timeline.append(
+                {
+                    "time": (now + timedelta(hours=1)).isoformat(),
+                    "kp": kp_1h,
+                    "type": "trend_estimate",
+                    "risk_level": kp_1h_risk,
+                }
+            )
             timeline.sort(key=lambda x: x["time"])
 
     return {
-        "generated":        now.isoformat(),
-        "current_kp":       round(current_kp, 1),
-        "kp_trend_1h":      kp_1h,
+        "generated": now.isoformat(),
+        "current_kp": round(current_kp, 1),
+        "kp_trend_1h": kp_1h,
         "kp_trend_1h_risk": kp_1h_risk,
-        "forecast_source":  noaa_source if has_noaa else "fallback (NOAA forecast unavailable)",
+        "forecast_source": noaa_source
+        if has_noaa
+        else "fallback (NOAA forecast unavailable)",
         "data_age_seconds": data_age_seconds(),
         "summary": {
-            "max_kp_24h":    max_kp_24h,
-            "max_kp_72h":    max_kp_72h,
-            "max_risk_24h":  _kp_to_risk(max_kp_24h),
-            "max_risk_72h":  _kp_to_risk(max_kp_72h),
-            "peak_kp":       max_kp_72h,
-            "peak_time":     peak_time.isoformat() if peak_time else None,
+            "max_kp_24h": max_kp_24h,
+            "max_kp_72h": max_kp_72h,
+            "max_risk_24h": _kp_to_risk(max_kp_24h),
+            "max_risk_72h": _kp_to_risk(max_kp_72h),
+            "peak_kp": max_kp_72h,
+            "peak_time": peak_time.isoformat() if peak_time else None,
             "hours_to_peak": hours_to_peak,
-            "storm_watch":   storm_watch,
+            "storm_watch": storm_watch,
             "storm_warning": storm_warning,
-            "storm_level":   storm_level,
-            "outlook_text":  _outlook_text(current_kp, max_kp_24h, max_kp_72h, peak_time, now),
+            "storm_level": storm_level,
+            "outlook_text": _outlook_text(
+                current_kp, max_kp_24h, max_kp_72h, peak_time, now
+            ),
         },
-        "windows":  windows,
+        "windows": windows,
         "timeline": timeline,
     }

@@ -1,6 +1,7 @@
 """
 IonShield configuration — all values configurable via environment variables or .env file.
 """
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -46,8 +47,8 @@ class Settings(BaseSettings):
     # Set COT_SERVER_HOST to enable background CoT push to a TAK server.
     # Leave empty to disable (pull endpoint /overlay/ionshield.cot always works).
     cot_server_host: str = ""
-    cot_server_port: int = 8087   # standard TAK server TCP CoT port
-    cot_stale_minutes: int = 10   # CoT event stale time
+    cot_server_port: int = 8087  # standard TAK server TCP CoT port
+    cot_stale_minutes: int = 10  # CoT event stale time
 
     @property
     def cot_push_enabled(self) -> bool:
