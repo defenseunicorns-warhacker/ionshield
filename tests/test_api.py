@@ -209,7 +209,7 @@ def test_locations_shape_when_populated(tmp_path, monkeypatch):
     assert r.status_code == 200
     data = r.json()
     assert data["count"] >= 1
-    loc = next((l for l in data["locations"] if l["id"] == "test_site"), None)
+    loc = next((item for item in data["locations"] if item["id"] == "test_site"), None)
     assert loc is not None
     assert "assessment" in loc
     assert "alert" in loc
