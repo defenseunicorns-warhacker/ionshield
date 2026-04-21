@@ -35,6 +35,5 @@ USER appuser
 
 EXPOSE 8000
 
-# Use exec form so uvicorn receives SIGTERM directly (clean shutdown)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--log-config", "/dev/null"]
+# Shell form so $PORT is expanded at runtime (Railway injects PORT automatically)
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
