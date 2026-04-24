@@ -26,7 +26,7 @@ from app.data.noaa import (
     get_xray_class,
     get_proton_flux_10mev,
 )
-from app.models.risk import compute_risk
+from app.models.risk import compute_risk, compute_hf_link
 from app.models.schemas import RouteRequest
 from app.outputs.geojson import generate_geojson
 from app.outputs.kml import generate_kml
@@ -58,6 +58,27 @@ def verify_api_key(request: Request) -> None:
 _auth = Depends(verify_api_key)
 
 
+# ── Data freshness helper ────────────────────────────────────────────────────
+
+
+def _confidence(age_seconds: int) -> float:
+    """
+    Data confidence score based on cache age.
+
+    1.0 — fresh  (< 5 min)   live NOAA data, fully trustworthy
+    0.7 — recent (< 15 min)  one refresh cycle missed
+    0.4 — stale  (< 1 hour)  multiple missed refreshes; use with caution
+    0.2 — old    (≥ 1 hour)  significantly degraded; treat as indicative only
+    """
+    if age_seconds < 300:
+        return 1.0
+    if age_seconds < 900:
+        return 0.7
+    if age_seconds < 3600:
+        return 0.4
+    return 0.2
+
+
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 
@@ -87,6 +108,7 @@ async def api_status(request: Request, _: None = _auth):
         global_risk = "SEVERE"
 
     snap = cache_snapshot()
+    age = snap["data_age_seconds"]
     return {
         "ionshield_version": settings.app_version,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -100,7 +122,8 @@ async def api_status(request: Request, _: None = _auth):
         "global_risk_level": global_risk,
         "data_source": "NOAA SWPC",
         "last_fetch": snap["last_fetch"],
-        "data_age_seconds": snap["data_age_seconds"],
+        "data_age_seconds": age,
+        "confidence": _confidence(age),
         "fetch_source": snap["fetch_source"],
         "feed_status": snap["fetch_status"],
     }
@@ -119,7 +142,9 @@ async def risk_location(
     _: None = _auth,
 ):
     """Full operational risk assessment for a single geographic point."""
-    return compute_risk(lat, lon, asset_type=asset_type)
+    result = compute_risk(lat, lon, asset_type=asset_type)
+    result["confidence"] = _confidence(result["data_age_seconds"])
+    return result
 
 
 @router.post("/api/risk/route")
@@ -192,6 +217,8 @@ async def risk_route(request: Request, req: RouteRequest, _: None = _auth):
     else:
         route_rec = "GO — All waypoints nominal. Standard operations."
 
+    snap = cache_snapshot()
+    age = snap["data_age_seconds"]
     return {
         "route_summary": {
             "total_waypoints": len(results),
@@ -206,6 +233,8 @@ async def risk_route(request: Request, req: RouteRequest, _: None = _auth):
         "kp_current": round(kp, 1),
         "bz_current_nt": round(get_bz(), 1),
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "data_age_seconds": age,
+        "confidence": _confidence(age),
     }
 
 
@@ -227,13 +256,68 @@ async def api_forecast(request: Request, _: None = _auth):
     from app.models.forecast import build_forecast
 
     try:
-        return build_forecast()
+        result = build_forecast()
+        snap = cache_snapshot()
+        age = snap["data_age_seconds"]
+        result["data_age_seconds"] = age
+        result["confidence"] = _confidence(age)
+        return result
     except Exception as exc:
         logger.error("Forecast generation failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Forecast generation failed. Check server logs.",
         )
+
+
+@router.get("/api/hf-link")
+@limiter.limit(settings.rate_limit)
+async def hf_link(
+    request: Request,
+    lat: float = Query(
+        ..., ge=-90, le=90, description="Observer latitude (decimal degrees)"
+    ),
+    lon: float = Query(
+        ..., ge=-180, le=180, description="Observer longitude (decimal degrees)"
+    ),
+    dest_lat: float | None = Query(
+        default=None,
+        ge=-90,
+        le=90,
+        description="Link destination latitude (defaults to lat)",
+    ),
+    dest_lon: float | None = Query(
+        default=None,
+        ge=-180,
+        le=180,
+        description="Link destination longitude (defaults to lon)",
+    ),
+    _: None = _auth,
+):
+    """
+    HF radio link reliability by frequency band.
+
+    Returns D-layer absorption and reliability estimates for 8 HF bands
+    (4–28 MHz), ranked best to worst. Accounts for solar X-ray flare
+    enhancement, dayside/nightside D-layer asymmetry, and Polar Cap
+    Absorption (PCA) for high-latitude paths (|lat| > 65°).
+
+    Use case: an aviation dispatcher enters the aircraft's current position
+    and next waypoint — the endpoint returns a ranked frequency table and
+    a plain-English recommendation ("Use 14 MHz. Avoid 5–10 MHz.").
+    """
+    kp = get_kp()
+    logger.info(
+        "HF link assessed: origin=(%.3f, %.3f) dest=(%.3f, %.3f) Kp=%.1f",
+        lat,
+        lon,
+        dest_lat if dest_lat is not None else lat,
+        dest_lon if dest_lon is not None else lon,
+        kp,
+    )
+    result = compute_hf_link(lat, lon, dest_lat, dest_lon)
+    result["confidence"] = _confidence(result["data_age_seconds"])
+    return result
 
 
 @router.get("/overlay/risk.kml")

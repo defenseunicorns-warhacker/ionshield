@@ -422,6 +422,152 @@ def compute_radar_impact(kp: float, s4: float, lat: float) -> dict:
     }
 
 
+# ── HF link frequency assessment ─────────────────────────────────────────────
+
+HF_BANDS_MHZ: list[float] = [4.0, 5.0, 7.5, 10.0, 14.5, 18.0, 21.0, 28.0]
+
+
+def compute_hf_link(
+    lat: float,
+    lon: float,
+    dest_lat: float | None = None,
+    dest_lon: float | None = None,
+    kp: float | None = None,
+    bz: float | None = None,
+    xray_flux: float | None = None,
+    proton_flux: float | None = None,
+) -> dict:
+    """
+    HF radio link reliability assessment across 8 major frequency bands.
+
+    Models D-layer absorption using a CCIR-888 approximation scaled per band.
+    Accounts for dayside/nightside asymmetry, solar X-ray flare enhancement,
+    and Polar Cap Absorption (PCA) for high-latitude paths (|lat| > 65°).
+
+    Frequency-absorption relationship: A ∝ Kp × 15 / f^1.5 (CCIR-888).
+    Higher frequencies suffer less D-layer absorption and are generally
+    preferred during disturbed conditions, subject to MUF constraints.
+
+    Override params (kp, bz, xray_flux, proton_flux) allow offline validation
+    with hardcoded historical data without touching the NOAA cache.
+    When None, live values from the NOAA cache are used.
+    """
+    # Live NOAA data — or caller-supplied overrides for validation
+    kp_val = kp if kp is not None else get_kp()
+    bz_val = bz if bz is not None else get_bz()
+    xray_val = xray_flux if xray_flux is not None else get_xray_flux()
+    proton_val = proton_flux if proton_flux is not None else get_proton_flux_10mev()
+
+    # Path midpoint (defaults to point assessment when no dest supplied)
+    eff_dest_lat = dest_lat if dest_lat is not None else lat
+    eff_dest_lon = dest_lon if dest_lon is not None else lon
+    mid_lat = (lat + eff_dest_lat) / 2.0
+    mid_lon = (lon + eff_dest_lon) / 2.0
+
+    # Solar zenith at midpoint — equinox approximation (declination = 0)
+    # solar_zenith = arccos(sin(lat)*sin(0) + cos(lat)*cos(0)*cos(hour_angle))
+    #              = arccos(cos(lat)*cos(hour_angle))
+    utc_hour = datetime.now(timezone.utc).hour
+    local_hour = (utc_hour + mid_lon / 15.0) % 24.0
+    hour_angle_rad = math.radians((local_hour - 12.0) * 15.0)
+    lat_rad = math.radians(mid_lat)
+    cos_sza = math.cos(lat_rad) * math.cos(hour_angle_rad)
+    cos_sza = max(-1.0, min(1.0, cos_sza))
+    solar_zenith_deg = math.degrees(math.acos(cos_sza))
+    is_dayside = solar_zenith_deg < 90.0
+
+    # Polar Cap Absorption: same condition applies to every band
+    pca_active = proton_val > 10.0 and abs(mid_lat) > 65.0
+
+    # Per-band computation
+    bands: list[dict] = []
+    for freq in HF_BANDS_MHZ:
+        # Base D-layer absorption (CCIR-888 approximation)
+        a_base = kp_val * (15.0 / freq**1.5)
+
+        # X-ray solar flare enhancement (dayside SID)
+        if xray_val > 1e-4:  # X1+
+            a_base *= 3.0
+        elif xray_val > 1e-5:  # M1+
+            a_base *= 1.5
+
+        # D-layer collapses on nightside
+        if not is_dayside:
+            a_base *= 0.1
+
+        # PCA amplifies absorption significantly at high latitudes
+        if pca_active:
+            a_base *= 3.0
+
+        absorption_db = max(0.0, round(a_base, 1))
+        reliability_pct = max(0, min(100, round(100 - absorption_db * 5)))
+        viable = reliability_pct >= 25
+
+        bands.append(
+            {
+                "freq_mhz": freq,
+                "absorption_db": absorption_db,
+                "reliability_pct": reliability_pct,
+                "viable": viable,
+            }
+        )
+
+    # Sort best → worst
+    bands.sort(key=lambda x: x["reliability_pct"], reverse=True)
+
+    viable_bands = [b for b in bands if b["viable"]]
+    not_viable = [b for b in bands if not b["viable"]]
+    bad_freq_str = ", ".join(f"{b['freq_mhz']} MHz" for b in not_viable)
+    blackout_risk = pca_active or len(viable_bands) == 0
+
+    if not viable_bands:
+        recommendation = "HF NOT VIABLE — use SATCOM or UHF backup."
+        best_freq_mhz: float | None = None
+        best_rel = 0
+    elif viable_bands[0]["reliability_pct"] < 50:
+        best = viable_bands[0]
+        best_freq_mhz = best["freq_mhz"]
+        best_rel = best["reliability_pct"]
+        recommendation = (
+            f"HF marginal. Best: {best_freq_mhz} MHz ({best_rel}% reliable). "
+            "Verify link before relying on it."
+        )
+    else:
+        best = viable_bands[0]
+        best_freq_mhz = best["freq_mhz"]
+        best_rel = best["reliability_pct"]
+        if bad_freq_str:
+            recommendation = (
+                f"Use {best_freq_mhz} MHz ({best_rel}% reliable). Avoid {bad_freq_str}."
+            )
+        else:
+            recommendation = (
+                f"Use {best_freq_mhz} MHz ({best_rel}% reliable). All bands viable."
+            )
+
+    return {
+        "link_summary": {
+            "best_frequency_mhz": best_freq_mhz,
+            "best_reliability_pct": best_rel,
+            "viable_count": len(viable_bands),
+            "blackout_risk": blackout_risk,
+            "recommendation": recommendation,
+            "pca_active": pca_active,
+        },
+        "frequencies": bands,
+        "conditions": {
+            "kp": round(kp_val, 1),
+            "bz_nt": round(bz_val, 1),
+            "is_dayside": is_dayside,
+            "solar_zenith_deg": round(solar_zenith_deg, 1),
+            "midpoint_lat": round(mid_lat, 3),
+            "midpoint_lon": round(mid_lon, 3),
+        },
+        "data_age_seconds": data_age_seconds(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 # ── Master risk computation ──────────────────────────────────────────────────
 
 
