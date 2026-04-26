@@ -298,7 +298,7 @@ async def route_decision(
     """
     if len(req.waypoints) > settings.max_route_waypoints:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Route exceeds maximum of {settings.max_route_waypoints} waypoints.",
         )
 
@@ -452,7 +452,7 @@ async def _locate_snapshot(snapshot_id: int | None, at: str | None):
             at_dt = datetime.fromisoformat(at.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid ISO-8601 timestamp: {at!r}",
             )
     else:
@@ -578,7 +578,7 @@ async def replay_route(
     """
     if len(req.waypoints) > settings.max_route_waypoints:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Route exceeds maximum of {settings.max_route_waypoints} waypoints.",
         )
 
