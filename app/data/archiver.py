@@ -123,9 +123,7 @@ def snapshot_row_to_env(row: Any) -> EnvironmentSnapshot:
 
     fetched_at = row.fetched_at
     fetched_at_iso = (
-        fetched_at.isoformat()
-        if hasattr(fetched_at, "isoformat")
-        else str(fetched_at)
+        fetched_at.isoformat() if hasattr(fetched_at, "isoformat") else str(fetched_at)
     )
     age = int(row.data_age_seconds or 0)
 
@@ -173,9 +171,7 @@ def snapshot_row_to_env(row: Any) -> EnvironmentSnapshot:
         feeds_unavailable=feeds_unavailable,
         observations=observations,
         kp_forecast_24h=(
-            float(row.kp_forecast_24h)
-            if row.kp_forecast_24h is not None
-            else None
+            float(row.kp_forecast_24h) if row.kp_forecast_24h is not None else None
         ),
     )
 

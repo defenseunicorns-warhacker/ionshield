@@ -22,6 +22,7 @@ def reset_contact_rate_limit():
     same 'testclient' IP address.
     """
     from app.api.routes_v2 import _limiter
+
     try:
         _limiter._storage.reset()
     except Exception:
@@ -32,15 +33,16 @@ def reset_contact_rate_limit():
 # ── Helper payloads ───────────────────────────────────────────────────────────
 
 VALID = {
-    "org":      "USSOCOM",
-    "email":    "j.test@agency.mil",
-    "sector":   "Defense / Military",
+    "org": "USSOCOM",
+    "email": "j.test@agency.mil",
+    "sector": "Defense / Military",
     "interest": "GPS-degraded route planning for MRAP convoys.",
-    "website":  "",   # honeypot empty
+    "website": "",  # honeypot empty
 }
 
 
 # ── POST /api/v2/contact — happy path ────────────────────────────────────────
+
 
 def test_contact_valid_submission():
     r = client.post("/api/v2/contact", json=VALID)
@@ -64,13 +66,15 @@ def test_contact_all_optional_fields_populated():
 
 # ── Honeypot ──────────────────────────────────────────────────────────────────
 
+
 def test_contact_honeypot_returns_201_silently():
     """Bots filling the hidden 'website' field should receive 201 (no rejection hint)."""
     r = client.post("/api/v2/contact", json={**VALID, "website": "http://spam.example"})
-    assert r.status_code == 201   # silent accept — no 400/422 that would reveal honeypot
+    assert r.status_code == 201  # silent accept — no 400/422 that would reveal honeypot
 
 
 # ── Validation failures ───────────────────────────────────────────────────────
+
 
 def test_contact_missing_org():
     r = client.post("/api/v2/contact", json={**VALID, "org": ""})
@@ -103,6 +107,7 @@ def test_contact_interest_too_long():
 
 
 # ── GET /api/v2/submissions ───────────────────────────────────────────────────
+
 
 def test_submissions_returns_list():
     # Submit one first so the list is non-empty
@@ -139,7 +144,9 @@ def test_submissions_pagination():
 
 
 def test_submissions_honeypot_rows_marked_spam():
-    client.post("/api/v2/contact", json={**VALID, "org": "SpamBot", "website": "http://x.com"})
+    client.post(
+        "/api/v2/contact", json={**VALID, "org": "SpamBot", "website": "http://x.com"}
+    )
     r = client.get("/api/v2/submissions")
     rows = r.json()["submissions"]
     spam_rows = [row for row in rows if row["org"] == "SpamBot"]

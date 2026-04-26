@@ -30,12 +30,14 @@ logger = logging.getLogger(__name__)
 
 # ── IP hashing ────────────────────────────────────────────────────────────────
 
+
 def _hash_ip(ip: str) -> str:
     """One-way SHA-256 hash of a raw IP address string."""
     return hashlib.sha256(ip.encode()).hexdigest()
 
 
 # ── DB save ───────────────────────────────────────────────────────────────────
+
 
 async def save_inquiry(
     *,
@@ -55,14 +57,14 @@ async def save_inquiry(
     async with engine.begin() as conn:
         result = await conn.execute(
             pilot_inquiries.insert().values(
-                created_at  = datetime.now(timezone.utc),
-                org         = org[:500],
-                email       = email[:254],
-                sector      = sector[:100],
-                interest    = interest[:4000],
-                ip_hash     = _hash_ip(client_ip),
-                email_sent  = 0,
-                status      = status,
+                created_at=datetime.now(timezone.utc),
+                org=org[:500],
+                email=email[:254],
+                sector=sector[:100],
+                interest=interest[:4000],
+                ip_hash=_hash_ip(client_ip),
+                email_sent=0,
+                status=status,
             )
         )
         return result.inserted_primary_key[0]
@@ -98,18 +100,18 @@ async def list_inquiries(limit: int = 50, offset: int = 0) -> list[dict]:
 
     return [
         {
-            "id":         r["id"],
+            "id": r["id"],
             "created_at": (
                 r["created_at"].isoformat()
                 if hasattr(r["created_at"], "isoformat")
                 else str(r["created_at"])
             ),
-            "org":        r["org"],
-            "email":      r["email"],
-            "sector":     r["sector"],
-            "interest":   r["interest"],
+            "org": r["org"],
+            "email": r["email"],
+            "sector": r["sector"],
+            "interest": r["interest"],
             "email_sent": bool(r["email_sent"]),
-            "status":     r["status"],
+            "status": r["status"],
             # ip_hash intentionally excluded from API responses
         }
         for r in rows
@@ -128,6 +130,7 @@ async def count_inquiries() -> int:
 
 
 # ── Email delivery ────────────────────────────────────────────────────────────
+
 
 async def send_inquiry_email(
     *,
@@ -152,8 +155,8 @@ async def send_inquiry_email(
 
         msg = EmailMessage()
         msg["Subject"] = f"[IonShield Pilot Inquiry] {org}"
-        msg["From"]    = settings.smtp_from_email
-        msg["To"]      = settings.contact_to_email
+        msg["From"] = settings.smtp_from_email
+        msg["To"] = settings.contact_to_email
         msg["Reply-To"] = email
 
         body = (
@@ -173,12 +176,12 @@ async def send_inquiry_email(
 
         await aiosmtplib.send(
             msg,
-            hostname  = settings.smtp_host,
-            port      = settings.smtp_port,
-            username  = settings.smtp_username,
-            password  = settings.smtp_password.get_secret_value(),
-            start_tls = settings.smtp_tls,
-            timeout   = 10,
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+            username=settings.smtp_username,
+            password=settings.smtp_password.get_secret_value(),
+            start_tls=settings.smtp_tls,
+            timeout=10,
         )
         return True
 

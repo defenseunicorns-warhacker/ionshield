@@ -38,8 +38,8 @@ from app.data.db import init_db
 from app.data.locations import assess_all, get_active_alerts, load_locations
 from app.data.noaa import fetch_noaa, get_kp
 
-_STATIC_DIR   = Path(__file__).parent / "static"
-_PAGES_DIR    = Path(__file__).parent / "pages"
+_STATIC_DIR = Path(__file__).parent / "static"
+_PAGES_DIR = Path(__file__).parent / "pages"
 
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -191,26 +191,33 @@ def create_app() -> FastAPI:
         """Helper: return a FileResponse for a marketing page."""
         return FileResponse(_PAGES_DIR / name, media_type="text/html")
 
-    @app.get("/",            include_in_schema=False)
-    async def marketing():                    return _page("index.html")
+    @app.get("/", include_in_schema=False)
+    async def marketing():
+        return _page("index.html")
 
-    @app.get("/features",    include_in_schema=False)
-    async def mkt_features():                 return _page("features.html")
+    @app.get("/features", include_in_schema=False)
+    async def mkt_features():
+        return _page("features.html")
 
-    @app.get("/demo",        include_in_schema=False)
-    async def mkt_demo():                     return _page("demo.html")
+    @app.get("/demo", include_in_schema=False)
+    async def mkt_demo():
+        return _page("demo.html")
 
-    @app.get("/use-cases",   include_in_schema=False)
-    async def mkt_use_cases():                return _page("use-cases.html")
+    @app.get("/use-cases", include_in_schema=False)
+    async def mkt_use_cases():
+        return _page("use-cases.html")
 
-    @app.get("/docs",        include_in_schema=False)
-    async def mkt_docs():                     return _page("docs.html")
+    @app.get("/docs", include_in_schema=False)
+    async def mkt_docs():
+        return _page("docs.html")
 
-    @app.get("/pricing",     include_in_schema=False)
-    async def mkt_pricing():                  return _page("pricing.html")
+    @app.get("/pricing", include_in_schema=False)
+    async def mkt_pricing():
+        return _page("pricing.html")
 
-    @app.get("/compliance",  include_in_schema=False)
-    async def mkt_compliance():               return _page("compliance.html")
+    @app.get("/compliance", include_in_schema=False)
+    async def mkt_compliance():
+        return _page("compliance.html")
 
     # ── 3D Dashboard ──────────────────────────────────────────────────────────
     @app.get("/dashboard", include_in_schema=False)
@@ -225,14 +232,22 @@ def create_app() -> FastAPI:
             "Allow: /\n"
             "Disallow: /api/\n"
             "Disallow: /static/\n"
-            f"Sitemap: https://ionshield.io/sitemap.xml\n"
+            "Sitemap: https://ionshield.io/sitemap.xml\n"
         )
         return Response(content, media_type="text/plain")
 
     @app.get("/sitemap.xml", include_in_schema=False)
     async def sitemap():
         base = "https://ionshield.io"
-        urls = ["/", "/features", "/demo", "/use-cases", "/docs", "/pricing", "/compliance"]
+        urls = [
+            "/",
+            "/features",
+            "/demo",
+            "/use-cases",
+            "/docs",
+            "/pricing",
+            "/compliance",
+        ]
         loc_tags = "\n".join(
             f"  <url><loc>{base}{u}</loc><changefreq>weekly</changefreq></url>"
             for u in urls
@@ -240,7 +255,8 @@ def create_app() -> FastAPI:
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-            + loc_tags + "\n</urlset>"
+            + loc_tags
+            + "\n</urlset>"
         )
         return Response(xml, media_type="application/xml")
 

@@ -68,12 +68,12 @@ class Settings(BaseSettings):
     #   SendGrid SMTP:  host=smtp.sendgrid.net  port=587  user=apikey  pass=<SG.key>
     #   AWS SES SMTP:   host=email-smtp.<region>.amazonaws.com  port=587
     #   Gmail/GSuite:   host=smtp.gmail.com  port=587  (use App Password)
-    smtp_host:       str       = ""
-    smtp_port:       int       = 587
-    smtp_username:   str       = ""
-    smtp_password:   SecretStr = SecretStr("")
-    smtp_from_email: str       = "noreply@ionshield.io"
-    smtp_tls:        bool      = True   # STARTTLS on port 587
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    smtp_from_email: str = "noreply@ionshield.io"
+    smtp_tls: bool = True  # STARTTLS on port 587
 
     # Where pilot inquiry notifications are delivered
     contact_to_email: str = "pilots@ionshield.io"

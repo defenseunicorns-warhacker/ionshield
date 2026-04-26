@@ -44,9 +44,10 @@ htmlcov/
 .claude/
 
 # Generated frontend build artifacts (rebuilt by Docker / npm run build)
+# index.html is NOT excluded — a stub is committed so pytest /dashboard returns 200.
+# The Docker multi-stage build overwrites it with the real Vite output.
 app/static/assets/
 app/static/cesium/
-app/static/index.html
 
 # SQLite database (ephemeral; regenerated at runtime)
 ionshield.db

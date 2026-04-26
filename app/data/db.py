@@ -61,19 +61,19 @@ Index("ix_noaa_snapshots_fetched_at", noaa_snapshots.c.fetched_at)
 pilot_inquiries = Table(
     "pilot_inquiries",
     metadata,
-    Column("id",            Integer,              primary_key=True, autoincrement=True),
-    Column("created_at",    DateTime(timezone=True), nullable=False),
-    Column("org",           Text,                 nullable=False),
-    Column("email",         Text,                 nullable=False),
-    Column("sector",        Text,                 nullable=False, server_default="Other"),
-    Column("interest",      Text,                 nullable=False, server_default=""),
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("org", Text, nullable=False),
+    Column("email", Text, nullable=False),
+    Column("sector", Text, nullable=False, server_default="Other"),
+    Column("interest", Text, nullable=False, server_default=""),
     # SHA-256 of client IP — stored for abuse detection, not for attribution.
     # Raw IPs are never persisted.
-    Column("ip_hash",       Text,                 nullable=False, server_default=""),
+    Column("ip_hash", Text, nullable=False, server_default=""),
     # 0 = not sent (SMTP disabled or error); 1 = sent
-    Column("email_sent",    Integer,              nullable=False, server_default="0"),
+    Column("email_sent", Integer, nullable=False, server_default="0"),
     # "new" | "read" | "spam" (spam = honeypot triggered)
-    Column("status",        Text,                 nullable=False, server_default="new"),
+    Column("status", Text, nullable=False, server_default="new"),
 )
 
 Index("ix_pilot_inquiries_created_at", pilot_inquiries.c.created_at)

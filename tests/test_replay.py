@@ -287,8 +287,12 @@ class TestReplayDeterminism:
         row = await get_snapshot_by_id(1)
         env = snapshot_row_to_env(row)
 
-        rec1 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
-        rec2 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
+        rec1 = _ENGINE.comms_fallback(
+            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
+        )
+        rec2 = _ENGINE.comms_fallback(
+            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
+        )
 
         assert rec1.provenance.input_hash == rec2.provenance.input_hash
 
@@ -298,8 +302,12 @@ class TestReplayDeterminism:
         row = await get_snapshot_by_id(1)
         env = snapshot_row_to_env(row)
 
-        rec1 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
-        rec2 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
+        rec1 = _ENGINE.comms_fallback(
+            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
+        )
+        rec2 = _ENGINE.comms_fallback(
+            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
+        )
 
         assert rec1.action == rec2.action
 
@@ -481,7 +489,9 @@ class TestReplayEndpoints:
         # Hash via direct engine call with same EnvironmentSnapshot
         row = await get_snapshot_by_id(snap_id)
         env = snapshot_row_to_env(row)
-        rec = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
+        rec = _ENGINE.comms_fallback(
+            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
+        )
         direct_hash = rec.provenance.input_hash
 
         assert replay_hash == direct_hash, (

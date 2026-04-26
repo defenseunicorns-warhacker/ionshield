@@ -367,7 +367,10 @@ async def snapshots_list(
     Use snapshot IDs with the replay endpoints to reconstruct past decisions.
     """
     try:
-        rows, total = await list_snapshots(limit=limit, offset=offset), await count_snapshots()
+        rows, total = (
+            await list_snapshots(limit=limit, offset=offset),
+            await count_snapshots(),
+        )
         return {"count": total, "limit": limit, "offset": offset, "snapshots": rows}
     except Exception as exc:
         logger.error("snapshots list failed: %s", exc, exc_info=True)
@@ -469,9 +472,7 @@ def _replay_meta(row) -> dict:
     """Build the replay metadata block included in replay responses."""
     fetched_at = row["fetched_at"]
     fetched_at_iso = (
-        fetched_at.isoformat()
-        if hasattr(fetched_at, "isoformat")
-        else str(fetched_at)
+        fetched_at.isoformat() if hasattr(fetched_at, "isoformat") else str(fetched_at)
     )
     return {
         "snapshot_id": row["id"],
@@ -643,18 +644,27 @@ async def replay_route(
 
 
 class PilotInquiryRequest(BaseModel):
-    org:      str = Field(..., min_length=1, max_length=500,  description="Organization or agency name")
-    email:    str = Field(..., min_length=5, max_length=254,  description="Work email address")
-    sector:   str = Field(default="Other",  max_length=100,  description="Primary operating sector")
-    interest: str = Field(default="",       max_length=4000, description="Mission profile / use case")
+    org: str = Field(
+        ..., min_length=1, max_length=500, description="Organization or agency name"
+    )
+    email: str = Field(
+        ..., min_length=5, max_length=254, description="Work email address"
+    )
+    sector: str = Field(
+        default="Other", max_length=100, description="Primary operating sector"
+    )
+    interest: str = Field(
+        default="", max_length=4000, description="Mission profile / use case"
+    )
     # Honeypot: real users never see or fill this field (hidden via CSS).
     # If it's non-empty a bot filled the form — silently accept, mark spam, skip email.
-    website:  str = Field(default="",       max_length=200,  description="Leave blank")
+    website: str = Field(default="", max_length=200, description="Leave blank")
 
     @field_validator("email")
     @classmethod
     def validate_email_fmt(cls, v: str) -> str:
         import re
+
         if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
             raise ValueError("Invalid email address")
         return v.lower().strip()
@@ -676,42 +686,45 @@ async def submit_contact(
     from datetime import datetime, timezone
 
     from app.data.contact import (
-        count_inquiries,
-        list_inquiries,
         mark_email_sent,
         save_inquiry,
         send_inquiry_email,
     )
 
     client_ip = request.client.host if request.client else "unknown"
-    is_spam   = bool(req.website)   # honeypot triggered
+    is_spam = bool(req.website)  # honeypot triggered
 
     try:
         row_id = await save_inquiry(
-            org        = req.org,
-            email      = req.email,
-            sector     = req.sector,
-            interest   = req.interest,
-            client_ip  = client_ip,
-            status     = "spam" if is_spam else "new",
+            org=req.org,
+            email=req.email,
+            sector=req.sector,
+            interest=req.interest,
+            client_ip=client_ip,
+            status="spam" if is_spam else "new",
         )
-        logger.info("pilot inquiry saved: id=%s org=%r spam=%s", row_id, req.org[:40], is_spam)
+        logger.info(
+            "pilot inquiry saved: id=%s org=%r spam=%s", row_id, req.org[:40], is_spam
+        )
 
         if not is_spam:
             sent = await send_inquiry_email(
-                org          = req.org,
-                email        = req.email,
-                sector       = req.sector,
-                interest     = req.interest,
-                submitted_at = datetime.now(timezone.utc),
+                org=req.org,
+                email=req.email,
+                sector=req.sector,
+                interest=req.interest,
+                submitted_at=datetime.now(timezone.utc),
             )
             if sent:
                 await mark_email_sent(row_id)
             else:
-                logger.info("SMTP not configured or unavailable — email skipped for id=%s", row_id)
+                logger.info(
+                    "SMTP not configured or unavailable — email skipped for id=%s",
+                    row_id,
+                )
 
         return {
-            "status":  "submitted",
+            "status": "submitted",
             "message": "Thank you for your inquiry. We will be in touch within 1 business day.",
         }
 
@@ -729,9 +742,9 @@ async def submit_contact(
 @_limiter.limit(settings.rate_limit)
 async def list_submissions(
     request: Request,
-    limit:  int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0,  ge=0),
-    _: None = _auth,   # requires API key when AUTH is enabled
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _: None = _auth,  # requires API key when AUTH is enabled
 ):
     """
     List pilot inquiry submissions (admin endpoint).
@@ -742,7 +755,7 @@ async def list_submissions(
     from app.data.contact import count_inquiries, list_inquiries
 
     try:
-        rows  = await list_inquiries(limit=limit, offset=offset)
+        rows = await list_inquiries(limit=limit, offset=offset)
         total = await count_inquiries()
         return {"count": total, "limit": limit, "offset": offset, "submissions": rows}
     except Exception as exc:
