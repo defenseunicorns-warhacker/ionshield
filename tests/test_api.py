@@ -25,10 +25,11 @@ def test_health():
     assert r.json() == {"status": "ok"}
 
 
-def test_root_redirects_to_dashboard():
+def test_root_serves_marketing_page():
+    """Root now serves the marketing landing page (not a redirect)."""
     r = client.get("/", follow_redirects=False)
-    assert r.status_code in (301, 302, 307, 308)
-    assert r.headers["location"].endswith("/dashboard")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
 
 
 def test_dashboard_serves_html():

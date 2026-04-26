@@ -1,0 +1,65 @@
+# Render deployment configuration — https://render.com/docs/blueprint-spec
+#
+# Deploy steps:
+#   1. Push this repo to GitHub
+#   2. In Render dashboard → New → Blueprint → connect your repo
+#   3. Set the SECRET env vars below (API_KEY, SMTP_*, etc.) in the dashboard
+#      — never put real secrets in this file
+#   4. Render builds the Docker image and deploys automatically on every push
+#
+# Architecture:
+#   • Single "web" service: FastAPI + static frontend (React/CesiumJS)
+#   • SQLite archive stored on a 1 GB persistent disk
+#   • NOAA data fetched every 5 min from within the container (no external worker)
+
+services:
+  - type: web
+    name: ionshield
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # upgrade to standard for always-on + more RAM
+    region: oregon           # pick the region closest to your users
+
+    healthCheckPath: /api/status
+
+    # Render injects PORT automatically; the Dockerfile CMD reads $PORT
+    envVars:
+      # ── App ──────────────────────────────────────────────────────────────────
+      - key: LOG_LEVEL
+        value: INFO
+      - key: CORS_ORIGINS
+        value: "*"            # lock to your domain after go-live
+      - key: RATE_LIMIT
+        value: "120/minute"
+      - key: CONTACT_RATE_LIMIT
+        value: "5/hour"       # tighter in production
+
+      # ── Database (SQLite on persistent disk, mounted at /data) ───────────────
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:////data/ionshield.db
+
+      # ── Auth (set a strong random value in the Render dashboard) ─────────────
+      - key: API_KEY
+        sync: false           # set manually in Render dashboard — never commit
+
+      # ── Email / contact form (all optional — leave blank to disable) ─────────
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: CONTACT_TO_EMAIL
+        value: pilots@ionshield.io
+
+      # ── ATAK CoT push (optional) ─────────────────────────────────────────────
+      - key: COT_SERVER_HOST
+        sync: false
+
+    # Persistent disk keeps the SQLite archive across deploys.
+    # Requires at least the "starter" plan ($7/mo).
+    # Remove this block if you switch to Postgres (free tier has no disk).
+    disk:
+      name: ionshield-data
+      mountPath: /data
+      sizeGB: 1

@@ -5,3 +5,8 @@ pydantic==2.9.0
 pydantic-settings==2.5.0
 slowapi==0.1.9
 aiofiles==23.2.1
+# Observation archive / replay
+sqlalchemy[asyncio]==2.0.36
+aiosqlite==0.20.0
+# Contact form email delivery (async SMTP — works with any provider: SES, SendGrid, Gmail)
+aiosmtplib==3.0.1

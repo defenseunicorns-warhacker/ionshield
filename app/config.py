@@ -2,6 +2,7 @@
 IonShield configuration — all values configurable via environment variables or .env file.
 """
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,6 +50,42 @@ class Settings(BaseSettings):
     cot_server_host: str = ""
     cot_server_port: int = 8087  # standard TAK server TCP CoT port
     cot_stale_minutes: int = 10  # CoT event stale time
+
+    # ── Observation archive / replay ─────────────────────────────────────────
+    # SQLite (default) or PostgreSQL via DATABASE_URL.
+    # SQLite: sqlite+aiosqlite:///./ionshield.db  (file in working directory)
+    # Postgres: postgresql+asyncpg://user:pass@host/dbname
+    database_url: str = "sqlite+aiosqlite:///./ionshield.db"
+
+    # Set to false to disable observation archiving (useful in read-only deployments).
+    archive_enabled: bool = True
+
+    # ── Contact / pilot inquiry form ────────────────────────────────────────────
+    # SMTP credentials — leave smtp_host empty to disable email (submissions
+    # are always saved to the DB; email is best-effort on top of that).
+    #
+    # Provider quick-start:
+    #   SendGrid SMTP:  host=smtp.sendgrid.net  port=587  user=apikey  pass=<SG.key>
+    #   AWS SES SMTP:   host=email-smtp.<region>.amazonaws.com  port=587
+    #   Gmail/GSuite:   host=smtp.gmail.com  port=587  (use App Password)
+    smtp_host:       str       = ""
+    smtp_port:       int       = 587
+    smtp_username:   str       = ""
+    smtp_password:   SecretStr = SecretStr("")
+    smtp_from_email: str       = "noreply@ionshield.io"
+    smtp_tls:        bool      = True   # STARTTLS on port 587
+
+    # Where pilot inquiry notifications are delivered
+    contact_to_email: str = "pilots@ionshield.io"
+
+    # Rate limit for the contact form (separate from API rate limit).
+    # Default is 100/hour — enough for E2E tests and real users.
+    # Set CONTACT_RATE_LIMIT=5/hour in production to tighten against spam.
+    contact_rate_limit: str = "100/hour"
+
+    @property
+    def smtp_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_username)
 
     @property
     def cot_push_enabled(self) -> bool:

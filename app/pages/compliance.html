@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security & Compliance — IonShield</title>
+  <meta name="description" content="IonShield security posture: FedRAMP readiness, CMMC, DFARS 252.204-7012, export controls (EAR99), open-source stack, and privacy policy." />
+  <link rel="canonical" href="https://ionshield.io/compliance" />
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0; }
+    .comp-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+    .comp-icon { font-size: 28px; margin-bottom: 12px; }
+    .comp-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .comp-status {
+      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; padding: 3px 10px; border-radius: 3px; margin-bottom: 10px;
+    }
+    .status-planned  { background: rgba(245,158,11,.1); color: var(--yellow); border: 1px solid rgba(245,158,11,.3); }
+    .status-progress { background: rgba(59,130,246,.1);  color: var(--blue-hi); border: 1px solid rgba(59,130,246,.3); }
+    .status-done     { background: rgba(16,185,129,.1);  color: var(--green);   border: 1px solid rgba(16,185,129,.3); }
+    .comp-desc { font-size: 12px; color: var(--text-2); line-height: 1.65; }
+    .legal-block { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+    .legal-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-1); }
+    .legal-text  { font-size: 12px; color: var(--text-2); line-height: 1.75; }
+    .legal-text p { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="page-hero">
+  <div class="container">
+    <div class="eyebrow">Security & Compliance</div>
+    <h1 class="sec-title">Built for regulated<br>operating environments</h1>
+    <p class="sec-sub" style="margin-bottom:0">
+      IonShield is designed with defense and government procurement requirements
+      in mind. This page summarizes our current security posture, compliance roadmap,
+      and export control status.
+    </p>
+  </div>
+</div>
+
+<!-- ── Compliance posture ────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="eyebrow">Compliance Roadmap</div>
+    <h2 class="sec-title">Where we are and<br>where we're headed</h2>
+    <p class="sec-sub">
+      <!-- NOTE: All compliance claims below are forward-looking and based on our
+           current architecture planning. They are NOT certifications. Customers must
+           independently verify fitness for their compliance requirements. -->
+      Status reflects our current architecture readiness and planned milestones,
+      not formal certifications. Consult your compliance officer.
+    </p>
+
+    <div class="comp-grid">
+      <div class="comp-card">
+        <div class="comp-icon">🏛️</div>
+        <div class="comp-title">FedRAMP High (Planned)</div>
+        <span class="comp-status status-planned">Planned · 12–18 mo</span>
+        <div class="comp-desc">
+          IonShield's cloud-native architecture is designed to run on AWS GovCloud,
+          the target environment for FedRAMP High authorization. Container separation,
+          TLS termination, and audit logging are implemented. Formal 3PAO assessment
+          is planned for pilot customers reaching the enterprise tier.
+          <!-- NOTE: FedRAMP authorization requires a full 3PAO assessment and ATO.
+               Do not represent this as current authorization to customers. -->
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-icon">🔐</div>
+        <div class="comp-title">CMMC Level 2 (In Progress)</div>
+        <span class="comp-status status-progress">In Progress · 6 mo</span>
+        <div class="comp-desc">
+          IonShield's software development practices align with NIST SP 800-171
+          (110 practices), a prerequisite for CMMC Level 2. We maintain an SBOM,
+          use signed container images, and enforce MFA on all development infrastructure.
+          A formal CMMC assessment is targeted concurrent with first defense-contractor pilot.
+          <!-- NOTE: CMMC Level 2 requires a C3PAO assessment for contractors handling CUI. -->
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-icon">📋</div>
+        <div class="comp-title">DFARS 252.204-7012</div>
+        <span class="comp-status status-progress">Architecture Ready</span>
+        <div class="comp-desc">
+          IonShield does not process, store, or transmit Covered Defense Information (CDI)
+          in its base configuration. Operator-supplied waypoint data (lat/lon pairs) is
+          not classified. For customers who need to input sensitive route data, we provide
+          a self-hosted deployment option with no external data egress.
+          <!-- NOTE: Customers are responsible for determining if their use case involves CDI. -->
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-icon">🚀</div>
+        <div class="comp-title">ATO / Authority to Operate</div>
+        <span class="comp-status status-planned">Planned · per customer</span>
+        <div class="comp-desc">
+          IonShield can supply artifacts required for a customer-side ATO package:
+          system security plan (SSP), data flow diagrams, dependency list, SBOM,
+          and penetration test results. Each defense customer's ATO is unique —
+          we support the process but do not hold a government-issued ATO.
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-icon">🔑</div>
+        <div class="comp-title">Access Control</div>
+        <span class="comp-status status-done">Implemented</span>
+        <div class="comp-desc">
+          API key authentication (X-API-Key header), rate limiting (slowapi),
+          CORS restriction, strict security headers (CSP, HSTS, X-Frame-Options),
+          and HTTPS enforcement. API keys are stored hashed; no plaintext secrets
+          in version control.
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-icon">📦</div>
+        <div class="comp-title">Air-Gap / Disconnected Ops</div>
+        <span class="comp-status status-progress">Roadmap Q3 2026</span>
+        <div class="comp-desc">
+          Zarf/UDS bundle packaging for disconnected deployment. IonShield operates
+          in offline replay mode when NOAA feeds are unavailable. All stale-data
+          warnings are displayed prominently when operating on cached data.
+          Bundle includes all container images and tile data for the dashboard.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Export controls ───────────────────────────────────────────── -->
+<section style="background:var(--bg-1)">
+  <div class="container container-sm">
+    <div class="eyebrow">Export Controls</div>
+    <h2 class="sec-title">EAR99 — No export license required</h2>
+
+    <div class="legal-block">
+      <div class="legal-title">Export Control Classification</div>
+      <div class="legal-text">
+        <p>
+          IonShield software is assessed as <strong>EAR99</strong> under the Export Administration
+          Regulations (EAR). It does not incorporate any items on the Commerce Control List (CCL),
+          does not use restricted encryption beyond standard TLS (FIPS 140-2 compliant libraries),
+          and does not contain classified technical data.
+        </p>
+        <p>
+          The underlying NOAA SWPC data consumed by IonShield is public domain (U.S. Government
+          work, not subject to copyright). CesiumJS is Apache-2.0 licensed. The full dependency
+          SBOM is available upon request.
+        </p>
+        <p>
+          <!-- NOTE: This assessment is for informational purposes only. Customers must
+               conduct their own export-control review, particularly for international
+               deployments or when combining IonShield with other controlled technologies. -->
+          <em>Note: This assessment is our good-faith classification. Customers are responsible
+          for their own export-compliance review, particularly for international deployments.</em>
+        </p>
+      </div>
+    </div>
+
+    <div class="legal-block">
+      <div class="legal-title">ITAR Status</div>
+      <div class="legal-text">
+        <p>
+          IonShield is <strong>not</strong> subject to the International Traffic in Arms
+          Regulations (ITAR). It does not constitute a "defense article" under the
+          United States Munitions List (USML) and does not provide military-specific
+          capability beyond what is available through public NOAA data.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Security practices ────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="eyebrow">Security Practices</div>
+    <h2 class="sec-title">Secure development lifecycle</h2>
+
+    <div class="feat-grid">
+      <div class="card">
+        <div class="feat-icon">🛡️</div>
+        <div class="feat-title">Supply Chain Security</div>
+        <div class="feat-desc">
+          SBOM generated on every release. Dependencies pinned with hash verification.
+          GitHub Actions CI with SLSA provenance. No third-party analytics in the
+          dashboard (only the API server; marketing page uses GA4 with IP anonymization).
+        </div>
+      </div>
+      <div class="card">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-title">Data Minimization</div>
+        <div class="feat-desc">
+          IonShield does not require operator account creation. Waypoint data (lat/lon pairs)
+          is processed in-memory and not persisted beyond the request lifetime.
+          NOAA observation archives contain no operator data — only public NOAA feeds.
+        </div>
+      </div>
+      <div class="card">
+        <div class="feat-icon">🔍</div>
+        <div class="feat-title">Audit Trail</div>
+        <div class="feat-desc">
+          Every decision carries a SHA-256 input hash, model version, and compute timestamp.
+          All API calls are logged with timestamp and client IP (no PII). Audit logs are
+          available for export on request.
+        </div>
+      </div>
+      <div class="card">
+        <div class="feat-icon">🌐</div>
+        <div class="feat-title">Network Security</div>
+        <div class="feat-desc">
+          HTTPS enforced (HSTS). Strict CSP headers. CORS restricted to configured origins.
+          Rate limiting on all endpoints (slowapi). No geolocation calls. No third-party
+          JavaScript loaded in the operational dashboard.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Privacy ───────────────────────────────────────────────────── -->
+<section style="background:var(--bg-1)" id="privacy">
+  <div class="container container-sm">
+    <div class="eyebrow">Privacy</div>
+    <h2 class="sec-title">Privacy Policy</h2>
+
+    <div class="legal-block">
+      <div class="legal-title">Data Collected</div>
+      <div class="legal-text">
+        <p><strong>Dashboard (operational):</strong> No personal data is collected. API key values are stored in your browser's localStorage only. No cookies are set by the operational dashboard.</p>
+        <p><strong>Marketing site:</strong> We may collect anonymized page-view analytics via Google Analytics (IP anonymization enabled). No fingerprinting or cross-site tracking.</p>
+        <p><strong>Contact form:</strong> If you submit the pilot inquiry form, your email and organization name are stored securely and used only to respond to your inquiry. We do not sell or share this data.</p>
+      </div>
+    </div>
+
+    <div class="legal-block">
+      <div class="legal-title">Your Rights</div>
+      <div class="legal-text">
+        <p>You may request deletion of any personal data we hold by emailing <a href="mailto:privacy@ionshield.io">privacy@ionshield.io</a>. We will respond within 30 days.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="/static/nav.js"></script>
+</body>
+</html>

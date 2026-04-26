@@ -42,3 +42,17 @@ logs/
 htmlcov/
 .pytest_cache/
 .claude/
+
+# Generated frontend build artifacts (rebuilt by Docker / npm run build)
+app/static/assets/
+app/static/cesium/
+app/static/index.html
+
+# SQLite database (ephemeral; regenerated at runtime)
+ionshield.db
+
+# Frontend tooling
+frontend/node_modules/
+frontend/.playwright/
+frontend/test-results/
+frontend/playwright-report/

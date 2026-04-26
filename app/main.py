@@ -24,18 +24,22 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.routes import limiter, router
+from app.api.routes_v2 import router_v2
 from app.config import settings
+from app.data.archiver import archive_snapshot
+from app.data.db import init_db
 from app.data.locations import assess_all, get_active_alerts, load_locations
 from app.data.noaa import fetch_noaa, get_kp
 
-_STATIC_DIR = Path(__file__).parent / "static"
+_STATIC_DIR   = Path(__file__).parent / "static"
+_PAGES_DIR    = Path(__file__).parent / "pages"
 
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -83,7 +87,7 @@ async def _push_cot() -> None:
 
 
 async def _refresh_loop() -> None:
-    """Fetch NOAA data on a fixed interval, then reload locations. Never fatal."""
+    """Fetch NOAA data on a fixed interval, archive, then reload locations. Never fatal."""
     while True:
         await asyncio.sleep(settings.refresh_interval_seconds)
         try:
@@ -91,6 +95,7 @@ async def _refresh_loop() -> None:
         except Exception as exc:
             logger.error("Unexpected error in refresh loop: %s", exc, exc_info=True)
 
+        await archive_snapshot()
         _reload_locations()
 
         if settings.cot_push_enabled:
@@ -109,7 +114,9 @@ async def lifespan(app: FastAPI):
     logger.info(
         "IonShield v%s starting — performing initial NOAA fetch…", settings.app_version
     )
+    await init_db()
     await fetch_noaa(timeout=settings.noaa_timeout_seconds)
+    await archive_snapshot()
     _reload_locations()
     from app.data.locations import location_count
 
@@ -140,8 +147,10 @@ def create_app() -> FastAPI:
             "for GPS, HF communications, SATCOM, and radar operations."
         ),
         lifespan=lifespan,
-        # Disable /docs and /redoc in production if desired by setting API_KEY
-        # (auth is required to call endpoints, but Swagger UI itself is still accessible)
+        # Move built-in Swagger/ReDoc to /api-docs and /api-redoc so that
+        # our marketing /docs page is served without conflict.
+        docs_url="/api-docs",
+        redoc_url="/api-redoc",
     )
 
     # Rate limiter state
@@ -177,13 +186,67 @@ def create_app() -> FastAPI:
     # Static assets (CSS, JS)
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
-    # Dashboard — serve index.html at root and /dashboard
+    # ── Marketing pages ───────────────────────────────────────────────────────
+    def _page(name: str):
+        """Helper: return a FileResponse for a marketing page."""
+        return FileResponse(_PAGES_DIR / name, media_type="text/html")
+
+    @app.get("/",            include_in_schema=False)
+    async def marketing():                    return _page("index.html")
+
+    @app.get("/features",    include_in_schema=False)
+    async def mkt_features():                 return _page("features.html")
+
+    @app.get("/demo",        include_in_schema=False)
+    async def mkt_demo():                     return _page("demo.html")
+
+    @app.get("/use-cases",   include_in_schema=False)
+    async def mkt_use_cases():                return _page("use-cases.html")
+
+    @app.get("/docs",        include_in_schema=False)
+    async def mkt_docs():                     return _page("docs.html")
+
+    @app.get("/pricing",     include_in_schema=False)
+    async def mkt_pricing():                  return _page("pricing.html")
+
+    @app.get("/compliance",  include_in_schema=False)
+    async def mkt_compliance():               return _page("compliance.html")
+
+    # ── 3D Dashboard ──────────────────────────────────────────────────────────
     @app.get("/dashboard", include_in_schema=False)
     async def dashboard():
         return FileResponse(_STATIC_DIR / "index.html")
 
+    # ── SEO helpers ───────────────────────────────────────────────────────────
+    @app.get("/robots.txt", include_in_schema=False)
+    async def robots():
+        content = (
+            "User-agent: *\n"
+            "Allow: /\n"
+            "Disallow: /api/\n"
+            "Disallow: /static/\n"
+            f"Sitemap: https://ionshield.io/sitemap.xml\n"
+        )
+        return Response(content, media_type="text/plain")
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    async def sitemap():
+        base = "https://ionshield.io"
+        urls = ["/", "/features", "/demo", "/use-cases", "/docs", "/pricing", "/compliance"]
+        loc_tags = "\n".join(
+            f"  <url><loc>{base}{u}</loc><changefreq>weekly</changefreq></url>"
+            for u in urls
+        )
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            + loc_tags + "\n</urlset>"
+        )
+        return Response(xml, media_type="application/xml")
+
     # Routes
     app.include_router(router)
+    app.include_router(router_v2)
 
     return app
 

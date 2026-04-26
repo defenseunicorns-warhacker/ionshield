@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Use Cases — IonShield Defense, Aviation & Maritime</title>
+  <meta name="description" content="IonShield use cases: defense mission planning with TAK overlay, polar aviation route risk, satellite communications scheduling, and maritime HF planning." />
+  <meta name="keywords" content="defense space weather, UAV GNSS operations, polar aviation HF blackout, satellite comms scheduling, TAK space weather overlay, real-time geospatial risk" />
+  <link rel="canonical" href="https://ionshield.io/use-cases" />
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    .uc-section { margin-bottom: 64px; }
+    .uc-header  { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 24px; }
+    .uc-icon    { font-size: 48px; flex-shrink: 0; }
+    .uc-meta    {}
+    .uc-tag     {
+      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; padding: 3px 10px; border-radius: 3px; margin-right: 6px;
+      background: var(--bg-3); color: var(--blue-hi); border: 1px solid var(--border);
+    }
+    .uc-body    { font-size: 13px; color: var(--text-2); line-height: 1.75; }
+    .uc-body p  { margin-bottom: 12px; }
+    .pain-box   {
+      background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.2);
+      border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;
+    }
+    .pain-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--red); margin-bottom: 6px; }
+    .solve-box  {
+      background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.2);
+      border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;
+    }
+    .solve-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green); margin-bottom: 6px; }
+    .metric-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+    .metric     { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 140px; }
+    .metric-val { font-size: 24px; font-weight: 800; color: var(--blue-hi); }
+    .metric-lbl { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+    .divider    { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  </style>
+</head>
+<body>
+
+<div class="page-hero">
+  <div class="container">
+    <div class="eyebrow">Use Cases</div>
+    <h1 class="sec-title">Built for operators who<br>can't afford surprises</h1>
+    <p class="sec-sub" style="margin-bottom:0">
+      Detailed scenarios showing how IonShield transforms ionospheric data
+      into actionable decisions for defense, aviation, maritime, and research teams.
+    </p>
+  </div>
+</div>
+
+<section>
+  <div class="container">
+
+    <!-- Use Case 1: Defense / TAK -->
+    <div class="uc-section">
+      <div class="uc-header">
+        <div class="uc-icon">🪖</div>
+        <div class="uc-meta">
+          <div style="margin-bottom:8px">
+            <span class="uc-tag">Defense</span>
+            <span class="uc-tag">Ground Maneuver</span>
+            <span class="uc-tag">TAK Integration</span>
+          </div>
+          <h2 class="sec-title" style="font-size:clamp(20px,2.5vw,28px);margin-bottom:6px">Scenario 1: Defense Mission Planning</h2>
+          <p style="color:var(--text-3);font-size:12px">Special Operations / Ground Maneuver · UAV / UAS Routing</p>
+        </div>
+      </div>
+      <div class="uc-body">
+        <div class="pain-box">
+          <div class="pain-label">⚠ Pain Point</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            A SOCOM element is planning a 6-waypoint vehicle route through mountainous terrain.
+            The S6 knows that ionospheric disturbances degrade Blue Force Tracking GPS and can
+            make HF radio checkpoints unreliable, but has no tool to quantify the risk for
+            specific waypoints or recommend a comms fallback plan. A generic NOAA Kp alert says
+            "unsettled conditions" — useless without route context.
+          </p>
+        </div>
+        <div class="solve-box">
+          <div class="solve-label">✓ IonShield Solution</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            The operator loads the 6-waypoint route into IonShield, selects "MRAP" platform
+            (GPS L1L2, criticality 4). Within 200 ms, each route segment is color-coded:
+            green for WP01–WP03, orange for WP04–WP05, red for WP06.
+            The decision reads: <em>"CAUTION — GPS error exceeds 35 m at WP05–WP06 due to auroral
+            oval incursion. Recommend enabling INS coupling before WP04 and confirming SATCOM link
+            before departure."</em> Confidence: HIGH (0.84).
+          </p>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><div class="metric-val">&lt;200 ms</div><div class="metric-lbl">Decision latency</div></div>
+          <div class="metric"><div class="metric-val">6 WPs</div><div class="metric-lbl">Per-waypoint risk</div></div>
+          <div class="metric"><div class="metric-val">SHA-256</div><div class="metric-lbl">Audit trail</div></div>
+          <div class="metric"><div class="metric-val">TAK</div><div class="metric-lbl">CoT push (roadmap)</div></div>
+        </div>
+
+        <p>
+          IonShield's TAK/CoT adapter (Phase 1 roadmap) will push decision overlays
+          directly to ATAK/WinTAK as vector COP layers, enabling space weather risk
+          to appear alongside Blue Force tracks and IED reports in the operator's
+          existing COP — with no additional workflow step.
+        </p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Use Case 2: Aviation -->
+    <div class="uc-section">
+      <div class="uc-header">
+        <div class="uc-icon">✈️</div>
+        <div class="uc-meta">
+          <div style="margin-bottom:8px">
+            <span class="uc-tag">Aviation</span>
+            <span class="uc-tag">Polar Routes</span>
+            <span class="uc-tag">GNSS Integrity</span>
+          </div>
+          <h2 class="sec-title" style="font-size:clamp(20px,2.5vw,28px);margin-bottom:6px">Scenario 2: Polar Aviation Routing</h2>
+          <p style="color:var(--text-3);font-size:12px">Commercial / Military Aviation · BVLOS UAS Operations</p>
+        </div>
+      </div>
+      <div class="uc-body">
+        <div class="pain-box">
+          <div class="pain-label">⚠ Pain Point</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            A polar transatlantic flight (JFK → LHR) crosses the auroral zone during an active
+            Kp=6 event. HF radio is required as a backup communications channel above 60°N,
+            but polar cap absorption can make HF completely unusable for hours.
+            Current crew resources — NOAA SWPC text bulletins — give global alerts without
+            route-specific HF viability or GPS error forecasts.
+          </p>
+        </div>
+        <div class="solve-box">
+          <div class="solve-label">✓ IonShield Solution</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            Dispatch inputs the polar route (7 waypoints). IonShield identifies waypoints
+            WP4–WP6 as inside the auroral oval (risk: DEGRADED) with GPS L1L5 error
+            estimated at 28–45 m. HF viability is marked <em>false</em> for WP5–WP6
+            (polar cap absorption active). The decision: <em>"CAUTION — HF NOT VIABLE
+            at WP5–WP6. Confirm SATCOM L-band backup. GPS integrity monitoring is
+            recommended from WP4 onward."</em>
+            The 72-hour forecast timeline shows conditions improving within 4 hours —
+            a 2-hour departure delay yields a full GO verdict.
+          </p>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><div class="metric-val">7 WPs</div><div class="metric-lbl">Polar route analysis</div></div>
+          <div class="metric"><div class="metric-val">72 h</div><div class="metric-lbl">Departure window forecast</div></div>
+          <div class="metric"><div class="metric-val">HF · SATCOM</div><div class="metric-lbl">Comms fallback advisor</div></div>
+          <div class="metric"><div class="metric-val">0.79</div><div class="metric-lbl">Confidence score</div></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Use Case 3: Satellite Ops -->
+    <div class="uc-section">
+      <div class="uc-header">
+        <div class="uc-icon">🛰️</div>
+        <div class="uc-meta">
+          <div style="margin-bottom:8px">
+            <span class="uc-tag">Satellite Operations</span>
+            <span class="uc-tag">SATCOM</span>
+            <span class="uc-tag">Link Margin</span>
+          </div>
+          <h2 class="sec-title" style="font-size:clamp(20px,2.5vw,28px);margin-bottom:6px">Scenario 3: Satellite Comms Scheduling</h2>
+          <p style="color:var(--text-3);font-size:12px">Satellite Ground Stations · MILSATCOM · Commercial LEO/GEO</p>
+        </div>
+      </div>
+      <div class="uc-body">
+        <div class="pain-box">
+          <div class="pain-label">⚠ Pain Point</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            A satellite ground station schedules critical payload uplinks during a geomagnetic
+            storm. Scintillation and increased ionospheric delay cause bit-error rate spikes
+            that corrupt uplink commands, requiring costly retransmission windows and
+            mission schedule slippage. The operations team lacks an automated tool to
+            flag high-scintillation periods before scheduling.
+          </p>
+        </div>
+        <div class="solve-box">
+          <div class="solve-label">✓ IonShield Solution</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            IonShield's comms decision endpoint (<code style="font-family:monospace;font-size:11px;background:var(--bg-3);padding:1px 4px;border-radius:2px;">GET /api/v2/comms-decision</code>)
+            is polled by the scheduling system every 5 minutes. During elevated Kp periods,
+            the verdict switches from USE_PRIMARY_HF to SWITCH_TO_SATCOM — automatically
+            triggering the scheduler to defer L-band uplinks to the next quiet window
+            identified in the 72-hour forecast. After-action replay confirms which uplink
+            windows were affected and validates the scheduling logic.
+          </p>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><div class="metric-val">5 min</div><div class="metric-lbl">Polling interval</div></div>
+          <div class="metric"><div class="metric-val">API-first</div><div class="metric-lbl">Scheduler integration</div></div>
+          <div class="metric"><div class="metric-val">Replay</div><div class="metric-lbl">After-action audit</div></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="cta-box">
+      <h2>Your use case here</h2>
+      <p>We offer tailored 60-day pilot programs for defense, aviation, and maritime operators. Tell us your mission profile.</p>
+      <div class="cta-btns">
+        <a href="/pricing"   class="btn btn-primary">View Pilot Program</a>
+        <a href="/dashboard" class="btn btn-ghost">Try the Demo</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script src="/static/nav.js"></script>
+</body>
+</html>

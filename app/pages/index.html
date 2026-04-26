@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IonShield — Operational Space Weather Intelligence</title>
+  <meta name="description" content="IonShield translates real-time NOAA space weather data into go/no-go decisions for GPS navigation, HF communications, and 3D route risk assessment. Trusted by defense and aviation operators." />
+  <meta name="keywords" content="space weather decision support, ionospheric risk mapping, GNSS integrity mitigation, satellite comms resilience, polar route aviation, real-time geospatial risk, defense space weather API" />
+  <meta property="og:title"       content="IonShield — Operational Space Weather Intelligence" />
+  <meta property="og:description" content="Real-time ionospheric risk assessment for GPS, HF, and route planning." />
+  <meta property="og:type"        content="website" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://ionshield.io/" />
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "IonShield",
+    "description": "Operational space weather decision support platform for GPS, HF communications, and route risk assessment.",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free pilot available" }
+  }
+  </script>
+  <style>
+    /* Hero */
+    .hero {
+      min-height: 85vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 64px 24px 48px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 90% 70% at 50% 45%, rgba(59,130,246,.08) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 30% 70%, rgba(16,185,129,.04) 0%, transparent 60%);
+    }
+    /* Animated latitude ring decorations */
+    .ring {
+      position: absolute; top: 50%; left: 50%;
+      border-radius: 50%; border: 1px solid rgba(59,130,246,.07);
+      pointer-events: none; animation: spin var(--dur,30s) linear infinite var(--dir,normal);
+    }
+    @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+    .hero h1 {
+      font-size: clamp(32px, 5.5vw, 62px); font-weight: 900;
+      letter-spacing: -.025em; color: #e2e8f0; line-height: 1.08;
+      max-width: 820px; margin-bottom: 20px; position: relative; z-index: 1;
+    }
+    .hero h1 em { font-style: normal; color: #60a5fa; }
+    .hero p {
+      font-size: clamp(14px, 2vw, 18px); color: #8ba3bf; max-width: 560px;
+      line-height: 1.7; margin-bottom: 36px; position: relative; z-index: 1;
+    }
+    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; position: relative; z-index: 1; }
+    .screenshots {
+      margin-top: 56px; width: 100%; max-width: 960px;
+      border: 1px solid #1e3a5f; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,.6);
+      background: #0b1221; position: relative; z-index: 1;
+    }
+    .screenshots-header {
+      background: #152338; border-bottom: 1px solid #1e3a5f;
+      padding: 8px 16px; display: flex; align-items: center; gap: 6px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #1e3a5f; }
+    .dash-preview {
+      padding: 20px;
+      display: grid; grid-template-columns: 1fr 280px;
+      gap: 16px; min-height: 280px;
+    }
+    .dash-globe-mock {
+      background: radial-gradient(ellipse at 35% 40%,
+        rgba(59,130,246,.18) 0%, rgba(16,185,129,.06) 40%, #06111e 70%);
+      border-radius: 8px; border: 1px solid #1e3a5f;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    }
+    .globe-label { font-size: 10px; color: #4a6580; letter-spacing: .08em; text-transform: uppercase; }
+    .dash-panel-mock {
+      background: #0f1a2e; border: 1px solid #1e3a5f; border-radius: 8px;
+      padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .mock-row { height: 8px; border-radius: 4px; background: #1c2e46; }
+    .mock-badge { height: 22px; border-radius: 4px; background: rgba(59,130,246,.25); }
+    .mock-green { background: rgba(16,185,129,.25); }
+    .mock-orange { background: rgba(249,115,22,.25); }
+  </style>
+</head>
+<body>
+
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="ring" style="width:700px;height:700px;transform:translate(-50%,-50%);--dur:35s;" aria-hidden="true"></div>
+  <div class="ring" style="width:500px;height:500px;transform:translate(-50%,-50%);--dir:reverse;--dur:25s;" aria-hidden="true"></div>
+
+  <div class="badge badge-green" style="margin-bottom:20px;">
+    <span class="ss-dot"></span> Live NOAA SWPC Data
+  </div>
+
+  <h1 id="hero-title">Your <em>Space Weather</em><br>Navigation Layer</h1>
+
+  <p>
+    IonShield translates real-time ionospheric data into mission-critical
+    go&nbsp;/&nbsp;no-go decisions for GPS navigation, HF comms, and 3D route
+    risk assessment — in under 200 ms.
+  </p>
+
+  <div class="hero-ctas">
+    <a href="/dashboard" class="btn btn-primary">Try Live Demo →</a>
+    <a href="/features"  class="btn btn-ghost">See Features</a>
+  </div>
+
+  <!-- Dashboard screenshot mock -->
+  <div class="screenshots" role="img" aria-label="IonShield dashboard preview">
+    <div class="screenshots-header" aria-hidden="true">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <span style="font-size:11px;color:#4a6580;margin-left:8px;">IonShield 3D Dashboard · localhost:8000/dashboard</span>
+    </div>
+    <div class="dash-preview">
+      <div class="dash-globe-mock">
+        <span class="globe-label">3D Globe · CesiumJS · OpenStreetMap</span>
+        <!-- Route line mock -->
+        <svg style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+          <polyline points="80,200 200,150 340,120 460,100 560,140"
+            stroke="#10b981" stroke-width="3" fill="none" stroke-dasharray="6,3" opacity=".7"/>
+          <circle cx="80"  cy="200" r="6" fill="#60a5fa"/>
+          <circle cx="340" cy="120" r="6" fill="#f59e0b"/>
+          <circle cx="560" cy="140" r="6" fill="#ef4444"/>
+        </svg>
+      </div>
+      <div class="dash-panel-mock" aria-hidden="true">
+        <div class="mock-badge">ADVISORY</div>
+        <div class="mock-row" style="width:90%"></div>
+        <div class="mock-row" style="width:70%"></div>
+        <div class="mock-badge mock-green" style="height:14px"></div>
+        <div class="mock-row" style="width:100%"></div>
+        <div class="mock-row" style="width:80%"></div>
+        <div class="mock-badge mock-orange" style="height:14px"></div>
+        <div class="mock-row" style="width:60%"></div>
+        <div class="mock-row" style="width:90%"></div>
+        <div class="mock-row" style="width:75%"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Live status strip ─────────────────────────────────────────── -->
+<div class="status-strip" aria-label="Live NOAA space weather conditions" aria-live="polite">
+  <div class="ss-live"><span class="ss-dot"></span>Live</div>
+  <div class="ss-div" aria-hidden="true"></div>
+  <div class="ss-item"><span class="ss-label">Global Risk</span><span class="ss-value" id="ss-risk">—</span></div>
+  <div class="ss-div" aria-hidden="true"></div>
+  <div class="ss-item"><span class="ss-label">Kp Index</span><span class="ss-value" id="ss-kp">—</span></div>
+  <div class="ss-div" aria-hidden="true"></div>
+  <div class="ss-item"><span class="ss-label">IMF Bz</span><span class="ss-value" id="ss-bz">—</span></div>
+  <div class="ss-div" aria-hidden="true"></div>
+  <div class="ss-item"><span class="ss-label">Solar Wind</span><span class="ss-value" id="ss-sw">—</span></div>
+  <div class="ss-div" aria-hidden="true"></div>
+  <div class="ss-item"><span class="ss-label">X-Ray</span><span class="ss-value" id="ss-xray">—</span></div>
+</div>
+
+<!-- ── Key Benefits ─────────────────────────────────────────────── -->
+<section style="background:var(--bg-1)">
+  <div class="container">
+    <div class="eyebrow">Why IonShield</div>
+    <h2 class="sec-title">3D geospatial space weather<br>risk routing</h2>
+    <p class="sec-sub">
+      Unlike generic NOAA alerts, IonShield gives you route-specific,
+      platform-aware go/no-go decisions with explainable confidence scores
+      and full data provenance.
+    </p>
+
+    <div class="feat-grid">
+      <div class="card">
+        <div class="feat-icon">🌐</div>
+        <div class="feat-title">Route-Specific Risk Maps</div>
+        <div class="feat-desc">Every route segment gets its own risk level — NOMINAL to SEVERE — with GPS error estimates and HF viability flags, not just a global alert.</div>
+        <span class="feat-tag">POST /api/v2/route-decision</span>
+      </div>
+      <div class="card">
+        <div class="feat-icon">📡</div>
+        <div class="feat-title">HF/SATCOM Fallback Advisor</div>
+        <div class="feat-desc">Instant verdicts: USE_PRIMARY_HF, SWITCH_TO_SATCOM, SWITCH_TO_UHF, or HF_NOT_VIABLE — with the exact physics behind the call.</div>
+        <span class="feat-tag">GET /api/v2/comms-decision</span>
+      </div>
+      <div class="card">
+        <div class="feat-icon">🎯</div>
+        <div class="feat-title">Confidence-Tagged Alerts</div>
+        <div class="feat-desc">Every decision carries a 0–1 confidence score with per-driver breakdown. Stale data triggers visible warnings — never silent degradation.</div>
+        <span class="feat-tag">HIGH · MEDIUM · LOW · VERY_LOW</span>
+      </div>
+      <div class="card">
+        <div class="feat-icon">⏱</div>
+        <div class="feat-title">72-Hour Forecast Timeline</div>
+        <div class="feat-desc">Scrub the forecast slider to see how the ionosphere evolves. TEC bands and auroral ovals update live on the 3D globe as Kp climbs.</div>
+        <span class="feat-tag">GET /api/forecast</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ──────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="eyebrow">How It Works</div>
+    <h2 class="sec-title">From solar input<br>to route output</h2>
+
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-title">Ingest</div>
+        <div class="how-desc">Real-time NOAA SWPC feeds: 1-min Kp, solar X-ray, IMF Bz, solar wind, proton flux, and 3-day forecasts.</div>
+        <div class="how-note">Refresh: 5 min · Archive: 30 days</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-title">Model</div>
+        <div class="how-desc">Physics engine computes GPS positioning error, HF propagation viability, polar cap absorption, and auroral-oval boundaries.</div>
+        <div class="how-note">GPS L1 · L1L2 · L1L5 · GPS-INS</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-title">Decide</div>
+        <div class="how-desc">Typed verdict with action_sentence, recommended actions, per-waypoint risk table, confidence score, and full data provenance.</div>
+        <div class="how-note">&lt;200 ms · SHA-256 audit trail</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Trusted By ────────────────────────────────────────────────── -->
+<section style="background:var(--bg-1)">
+  <div class="container">
+    <div class="eyebrow">Target Sectors</div>
+    <h2 class="sec-title">Built for operators<br>who can't afford surprises</h2>
+
+    <div class="use-grid" style="margin-bottom:40px">
+      <div class="card">
+        <div class="use-icon">🪖</div>
+        <div class="use-title">US DoD / Defense</div>
+        <div class="use-desc">Ground maneuver, aviation, SIGINT/EW mission planning. TAK/CoT overlay integration in development.</div>
+        <div class="use-tags">
+          <span class="use-tag">HMMWV · MRAP</span>
+          <span class="use-tag">TAK Integration</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="use-icon">✈️</div>
+        <div class="use-title">Aviation / Airlines</div>
+        <div class="use-desc">Polar route planning, GPS integrity monitoring, and 72-hour space weather outlook for dispatch.</div>
+        <div class="use-tags">
+          <span class="use-tag">Polar Routes</span>
+          <span class="use-tag">GNSS Integrity</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="use-icon">🛰️</div>
+        <div class="use-title">Satellite Operators</div>
+        <div class="use-desc">SATCOM link margin analysis, uplink/downlink scheduling around ionospheric disturbances, proton event alerts.</div>
+        <div class="use-tags">
+          <span class="use-tag">SATCOM</span>
+          <span class="use-tag">Proton Events</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="use-icon">🚢</div>
+        <div class="use-title">Maritime / Naval</div>
+        <div class="use-desc">Long-haul HF communication planning, INS-coupled GPS error modeling, and storm watch 24+ hours ahead.</div>
+        <div class="use-tags">
+          <span class="use-tag">GPS-INS</span>
+          <span class="use-tag">HF Decision</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-box">
+      <h2>Ready to see the ionosphere?</h2>
+      <p>The full 3D dashboard is live right now with real NOAA data. No account required for the demo.</p>
+      <div class="cta-btns">
+        <a href="/dashboard" class="btn btn-primary">Launch Dashboard →</a>
+        <a href="/pricing"   class="btn btn-ghost">View Pilot Program</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="/static/nav.js"></script>
+<script>
+  // Fetch live NOAA status and populate the strip
+  (async () => {
+    try {
+      const r = await fetch('/api/status');
+      if (!r.ok) return;
+      const d = await r.json();
+      const sd = d.solar_drivers || {};
+      const RC = { NOMINAL:'#10b981', ELEVATED:'#f59e0b', DEGRADED:'#f97316', SEVERE:'#ef4444' };
+      const risk = d.global_risk_level || '—';
+      const $ = id => document.getElementById(id);
+      if ($('ss-risk'))  { $('ss-risk').textContent = risk; $('ss-risk').style.color = RC[risk] || '#8ba3bf'; }
+      if ($('ss-kp'))   $('ss-kp').textContent  = sd.kp_current  != null ? sd.kp_current.toFixed(1)       : '—';
+      if ($('ss-bz'))   $('ss-bz').textContent  = sd.bz_nt       != null ? `${sd.bz_nt.toFixed(1)} nT`    : '—';
+      if ($('ss-sw'))   $('ss-sw').textContent  = sd.solar_wind_km_s != null ? `${sd.solar_wind_km_s.toFixed(0)} km/s` : '—';
+      if ($('ss-xray')) $('ss-xray').textContent = sd.xray_class  || '—';
+    } catch {}
+  })();
+</script>
+</body>
+</html>

@@ -54,6 +54,53 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
+  # ── Frontend: unit tests + Vite build ─────────────────────────────────────
+  frontend:
+    name: Frontend (Vitest + Vite build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests (Vitest)
+        run: npm test -- --reporter=verbose
+
+      - name: Production build
+        run: npm run build
+        env:
+          VITE_CESIUM_TOKEN: ""   # OSM fallback in CI — expected
+
+      - name: Assert build output
+        run: |
+          test -f ../app/static/index.html || (echo "❌ index.html missing" && exit 1)
+          test -d ../app/static/cesium     || (echo "❌ cesium/ missing — post-build failed" && exit 1)
+          test -d ../app/static/assets     || (echo "❌ assets/ missing" && exit 1)
+          echo "✓ Build output verified"
+
+  # ── SEO / marketing pages sanity check ────────────────────────────────────
+  marketing-pages:
+    name: Marketing pages exist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify all pages present
+        run: |
+          for page in index features demo use-cases docs pricing compliance; do
+            test -f app/pages/${page}.html || (echo "❌ Missing: app/pages/${page}.html" && exit 1)
+          done
+          echo "✓ All 7 marketing pages present"
+
   # ── Docker build (verify image compiles on every push) ────────────────────
   docker-build:
     name: Docker build

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Features — IonShield Space Weather Decision Support</title>
+  <meta name="description" content="IonShield features: route-specific GNSS risk maps, HF/SATCOM fallback advisor, 72-hour Kp forecast timeline, confidence scoring, and deterministic replay. API-first." />
+  <meta name="keywords" content="space weather API, ionospheric risk map, HF comms decision, GNSS integrity, satellite comms resilience, real-time geospatial risk" />
+  <link rel="canonical" href="https://ionshield.io/features" />
+  <link rel="stylesheet" href="/static/marketing.css" />
+</head>
+<body>
+
+<!-- ── Page hero ────────────────────────────────────────────────── -->
+<div class="page-hero">
+  <div class="container">
+    <div class="eyebrow">Features</div>
+    <h1 class="sec-title">Every capability your operators need<br>before mission launch</h1>
+    <p class="sec-sub" style="margin-bottom:0">
+      A single REST API and 3D dashboard covering ionospheric effects on GPS,
+      HF, SATCOM, and radar — with typed go/no-go decisions and explainable confidence.
+    </p>
+  </div>
+</div>
+
+<!-- ── Core features ────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="eyebrow">Core Capabilities</div>
+    <h2 class="sec-title">Route-specific. Platform-aware.<br>Confidence-tagged.</h2>
+
+    <div class="feat-grid">
+      <div class="card">
+        <div class="feat-icon">🌐</div>
+        <div class="feat-title">3D Route Risk Assessment</div>
+        <div class="feat-desc">
+          Click waypoints on a live Cesium 3D globe. Each route leg is colored
+          by the worst ionospheric risk of its endpoints — NOMINAL (green) through
+          SEVERE (red). Per-waypoint GPS error estimates and HF viability flags
+          appear in the side panel and route profile bar.
+        </div>
+        <span class="feat-tag">POST /api/v2/route-decision</span>
+      </div>
+
+      <div class="card">
+        <div class="feat-icon">📡</div>
+        <div class="feat-title">HF / SATCOM Comms Decision</div>
+        <div class="feat-desc">
+          Point-to-point analysis for any lat/lon pair. Considers solar flux,
+          IMF Bz polarity, Kp index, proton flux, and polar cap absorption.
+          Returns a typed verdict: <code style="font-family:monospace;font-size:10px;background:var(--bg-3);padding:1px 4px;border-radius:2px;">USE_PRIMARY_HF</code>,
+          <code style="font-family:monospace;font-size:10px;background:var(--bg-3);padding:1px 4px;border-radius:2px;">SWITCH_TO_SATCOM</code>,
+          <code style="font-family:monospace;font-size:10px;background:var(--bg-3);padding:1px 4px;border-radius:2px;">SWITCH_TO_UHF</code>, or
+          <code style="font-family:monospace;font-size:10px;background:var(--bg-3);padding:1px 4px;border-radius:2px;">HF_NOT_VIABLE</code>.
+        </div>
+        <span class="feat-tag">GET /api/v2/comms-decision</span>
+      </div>
+
+      <div class="card">
+        <div class="feat-icon">🔭</div>
+        <div class="feat-title">72-Hour Kp Forecast Timeline</div>
+        <div class="feat-desc">
+          Scrub forward in time with the forecast slider at the bottom of the
+          globe. The ionosphere TEC overlay, auroral oval boundaries, and
+          polar cap regions update in real-time to reflect forecast conditions.
+          Essential for planning missions hours or days ahead.
+        </div>
+        <span class="feat-tag">GET /api/forecast</span>
+      </div>
+
+      <div class="card">
+        <div class="feat-icon">🎯</div>
+        <div class="feat-title">Explainable Confidence Scoring</div>
+        <div class="feat-desc">
+          Every decision carries a 0–1 confidence score with per-driver breakdown:
+          data freshness, Bz variability, feed completeness, and stale-data
+          penalty. Stale observations (>10 min) trigger a visible banner —
+          never silent degradation of reliability.
+        </div>
+        <span class="feat-tag">HIGH · MEDIUM · LOW · VERY_LOW</span>
+      </div>
+
+      <div class="card">
+        <div class="feat-icon">⏱</div>
+        <div class="feat-title">Deterministic Observation Replay</div>
+        <div class="feat-desc">
+          Every NOAA observation is archived. Replay any past decision with
+          the exact data snapshot used — same input hash, same output. Critical
+          for after-action review, calibration, and regulatory audit trails.
+        </div>
+        <span class="feat-tag">GET /api/v2/replay</span>
+      </div>
+
+      <div class="card">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-title">Full Data Provenance</div>
+        <div class="feat-desc">
+          Every API response includes a SHA-256 input hash, model version,
+          compute timestamp, the exact observation and forecast feeds consumed,
+          and a list of unavailable feeds. Fully auditable for operational
+          compliance reviews.
+        </div>
+        <span class="feat-tag">SHA-256 · Model v1.0.0</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Data layers ───────────────────────────────────────────────── -->
+<section style="background:var(--bg-1)">
+  <div class="container">
+    <div class="eyebrow">3D Globe Layers</div>
+    <h2 class="sec-title">Environmental overlays<br>driven by live data</h2>
+    <p class="sec-sub">
+      All layers update automatically from polled NOAA data.
+      Toggle them individually in the dashboard's layer panel.
+    </p>
+
+    <table class="mkt-table">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>What it shows</th>
+          <th>Physics basis</th>
+          <th>Color scale</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Ionosphere TEC</strong></td>
+          <td>Auroral ovals, equatorial anomaly, mid-latitude disturbance bands</td>
+          <td>Auroral boundary ≈ 75° − 5×Kp; band intensity scales with Kp</td>
+          <td>Yellow → Orange → Red with Kp</td>
+        </tr>
+        <tr>
+          <td><strong>Polar Cap Absorption</strong></td>
+          <td>High-latitude zones where HF propagation is completely blocked</td>
+          <td>Active when proton flux (≥10 MeV) exceeds HF-blackout threshold</td>
+          <td>Red, opacity 30%</td>
+        </tr>
+        <tr>
+          <td><strong>Solar Wind Alert</strong></td>
+          <td>Live solar wind speed label at equatorial position</td>
+          <td>ACE/DSCOVR L1 measurement; &gt;700 km/s = severe</td>
+          <td>Green → Yellow → Orange → Red</td>
+        </tr>
+        <tr>
+          <td><strong>Route Segments</strong></td>
+          <td>3D polyline colored per-leg by worst endpoint risk</td>
+          <td>Derived from per-waypoint decision model output</td>
+          <td>Green · Yellow · Orange · Red</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ── API design ────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="eyebrow">API-First Design</div>
+    <h2 class="sec-title">Integrate IonShield<br>into any system</h2>
+    <p class="sec-sub">
+      Every feature is available as a typed REST endpoint.
+      The 3D dashboard consumes the same API you do.
+    </p>
+
+    <div class="code-block" role="region" aria-label="Example route decision API call">
+<span class="c-c"># POST /api/v2/route-decision</span>
+curl -X POST https://ionshield.io/api/v2/route-decision \
+  -H "Content-Type: application/json" \
+  -d '{
+    <span class="c-k">"waypoints"</span>: [
+      { <span class="c-k">"lat"</span>: <span class="c-n">62.1</span>, <span class="c-k">"lon"</span>: <span class="c-n">-28.4</span>, <span class="c-k">"name"</span>: <span class="c-s">"Alpha"</span> },
+      { <span class="c-k">"lat"</span>: <span class="c-n">67.3</span>, <span class="c-k">"lon"</span>: <span class="c-n">-18.2</span>, <span class="c-k">"name"</span>: <span class="c-s">"Bravo"</span> },
+      { <span class="c-k">"lat"</span>: <span class="c-n">71.8</span>, <span class="c-k">"lon"</span>: <span class="c-n">-8.1</span>,  <span class="c-k">"name"</span>: <span class="c-s">"Charlie"</span> }
+    ],
+    <span class="c-k">"platform"</span>: { <span class="c-k">"asset_type"</span>: <span class="c-s">"GPS_L1L2"</span>, <span class="c-k">"criticality"</span>: <span class="c-n">4</span> }
+  }'
+
+<span class="c-c"># Response → 200 OK</span>
+{
+  <span class="c-k">"action"</span>:          <span class="c-s">"CAUTION"</span>,
+  <span class="c-k">"action_sentence"</span>: <span class="c-s">"Elevated Kp and negative Bz indicate moderate ionospheric risk along this polar route."</span>,
+  <span class="c-k">"confidence"</span>:     { <span class="c-k">"score"</span>: <span class="c-n">0.82</span>, <span class="c-k">"label"</span>: <span class="c-s">"HIGH"</span> },
+  <span class="c-k">"waypoints"</span>: [
+    { <span class="c-k">"name"</span>: <span class="c-s">"Alpha"</span>,   <span class="c-k">"risk_level"</span>: <span class="c-s">"NOMINAL"</span>,  <span class="c-k">"gps_error_m"</span>: <span class="c-n">4.2</span>,  <span class="c-k">"hf_viable"</span>: <span class="c-n">true</span>  },
+    { <span class="c-k">"name"</span>: <span class="c-s">"Bravo"</span>,   <span class="c-k">"risk_level"</span>: <span class="c-s">"ELEVATED"</span>, <span class="c-k">"gps_error_m"</span>: <span class="c-n">18.5</span>, <span class="c-k">"hf_viable"</span>: <span class="c-n">true</span>  },
+    { <span class="c-k">"name"</span>: <span class="c-s">"Charlie"</span>, <span class="c-k">"risk_level"</span>: <span class="c-s">"DEGRADED"</span>, <span class="c-k">"gps_error_m"</span>: <span class="c-n">41.0</span>, <span class="c-k">"hf_viable"</span>: <span class="c-n">false</span> }
+  ],
+  <span class="c-k">"provenance"</span>: { <span class="c-k">"input_hash"</span>: <span class="c-s">"sha256:a3f9…"</span>, <span class="c-k">"model_version"</span>: <span class="c-s">"1.0.0"</span> }
+}
+    </div>
+  </div>
+</section>
+
+<div style="padding:0 24px 80px">
+  <div class="cta-box container">
+    <h2>See it live</h2>
+    <p>The dashboard is running with real NOAA data right now. No sign-up required.</p>
+    <div class="cta-btns">
+      <a href="/dashboard" class="btn btn-primary">Launch Dashboard →</a>
+      <a href="/pricing"   class="btn btn-ghost">Start a Pilot</a>
+    </div>
+  </div>
+</div>
+
+<script src="/static/nav.js"></script>
+</body>
+</html>
