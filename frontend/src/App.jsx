@@ -87,13 +87,37 @@ export default function App() {
   const handleMapClick = useCallback(({ lat, lon }) => {
     if (!clickMode) return;
     const name = `WP${String(waypoints.length + 1).padStart(2, '0')}`;
-    setWaypoints(prev => [...prev, { lat, lon, name }]);
+    const newWPs = [...waypoints, { lat, lon, name }];
+    setWaypoints(newWPs);
     setClickMode(false);
-  }, [clickMode, waypoints.length]);
+    // Auto-fly: zoom to the newly placed point (1 WP) or fit the route (≥2)
+    if (newWPs.length === 1) {
+      globeRef.current?.flyTo(lat, lon, 2_500_000);
+    } else {
+      globeRef.current?.flyToRoute(newWPs);
+    }
+  }, [clickMode, waypoints]);
 
   const handleFlyToRoute = useCallback(() => {
     if (waypoints.length) globeRef.current?.flyToRoute(waypoints);
   }, [waypoints]);
+
+  // ── Waypoint list changes (Panel form) ────────────────────────────────────
+  const handleWaypointsChange = useCallback((wps) => {
+    setWaypoints(prev => {
+      // Auto-fly when a waypoint is added (not on remove / clear)
+      if (wps.length > prev.length) {
+        if (wps.length === 1) {
+          const { lat, lon } = wps[0];
+          globeRef.current?.flyTo(lat, lon, 2_500_000);
+        } else {
+          globeRef.current?.flyToRoute(wps);
+        }
+      }
+      return wps;
+    });
+    setDecision(null);
+  }, []);
 
   // ── Replay drawer handlers ─────────────────────────────────────────────────
   const handleSelectSnapshot = useCallback(snap => {
@@ -177,7 +201,7 @@ export default function App() {
           clickMode={clickMode}
           decision={decision}
           onDecision={setDecision}
-          onWaypointsChange={wps => { setWaypoints(wps); setDecision(null); }}
+          onWaypointsChange={handleWaypointsChange}
           onToggleLayer={toggleLayer}
           onClickModeToggle={() => setClickMode(m => !m)}
           onFlyToRoute={handleFlyToRoute}

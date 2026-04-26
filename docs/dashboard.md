@@ -1,128 +1,222 @@
-# IonShield Dashboard — Pilot Guide
+# IonShield Dashboard — Operator Guide
 
-The dashboard is a single-page app served at `/dashboard` (or `/`).  
-It talks directly to the FastAPI backend running on the same origin.
+The dashboard is a React single-page application served at `/dashboard` (or `/`).  
+It uses **CesiumJS** for the 3D globe and talks directly to the FastAPI backend on the same origin.
 
 ---
 
 ## Quick start
 
 ```bash
-# 1. Start the backend
-uvicorn app.main:app --reload
+# 1. Install frontend deps (first time only)
+cd frontend && npm install
 
-# 2. Open the dashboard
-open http://localhost:8000/dashboard
+# 2. Start the backend with hot-reload
+uvicorn app.main:app --reload --port 8000
+
+# 3. (Optional) Start the Vite dev server for instant frontend HMR
+cd frontend && npm run dev          # http://localhost:5173
+
+# 4. Open the dashboard
+open http://localhost:8000/dashboard   # served by FastAPI (production build)
+# — or —
+open http://localhost:5173             # Vite dev server (faster iteration)
 ```
 
-No build step. No npm. The page loads Tailwind from CDN and Leaflet from unpkg.
+---
+
+## Layout
+
+```
+┌──────────────────────── Header (48 px) ────────────────────────────────┐
+│  Logo  •  Risk badge  •  Kp  •  X-ray  •  Bz  •  Solar wind  •  Help  │
+├──────────────────────────────────────────────────┬─────────────────────┤
+│                                                  │                     │
+│             3D CesiumJS Globe                    │   Operator Panel    │
+│          (click to place waypoints)              │    (420 px wide)    │
+│                                                  │                     │
+│  ┌─ Replay Drawer (left, 300 px) ─┐              │  Layer toggles      │
+│  │  archived NOAA snapshots       │              │  Waypoint builder   │
+│  └────────────────────────────────┘              │  Platform picker    │
+│                                                  │  Decision result    │
+│  ┌─ Elevation / Risk Profile (bottom) ──────────┐│                     │
+│  │  ROUTE PROFILE  ████░░████░░  340 km         ││                     │
+│  └──────────────────────────────────────────────┘│                     │
+│  ┌─ Forecast Timeline (bottom) ─────────────────┐│                     │
+│  │  72-hour Kp forecast windows (bar chart)     ││                     │
+│  └──────────────────────────────────────────────┘│                     │
+└──────────────────────────────────────────────────┴─────────────────────┘
+```
 
 ---
 
-## Tab overview
+## 3D Globe
 
-| Tab | What it does | Backend endpoint |
-|-----|--------------|-----------------|
-| **Location Risk** | Single-point GPS/HF/SATCOM assessment | `GET /api/risk/location` |
-| **Route** | Multi-waypoint risk table (classic model) | `POST /api/risk/route` |
-| **Forecast** | 72-hour Kp timeline + operational windows | `GET /api/forecast` |
-| **Decision ★** | Typed v2 decisions with confidence + provenance | `/api/v2/*` |
+The globe is powered by **CesiumJS** and renders on a WebGL canvas.
+
+| Action | Result |
+|--------|--------|
+| Click **➕ Click to place WP** | Enters click mode; next globe click drops a waypoint |
+| Click anywhere on globe (in click mode) | Places a waypoint; camera auto-flies to it |
+| Scroll wheel / pinch | Zoom in/out |
+| Left-drag | Orbit / pan |
+| Right-drag | Tilt |
+| ⊙ button (after waypoints placed) | Fit camera to route bounding sphere |
+
+### Imagery & terrain
+
+By default the globe uses **OpenStreetMap** raster tiles (free, no token needed).
+
+To upgrade to **Bing Maps Aerial** high-resolution imagery, set a Cesium Ion access
+token in `frontend/.env.local`:
+
+```bash
+# frontend/.env.local  (git-ignored — never commit)
+VITE_CESIUM_TOKEN=your_token_here
+```
+
+Get a free token at <https://ion.cesium.com/>.  
+See [`docs/cesium-token.md`](cesium-token.md) for full setup instructions.
 
 ---
 
-## Decision tab (v2 engine)
+## Header — Solar driver chips
 
-The **Decision ★** tab is the primary pilot-facing interface for the typed
-decision engine introduced in Slice 2.
+| Chip | NOAA source | Meaning |
+|------|-------------|---------|
+| **Kp** | SWPC 1-min | Planetary geomagnetic index (0–9). ≥ 5 = storm |
+| **X-ray** | GOES | Solar X-ray flux class (A/B/C/M/X) |
+| **Bz** | ACE/DSCOVR | IMF Bz component (nT). Negative = geoeffective |
+| **Solar wind** | ACE/DSCOVR | Proton speed (km/s) |
 
-### Mode: COMMS LINK
+The **data age** indicator turns amber when the last NOAA fetch is > 10 min old.
 
-Gets an HF / SATCOM comms recommendation for a single observer position.
+---
 
-1. Enter **Observer Lat / Lon**.
-2. Optionally expand *Destination coords* and enter a far-end position — this
-   improves HF link geometry scoring.
-3. Click **Get Comms Decision**.
+## Operator Panel
 
-**What you see in the result:**
+### Layer toggles
+
+Controls which data overlays appear on the globe:
+
+| Layer | Description |
+|-------|-------------|
+| **TEC Bands** | Ionospheric electron content risk zones (colour-coded by Kp) |
+| **GPS Error** | Estimated GPS horizontal error bubble at each waypoint |
+| **HF Skip** | HF radio skip-zone geometry for the current solar conditions |
+| **Locations** | Named monitoring sites loaded from `locations.json` |
+
+### Waypoint builder
+
+Enter **lat / lon** (decimal degrees) manually and click **+ Add**, or use
+**➕ Click to place WP** for interactive globe placement.
+
+- **Remove** a single waypoint with the × button
+- **Clear All** removes every waypoint
+- Camera auto-flies to a placed waypoint (single) or fits the route (multiple)
+
+### Platform picker
+
+Select the asset type operating the route. Pre-sets adjust `asset_type` and
+`criticality` sent to the decision engine:
+
+| Platform | Asset type | Criticality |
+|----------|-----------|------------|
+| HMMWV | GPS L1 | 3 |
+| LMTV | GPS L1 | 2 |
+| MRAP | GPS L1/L2 | 4 |
+| Rotary wing | GPS L1/L2 | 4 |
+| Fixed wing | GPS L1/L5 | 4 |
+| Dismounted | GPS L1 | 2 |
+| Maritime | GPS/INS | 3 |
+
+### Route Decision
+
+Click **▶ Get Route Decision** to run the v2 typed decision engine.  
+The response includes:
 
 | Field | Meaning |
 |-------|---------|
-| Action badge | One of: USE PRIMARY HF · USE ALTERNATE HF · SWITCH TO SATCOM · SWITCH TO UHF · DEGRADED MODE · HF NOT VIABLE |
-| Action sentence | Plain-English rationale for the recommended action |
-| Also consider | Alternative actions if conditions change |
-| Recommended actions | Specific operator steps |
-| **CONFIDENCE** bar | Score 0–1 with label HIGH / MEDIUM / LOW / VERY_LOW |
-| Driver breakdown | Each factor that raised (+) or lowered (−) confidence |
-| **IMPACTS** | Per-system metrics (HF absorption, GPS error, SATCOM fade, etc.) |
-| **Provenance** | Model version, SHA-256 input hash, observations used, feeds offline |
+| **Action badge** | Machine-readable decision: `PROCEED`, `CAUTION`, `NO_GO`, … |
+| **Action sentence** | Plain-English rationale |
+| **Confidence** | Score 0–1 with label HIGH / MEDIUM / LOW / VERY_LOW |
+| **Driver breakdown** | Factors that raised (+) or lowered (−) confidence |
+| **Impacts** | Per-system effect estimates (GPS error, HF viability, SATCOM fade) |
+| **Valid until** | UTC expiry of this assessment |
+| **Provenance** | SHA-256 input hash, model version, observations used |
 
-### Mode: ROUTE RISK
+---
 
-Gets a GO / ADVISORY / CAUTION / NO-GO decision for a multi-waypoint route.
+## Forecast timeline
 
-1. Switch to the **Route** tab and add waypoints (manually or by clicking the map).
-2. Return to the **Decision ★** tab and click **ROUTE RISK**.
-3. Select the platform type.
-4. Click **Get Route Decision**.
+The bar chart at the bottom of the globe shows the **72-hour Kp forecast** from
+NOAA SWPC in 3-hour windows. Click a window to "scrub" to that forecast scenario —
+TEC bands and the decision engine both re-compute using the forecast Kp.  
+Click the active window (or click away) to return to live data.
 
-The result includes the overall action + sentence, confidence, and a per-waypoint
-table showing risk level, GPS error, and HF viability.
+---
+
+## Elevation / Risk profile
+
+The horizontal bar below the globe shows the route divided into segments, each
+coloured by the worst risk level of its two endpoint waypoints:
+
+| Colour | Risk level |
+|--------|-----------|
+| Blue | No data / NOMINAL |
+| Green | NOMINAL |
+| Yellow | ELEVATED |
+| Orange | CAUTION |
+| Red | DEGRADED / SEVERE |
+
+> **Phase 1 note:** elevation values are currently flat (0 m). Real terrain
+> sampling via `Cesium.sampleTerrain` is planned for Phase 2 and requires a
+> Cesium Ion token.
+
+---
+
+## Replay drawer
+
+Click **⏪ Replay** in the header to open the snapshot archive. Each row is a
+saved NOAA observation. Selecting a snapshot:
+
+1. Locks the globe to that historical dataset
+2. Auto-runs the current route against the archived space-weather conditions
+3. Shows a **"REPLAY"** banner in the decision panel
+
+Click **↩ Back to Live** to resume real-time data.
 
 ---
 
 ## Stale data warning
 
-If the NOAA observation data is more than 10 minutes old, the decision panel
-shows a **red STALE DATA banner** at the top of the result.  Confidence is
-automatically penalised (visible in the driver breakdown as a negative
-`data_freshness` or `stale_penalty` entry).
+If NOAA data is more than 10 minutes old, the decision panel shows a
+**red STALE DATA banner**. Confidence is automatically penalised (visible as a
+negative `data_freshness` driver in the breakdown).
 
 Do not act on a stale decision without confirming current conditions via
 [NOAA SWPC](https://www.swpc.noaa.gov/).
 
 ---
 
-## Replay a past decision
+## API key authentication
 
-The **↩ REPLAY FROM ARCHIVE** section lets you re-run a decision against a
-stored NOAA observation snapshot.  The replay endpoint guarantees that the same
-snapshot always produces the same `input_hash` — i.e. the decision is
-deterministic and auditable.
-
-1. Enter a **Snapshot ID** (from `GET /api/v2/snapshots`) **or** a UTC
-   timestamp in ISO-8601 format (`2024-05-11T18:00:00Z`).
-2. Leave both blank to replay the most recent archived snapshot.
-3. Click **↩ Replay Decision**.
-
-The result shows a **blue REPLAY banner** identifying which snapshot was used
-(ID, timestamp, source, Kp at time of snapshot).
-
-To list available snapshots:
-```bash
-curl http://localhost:8000/api/v2/snapshots
-```
+If the backend is running with `API_KEY` set, every request requires an
+`X-API-Key` header. Click the **🔑** icon in the header to enter or update the
+key; it is stored in `localStorage` and never sent to a third party.
 
 ---
 
-## API key (auth)
+## Keyboard shortcuts
 
-If the backend was started with `API_KEY=<secret>` configured, every request
-requires an `X-API-Key` header.
-
-1. Click the **⚙** icon in the header (top-right corner).
-2. Enter your API key and click **Save**.
-3. The key is stored in browser `localStorage` and sent automatically on every
-   request.  It is never sent to any third party.
-
-If you get a `401 Unauthorized` error in the decision panel, click the
-**Set API key ⚙** link in the error message.
-
-To run in open mode (no auth), leave the API key field blank.
+| Key | Action |
+|-----|--------|
+| `Escape` | Close Help modal / exit click mode |
+| `?` | Open Help modal |
 
 ---
 
-## Confidence — what the score means
+## Confidence score reference
 
 | Label | Score | Meaning |
 |-------|-------|---------|
@@ -131,36 +225,24 @@ To run in open mode (no auth), leave the API key field blank.
 | LOW | 0.40 – 0.54 | Missing feeds or stale data. Treat as advisory only. |
 | VERY_LOW | < 0.40 | Significant data gaps. Cross-check before action. |
 
-The **driver breakdown** lists each factor that raised (+) or penalised (−)
-the score, with a plain-English explanation.
-
 ---
 
-## Provenance accordion
+## Provenance
 
-Expand the **Provenance** section at the bottom of any decision result to see:
+Expand **Provenance** in any decision result to see:
 
 - **Model version** — which engine produced the result
 - **Input hash** — SHA-256 fingerprint; same inputs always produce the same hash
 - **Computed at** — UTC timestamp when the decision was made
-- **Observations used** — which NOAA feeds were read
+- **Observations used** — which NOAA feeds were consumed
 - **Forecasts used** — 24-hour Kp forecast value (if available)
 - **Feeds offline** — any NOAA feeds that were unavailable
 
 ---
 
-## Manual test checklist
+## Performance notes
 
-| Test | Expected result |
-|------|----------------|
-| Enter lat=38.8, lon=-77.0 → Get Comms Decision | Result panel appears with action badge + sentence |
-| Check confidence bar | Bar fills proportionally; label shows HIGH/MEDIUM/LOW |
-| Open Provenance accordion | input_hash, model_version, observations_used visible |
-| Add waypoints in Route tab, switch to Decision tab | "N waypoints loaded" banner appears (blue) |
-| Click Get Route Decision | Per-waypoint table with risk level + GPS error |
-| Set no waypoints, click Get Route Decision | Error: "Add waypoints in the Route tab first" |
-| Enter invalid lat (200) → Get Comms Decision | Error: "Coordinates out of range" |
-| Replay with snapshot_id=9999 → Replay | 404 error displayed |
-| Click ⚙ gear → enter API key → Save | "API key saved ✓" feedback shown |
-| Kill backend, refresh page | Header shows "Refresh failed" (no crash) |
-| Data age > 10 min (wait or use replay) | Red STALE DATA banner appears in result |
+- The Cesium globe uses `requestRenderMode: true` — only redraws on data
+  changes or camera movement, saving ~100 % idle GPU.
+- The Page Visibility API pauses NOAA polling when the tab is hidden.
+- `suspendEvents / resumeEvents` batch Cesium entity updates to avoid thrashing.
