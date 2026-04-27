@@ -357,6 +357,29 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(_bootstrap_scenarios())
 
+    # Phase 2: train the Kp forecaster on first deploy if its artifact is
+    # absent. After backfill+a-few-live-snapshots have populated the DB,
+    # this gives us a useful model in the first ~5 minutes; it can be
+    # retrained any time via POST /api/v3/forecast/kp/retrain.
+    async def _bootstrap_kp_forecaster() -> None:
+        try:
+            from app.models import kp_forecaster as kpf
+
+            if kpf.load() is None:
+                # Wait one cycle so backfill has a chance to seed snapshots.
+                await asyncio.sleep(60)
+                artifact = await kpf.train_from_db()
+                logger.info(
+                    "Kp forecaster bootstrap: source=%s n_real=%d rmse=%s",
+                    artifact["training_source"],
+                    artifact["n_train_real"],
+                    artifact["metrics"]["rmse_per_horizon"],
+                )
+        except Exception as exc:
+            logger.warning("Kp forecaster bootstrap failed: %s", exc)
+
+    asyncio.create_task(_bootstrap_kp_forecaster())
+
     # Auto-pilot loop — drift-driven retrain, challenger auto-promote, sample
     # archive. Independent of the refresh loop; safe to disable via config.
     from app.models.auto_pilot import run_loop as auto_pilot_loop

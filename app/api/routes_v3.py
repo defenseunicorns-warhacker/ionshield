@@ -21,7 +21,7 @@ Auth + rate-limit pattern matches routes_v2.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -1558,3 +1558,95 @@ async def admin_audit(request: Request, limit: int = 100, tenant_id: str | None 
     from app.data import audit_log
 
     return {"entries": await audit_log.recent(limit=limit, tenant_id=tenant_id)}
+
+
+# ── Phase 2: 24h Kp forecaster ──────────────────────────────────────────────
+
+
+class KpForecastEntry(BaseModel):
+    horizon_h: int
+    valid_at: str
+    kp_predicted: float
+    severity: str  # G0..G5
+
+
+class KpForecastResponse(BaseModel):
+    computed_at: str
+    current_kp: float
+    horizons_h: list[int]
+    entries: list[KpForecastEntry]
+    model_version: int
+    trained_at: str | None
+    n_train_samples: int
+    training_source: str
+    rmse_per_horizon: list[float]
+    note: str | None = None
+
+
+@router_v3.get("/forecast/kp", response_model=KpForecastResponse)
+async def forecast_kp(request: Request, _: None = Depends(verify_api_key)) -> KpForecastResponse:
+    """
+    Phase 2 — 24-hour Kp forecast from a multi-horizon ridge model trained on
+    NASA OMNI historical archive + live noaa_snapshots. Returns predictions
+    at +1h, +3h, +6h, +12h, +24h with severity buckets.
+    """
+    from app.models import kp_forecaster as kpf
+
+    artifact = kpf.load()
+    note: str | None = None
+    if artifact is None:
+        # Cold-start: train on whatever we have right now (synth fallback if empty)
+        artifact = await kpf.train_from_db()
+        note = "Model just bootstrapped; will improve with more data over time."
+
+    feats = await kpf.build_live_features()
+    if feats is None:
+        # No history yet — degrade gracefully to "current Kp persists"
+        kp_now = float(get_kp())
+        feats = [kp_now, 0.0, 400.0] * len(kpf.LAG_OFFSETS_H) + [kp_now, kp_now, 400.0, 0.0]
+        note = (note or "") + " Insufficient history; using persistence fallback."
+
+    preds = kpf.predict(feats, artifact)
+    now = datetime.now(timezone.utc)
+    entries = []
+    for h in artifact["horizons_h"]:
+        kp = preds[f"h{h}"]
+        valid = now + timedelta(hours=h)
+        entries.append(
+            KpForecastEntry(
+                horizon_h=h,
+                valid_at=valid.isoformat(),
+                kp_predicted=kp,
+                severity=kpf.kp_to_severity(kp),
+            )
+        )
+
+    return KpForecastResponse(
+        computed_at=now.isoformat(),
+        current_kp=float(get_kp()),
+        horizons_h=artifact["horizons_h"],
+        entries=entries,
+        model_version=artifact.get("version", 1),
+        trained_at=artifact.get("trained_at"),
+        n_train_samples=artifact.get("n_train_real", 0),
+        training_source=artifact.get("training_source", "unknown"),
+        rmse_per_horizon=artifact.get("metrics", {}).get("rmse_per_horizon", []),
+        note=note,
+    )
+
+
+@router_v3.post("/forecast/kp/retrain")
+async def retrain_kp_forecaster(request: Request) -> dict:
+    """Force a retrain (admin-guarded). Returns new artifact metadata."""
+    _require_admin(request)
+    from app.models import kp_forecaster as kpf
+
+    artifact = await kpf.train_from_db()
+    return {
+        "trained_at": artifact["trained_at"],
+        "n_train_real": artifact["n_train_real"],
+        "n_train_total": artifact["n_train_total"],
+        "training_source": artifact["training_source"],
+        "rmse_per_horizon": artifact["metrics"]["rmse_per_horizon"],
+        "mae_per_horizon": artifact["metrics"]["mae_per_horizon"],
+    }
