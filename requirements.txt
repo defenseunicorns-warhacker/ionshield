@@ -13,4 +13,7 @@ aiosmtplib==3.0.1
 # Foundry sync writes Parquet so the dataset is queryable without a manual
 # "Apply Schema" click in the Foundry UI. Adds ~50MB to the slug (Debian
 # slim wheel) and is worth it.
+# Phase 2 (Kp forecaster) also uses numpy directly — pinned explicitly so
+# CI doesn't rely on pyarrow's transitive numpy install.
+numpy>=1.26,<3
 pyarrow==18.0.0
