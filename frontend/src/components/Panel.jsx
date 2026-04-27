@@ -24,6 +24,32 @@ function LayerToggles({ layers, onToggle }) {
 
   return (
     <div className="panel-section">
+      {/* Prominent route into Simulation Mode — historical storm replay */}
+      <a
+        href="/simulation"
+        style={{
+          display: 'block',
+          background: 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)',
+          color: '#0a0e1a',
+          padding: '12px 14px',
+          borderRadius: 8,
+          textDecoration: 'none',
+          marginBottom: 14,
+          fontWeight: 700,
+          fontSize: 13,
+          letterSpacing: 0.3,
+          boxShadow: '0 4px 14px rgba(56,189,248,0.25)',
+        }}
+        title="Open Simulation Mode"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>🌐 Simulation Mode</span>
+          <span style={{ fontSize: 16 }}>→</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.78, marginTop: 3 }}>
+          Replay May 2024 G5, Halloween 2003, St. Patrick's 2015
+        </div>
+      </a>
       <div className="section-label">
         DATA LAYERS
         <span className="help-icon" title="Toggle visual overlays on the 3D globe. Values are derived from live NOAA data and are indicative, not precision measurements.">?</span>

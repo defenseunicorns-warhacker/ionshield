@@ -166,14 +166,28 @@ export default function Header({ status, onHelp, onReplay, replayActive }) {
         ⏪ Replay
       </button>
 
-      {/* Simulation Mode — historical storm scrubber */}
+      {/* Simulation Mode — historical storm scrubber. Filled cyan CTA so
+          it reads as a primary action, not a tertiary nav link. */}
       <a
-        className="header-btn"
         href="/simulation"
         title="Open Simulation Mode — replay historical storms (May 2024 G5, Halloween 2003, etc.) on a 2D map"
-        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        style={{
+          background: '#38bdf8',
+          color: '#0a0e1a',
+          padding: '7px 14px',
+          borderRadius: 6,
+          fontWeight: 700,
+          fontSize: 12,
+          letterSpacing: 0.3,
+          textDecoration: 'none',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          boxShadow: '0 0 0 1px rgba(56,189,248,0.3), 0 4px 12px rgba(56,189,248,0.18)',
+          whiteSpace: 'nowrap',
+        }}
       >
-        🌐 Simulation
+        🌐 Simulation Mode →
       </a>
 
       {/* Help */}
