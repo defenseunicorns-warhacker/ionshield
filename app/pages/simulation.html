@@ -114,14 +114,18 @@
   <div class="sim-wrap">
     <header class="sim">
       <h1 id="sim-title">⚡ IONSHIELD · SIMULATION MODE</h1>
-      <nav>
+      <nav style="display:flex;align-items:center;gap:14px;">
         <select id="customer-picker" title="Switch audience profile"
                 style="background:#0f172a; color:#e2e8f0; border:1px solid #1e293b;
                        padding:6px 10px; border-radius:6px; font-size:12px;">
           <option value="">All audiences (default)</option>
         </select>
-        <a href="/dashboard">Live dashboard</a>
-        <a href="/docs">Docs</a>
+        <a href="/dashboard"
+           style="background:#38bdf8;color:#0a0e1a;padding:6px 12px;border-radius:6px;
+                  text-decoration:none;font-weight:700;font-size:12px;">
+          ← Live Dashboard
+        </a>
+        <a href="/docs" style="color:#94a3b8;text-decoration:none;font-size:13px;">Docs</a>
       </nav>
     </header>
 
@@ -137,9 +141,7 @@
           Each scenario replays IonShield's full impact model against historical
           NOAA data. Use the timeline below to scrub through the storm.
         </p>
-        <div class="video-slot" id="video-slot">
-          Pre-rendered Earth Studio mp4 will appear here once exported (B4 deliverable).
-        </div>
+        <div class="video-slot" id="video-slot" style="display:none;"></div>
         <div class="downloads" id="downloads" style="display:none;
              gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
           <a class="dl-btn" id="dl-kmz" download

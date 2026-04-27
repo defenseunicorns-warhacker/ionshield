@@ -166,6 +166,16 @@ export default function Header({ status, onHelp, onReplay, replayActive }) {
         ⏪ Replay
       </button>
 
+      {/* Simulation Mode — historical storm scrubber */}
+      <a
+        className="header-btn"
+        href="/simulation"
+        title="Open Simulation Mode — replay historical storms (May 2024 G5, Halloween 2003, etc.) on a 2D map"
+        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        🌐 Simulation
+      </a>
+
       {/* Help */}
       <button className="header-btn" onClick={onHelp}>? Help</button>
     </header>

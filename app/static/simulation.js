@@ -86,6 +86,12 @@
     activeProfile = data.profile || null;
     applyBranding();
     renderScenarioBar();
+    // Auto-load the first concrete (non-live) scenario so the user doesn't
+    // arrive at an empty map. They can switch with one click.
+    const first = scenarios.find(s => s.start && !String(s.start).startsWith('live'));
+    if (first && !activeScenarioId) {
+      pickScenario(first.id);
+    }
   }
 
   function applyBranding() {
@@ -252,11 +258,12 @@
     document.getElementById('detail-title').textContent = sc.title;
     document.getElementById('detail-summary').textContent = sc.summary;
     const slot = document.getElementById('video-slot');
-    if (sc.video_url) {
-      slot.outerHTML = `<video controls poster="" src="${sc.video_url}"></video>`;
-    } else {
-      slot.style.display = '';
-      slot.innerHTML = 'Pre-rendered Earth Studio mp4 will appear here once exported (B4 deliverable).';
+    if (slot) {
+      if (sc.video_url) {
+        slot.outerHTML = `<video controls poster="" src="${sc.video_url}" style="width:100%;border-radius:6px;margin-bottom:14px;"></video>`;
+      } else {
+        slot.style.display = 'none';
+      }
     }
     // B3 caveat 4: per-scenario download buttons for Earth Studio operators
     const downloads = document.getElementById('downloads');
