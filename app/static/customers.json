@@ -1,0 +1,73 @@
+{
+  "customers": [
+    {
+      "id": "defense-cyber",
+      "title": "Defense — Cyber Command",
+      "tagline": "Tactical HF + SATCOM survivability",
+      "summary": "CONUS-focused replays prioritizing HF link availability, polar PCA windows, and GPS L1 timing degradation for tactical comms planning.",
+      "branding": {
+        "accent_color": "#38bdf8",
+        "watermark": "FOR OFFICIAL USE — DEFENSE CYBER COMMAND",
+        "logo_url": null
+      },
+      "region_filter": [
+        "R+035-110", "R+035-090", "R+035-070", "R+035-050",
+        "R+045-110", "R+045-090", "R+045-070", "R+045-050",
+        "R+055-110", "R+055-090", "R+055-070", "R+055-050",
+        "R+065-110", "R+065-090", "R+065-070", "R+065-050",
+        "R+075-110", "R+075-090", "R+075-070", "R+075-050",
+        "R+075-010", "R+075+010", "R+085+010"
+      ],
+      "layer_default": "hf",
+      "highlight_systems": ["HF_RADIO", "GPS_L1", "SATCOM_L"],
+      "highlight_thresholds": {
+        "hf_absorption_db": 25,
+        "gps_l1_error_m": 6
+      }
+    },
+    {
+      "id": "aerospace-launch",
+      "title": "Aerospace — Launch Operations",
+      "tagline": "GPS timing margin near KSC / VBG / Wallops",
+      "summary": "Coastal launch sites focus — GPS L1 dual-frequency error margins, SATCOM telemetry availability, HF backup link feasibility through ascent corridors.",
+      "branding": {
+        "accent_color": "#f59e0b",
+        "watermark": "AEROSPACE LAUNCH OPS — DEMO",
+        "logo_url": null
+      },
+      "region_filter": [
+        "R+025-090", "R+035-090", "R+035-070",
+        "R+035-110", "R+025-150",
+        "R+035+010"
+      ],
+      "layer_default": "gps",
+      "highlight_systems": ["GPS_L1", "GPS_L1L2", "GPS_L1L5", "SATCOM_L"],
+      "highlight_thresholds": {
+        "gps_l1_error_m": 4,
+        "satcom_l_fade_db": 1
+      }
+    },
+    {
+      "id": "commercial-grid",
+      "title": "Commercial — Power Grid Operations",
+      "tagline": "GIC risk + telecom continuity for utilities",
+      "summary": "Mid-latitude grid corridors — geomagnetic disturbance proxy via Kp + Bz, plus HF / SATCOM continuity for SCADA backups during peak storms.",
+      "branding": {
+        "accent_color": "#22c55e",
+        "watermark": "COMMERCIAL — POWER GRID DEMO",
+        "logo_url": null
+      },
+      "region_filter": [
+        "R+035-110", "R+035-090", "R+035-070",
+        "R+045-110", "R+045-090", "R+045-070",
+        "R+045+010", "R+055+010", "R+045+030"
+      ],
+      "layer_default": "hf",
+      "highlight_systems": ["HF_RADIO", "SATCOM_L"],
+      "highlight_thresholds": {
+        "hf_absorption_db": 15,
+        "satcom_l_fade_db": 1
+      }
+    }
+  ]
+}

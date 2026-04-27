@@ -32,11 +32,25 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.routes import limiter, router
 from app.api.routes_v2 import router_v2
+from app.api.routes_v3 import router_v3
 from app.config import settings
 from app.data.archiver import archive_snapshot
 from app.data.db import init_db
+from app.data.event_store import detect_and_persist
+from app.models.ml_classifier import get_classifier as get_ml_classifier
+from app.data import breaker_store
+from app.data.foundry_sync import build_snapshot_payload, sync_rows, sync_snapshot
+from app.data.fusion import fuse_snapshot
+from app.data.instrumentation import begin_loop_tick, time_stage
 from app.data.locations import assess_all, get_active_alerts, load_locations
-from app.data.noaa import fetch_noaa, get_kp
+from app.data.noaa import cache_snapshot as noaa_cache_snapshot
+from app.data.noaa import fetch_noaa, get_bz, get_kp, get_proton_flux_10mev
+from app.data.noaa import get_wind_speed, get_xray_flux
+from app.data.registry import DataSource, list_sources, register, run_all
+from app.data.circuit_breaker import BreakerConfig, set_persistor
+from app.data.ustec import cache_snapshot as iono_cache_snapshot
+from app.data.ustec import fetch_ionosphere, get_glotec_featurecollection
+from app.models.impact import assess_grid as assess_impact_grid
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _PAGES_DIR = Path(__file__).parent / "pages"
@@ -86,23 +100,206 @@ async def _push_cot() -> None:
 # ── Background refresh loop ──────────────────────────────────────────────────
 
 
+async def _push_foundry() -> None:
+    """Push the current observation snapshot to Foundry. No-op if disabled."""
+    if not settings.foundry_sync_configured:
+        return
+    noaa_snap = noaa_cache_snapshot()
+    noaa_snap.update(
+        kp_index=get_kp(),
+        bz_nt=get_bz(),
+        xray_flux=get_xray_flux(),
+        proton_flux_10mev=get_proton_flux_10mev(),
+        wind_speed_km_s=get_wind_speed(),
+    )
+    payload = build_snapshot_payload(noaa_snap, iono_cache_snapshot())
+    await sync_snapshot(
+        payload,
+        stack_url=settings.foundry_stack_url,
+        dataset_rid=settings.foundry_space_weather_raw_rid,
+        token=settings.foundry_token.get_secret_value(),
+    )
+
+
+async def _detect_events() -> None:
+    """Run the rule-based event detector on the latest fused observation.
+
+    Uses the trained ML classifier when its artifact is bundled (preferred),
+    falling back to the rule-derived MLClassifierStub when not.
+    """
+    iono_snap = iono_cache_snapshot()
+    fused_one = fuse_snapshot(
+        when=None,
+        kp=get_kp(),
+        bz_nt=get_bz(),
+        wind_speed_km_s=get_wind_speed(),
+        xray_flux_wm2=get_xray_flux(),
+        proton_flux_10mev_pfu=get_proton_flux_10mev(),
+        f107_sfu=iono_snap.get("f107_sfu", 70.0),
+        glotec_fc=None,  # detector is region-agnostic for global rules
+    )
+    if not fused_one:
+        return
+    classifier = get_ml_classifier()
+    try:
+        out = await detect_and_persist(fused_one[0], classifier=classifier)
+    except Exception as exc:
+        logger.warning("Event detection error: %s", exc)
+        return
+
+    # Optional Foundry events sync — only push transitions worth recording.
+    if not settings.foundry_events_rid or not settings.foundry_sync_configured:
+        return
+    rows = [e.to_dict() for e in (out["onset"] + out["ended"])]
+    if not rows:
+        return
+    await sync_rows(
+        rows,
+        stack_url=settings.foundry_stack_url,
+        dataset_rid=settings.foundry_events_rid,
+        token=settings.foundry_token.get_secret_value(),
+    )
+
+
+async def _push_foundry_impact() -> None:
+    """Push per-region impact rows (A4) to Foundry. No-op if disabled."""
+    if not (
+        settings.foundry_sync_configured
+        and settings.foundry_impact_rid
+    ):
+        return
+    iono_snap = iono_cache_snapshot()
+    fused = fuse_snapshot(
+        when=None,
+        kp=get_kp(), bz_nt=get_bz(), wind_speed_km_s=get_wind_speed(),
+        xray_flux_wm2=get_xray_flux(),
+        proton_flux_10mev_pfu=get_proton_flux_10mev(),
+        f107_sfu=iono_snap.get("f107_sfu", 70.0),
+        glotec_fc=get_glotec_featurecollection(),
+    )
+    impacts = assess_impact_grid(fused)
+    rows = [r for ia in impacts for r in ia.to_rows()]
+    await sync_rows(
+        rows,
+        stack_url=settings.foundry_stack_url,
+        dataset_rid=settings.foundry_impact_rid,
+        token=settings.foundry_token.get_secret_value(),
+    )
+
+
+async def _push_foundry_fused() -> None:
+    """Push the fused Region × Time grid to Foundry. No-op if disabled."""
+    if not settings.foundry_fused_sync_configured:
+        return
+    iono_snap = iono_cache_snapshot()
+    fused = fuse_snapshot(
+        when=None,
+        kp=get_kp(),
+        bz_nt=get_bz(),
+        wind_speed_km_s=get_wind_speed(),
+        xray_flux_wm2=get_xray_flux(),
+        proton_flux_10mev_pfu=get_proton_flux_10mev(),
+        f107_sfu=iono_snap.get("f107_sfu", 70.0),
+        glotec_fc=get_glotec_featurecollection(),
+        feed_quality={**(noaa_cache_snapshot().get("fetch_status") or {}),
+                      **(iono_snap.get("fetch_status") or {})},
+        data_age_seconds=int(noaa_cache_snapshot().get("data_age_seconds") or 0),
+    )
+    rows = [obs.to_dict() for obs in fused]
+    await sync_rows(
+        rows,
+        stack_url=settings.foundry_stack_url,
+        dataset_rid=settings.foundry_location_risk_rid,
+        token=settings.foundry_token.get_secret_value(),
+    )
+
+
+def _register_default_sources() -> None:
+    """Register the built-in NOAA + ionosphere sources with the registry."""
+    from app.data.noaa import cache_snapshot as _noaa_status
+    from app.data.ustec import cache_snapshot as _iono_status
+
+    register(DataSource(
+        name="noaa_swpc",
+        cadence_seconds=settings.refresh_interval_seconds,
+        fetch_async=lambda timeout: fetch_noaa(timeout=timeout),
+        status_async=_noaa_status,
+        timeout_seconds=settings.noaa_timeout_seconds,
+        breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+    ))
+    register(DataSource(
+        name="ionosphere",
+        cadence_seconds=settings.refresh_interval_seconds,
+        fetch_async=lambda timeout: fetch_ionosphere(timeout=timeout),
+        status_async=_iono_status,
+        timeout_seconds=settings.noaa_timeout_seconds,
+        breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+    ))
+
+
+_egress_locks: dict[str, asyncio.Semaphore] = {}
+
+
+async def _fire_and_forget(coro_factory, *, label: str) -> None:
+    """
+    Run a coroutine in the background; log but don't propagate errors.
+
+    Bounded by a per-label Semaphore(1): if the previous task with the same
+    label is still running (e.g. a hung Foundry transaction), this tick's
+    push is **skipped** with a warning rather than queued. This prevents
+    unbounded task accumulation when an egress target stalls indefinitely.
+    """
+    sem = _egress_locks.setdefault(label, asyncio.Semaphore(1))
+    if sem.locked():
+        logger.warning(
+            "Background task %s skipped — previous run still in flight", label,
+        )
+        return
+
+    async def _wrapper() -> None:
+        async with sem:
+            try:
+                await coro_factory()
+            except Exception as exc:
+                logger.warning("Background task %s failed: %s", label, exc)
+
+    asyncio.create_task(_wrapper())
+
+
 async def _refresh_loop() -> None:
-    """Fetch NOAA data on a fixed interval, archive, then reload locations. Never fatal."""
+    """
+    Single tick: parallel source fetches via registry → instrumented stages →
+    fire-and-forget egress → reload locations. Never fatal.
+    """
     while True:
         await asyncio.sleep(settings.refresh_interval_seconds)
-        try:
-            await fetch_noaa(timeout=settings.noaa_timeout_seconds)
-        except Exception as exc:
-            logger.error("Unexpected error in refresh loop: %s", exc, exc_info=True)
+        begin_loop_tick()
 
-        await archive_snapshot()
-        _reload_locations()
+        with time_stage("fetch"):
+            try:
+                results = await run_all()
+            except Exception as exc:
+                logger.error("Refresh loop error: %s", exc, exc_info=True)
+                results = {}
+        if results:
+            logger.debug("Source results: %s", results)
+
+        with time_stage("archive"):
+            await archive_snapshot()
+
+        # Egress: don't block the loop on slow Foundry transactions.
+        await _fire_and_forget(_push_foundry, label="foundry_raw")
+        await _fire_and_forget(_push_foundry_fused, label="foundry_fused")
+        await _fire_and_forget(_push_foundry_impact, label="foundry_impact")
+
+        with time_stage("detect"):
+            await _detect_events()
+
+        with time_stage("reload"):
+            _reload_locations()
 
         if settings.cot_push_enabled:
-            try:
-                await _push_cot()
-            except Exception as exc:
-                logger.warning("CoT push error: %s", exc)
+            await _fire_and_forget(_push_cot, label="cot_push")
 
 
 # ── Lifespan ─────────────────────────────────────────────────────────────────
@@ -115,8 +312,20 @@ async def lifespan(app: FastAPI):
         "IonShield v%s starting — performing initial NOAA fetch…", settings.app_version
     )
     await init_db()
-    await fetch_noaa(timeout=settings.noaa_timeout_seconds)
+    set_persistor(breaker_store.persist)
+    _register_default_sources()
+    # Rehydrate breakers from DB so an OPEN state recorded before the last
+    # restart survives the restart (single-replica). For scale-out, point
+    # `set_persistor` and `breaker_store.hydrate_all` at a shared backend.
+    persisted = await breaker_store.hydrate_all()
+    for src in list_sources():
+        src.breaker.hydrate(persisted.get(src.name))
+    await run_all()
     await archive_snapshot()
+    await _fire_and_forget(_push_foundry, label="foundry_raw_initial")
+    await _fire_and_forget(_push_foundry_fused, label="foundry_fused_initial")
+    await _fire_and_forget(_push_foundry_impact, label="foundry_impact_initial")
+    await _detect_events()
     _reload_locations()
     from app.data.locations import location_count
 
@@ -125,12 +334,39 @@ async def lifespan(app: FastAPI):
         location_count(),
     )
     task = asyncio.create_task(_refresh_loop())
+
+    # B3 caveat fix: auto-run scenario precompute in the background after the
+    # first refresh tick, so a fresh deploy populates app/static/scenarios/
+    # without needing the operator to invoke scripts/precompute_scenarios.sh.
+    # Idempotent — does nothing if assets are already up-to-date.
+    async def _bootstrap_scenarios() -> None:
+        try:
+            from app.data import historical_backfill, scenario_precompute
+            await historical_backfill.backfill_all_predefined()
+            results = await scenario_precompute.precompute_all()
+            written = sum(1 for r in results if r.get("written"))
+            logger.info(
+                "Scenario precompute bootstrap: %d/%d scenarios written",
+                written, len(results),
+            )
+        except Exception as exc:
+            logger.warning("Scenario bootstrap failed: %s", exc)
+
+    asyncio.create_task(_bootstrap_scenarios())
+
+    # Auto-pilot loop — drift-driven retrain, challenger auto-promote, sample
+    # archive. Independent of the refresh loop; safe to disable via config.
+    from app.models.auto_pilot import run_loop as auto_pilot_loop
+    auto_task = asyncio.create_task(auto_pilot_loop())
+
     yield
     task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    auto_task.cancel()
+    for t in (task, auto_task):
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
     logger.info("IonShield shutting down.")
 
 
@@ -224,6 +460,11 @@ def create_app() -> FastAPI:
     async def dashboard():
         return FileResponse(_STATIC_DIR / "index.html")
 
+    # ── B5: Simulation / Storm Replay Mode ────────────────────────────────────
+    @app.get("/simulation", include_in_schema=False)
+    async def simulation():
+        return _page("simulation.html")
+
     # ── SEO helpers ───────────────────────────────────────────────────────────
     @app.get("/robots.txt", include_in_schema=False)
     async def robots():
@@ -263,6 +504,7 @@ def create_app() -> FastAPI:
     # Routes
     app.include_router(router)
     app.include_router(router_v2)
+    app.include_router(router_v3)
 
     return app
 

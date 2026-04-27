@@ -83,6 +83,66 @@ class Settings(BaseSettings):
     # Set CONTACT_RATE_LIMIT=5/hour in production to tighten against spam.
     contact_rate_limit: str = "100/hour"
 
+    # ── Foundry data sync ───────────────────────────────────────────────────
+    # When enabled, every refresh pushes a snapshot row to a Foundry dataset.
+    # All four vars must be set; missing any disables sync silently.
+    foundry_sync_enabled: bool = False
+    foundry_stack_url: str = ""
+    foundry_token: SecretStr = SecretStr("")
+    foundry_space_weather_raw_rid: str = ""
+    # Optional second dataset for fused Region × Time grid rows (A2 output).
+    foundry_location_risk_rid: str = ""
+    # Optional dataset for detected events (A3 output).
+    foundry_events_rid: str = ""
+    # Optional dataset for per-region impact rows (A4 output).
+    foundry_impact_rid: str = ""
+    # Optional dataset for archived training samples (A7 caveat fix).
+    foundry_training_archive_rid: str = ""
+    foundry_branch: str = "master"
+
+    # Sample-archive policy: rows older than this many days are uploaded to
+    # the Foundry training-archive dataset and deleted from the local DB.
+    sample_archive_max_age_days: int = 30
+    sample_archive_interval_seconds: int = 3600   # check every hour
+    sample_archive_batch_size: int = 1000
+
+    # B4 caveat fix: optional comma-separated allowlist of hostnames (or
+    # parent suffixes) that scenario video registrations may use. Empty =
+    # accept any https host. Example: "cdn.example.com,r2.example.org"
+    video_domain_allowlist: str = ""
+
+    # Auto-retrain policy: when drift agreement stays below this threshold
+    # for `auto_retrain_min_samples` consecutive evaluations, trigger a
+    # retrain automatically. 0 disables.
+    auto_retrain_enabled: bool = True
+    auto_retrain_check_interval_seconds: int = 1800   # 30 min
+    auto_retrain_drift_threshold: float = 0.85
+    auto_retrain_min_samples: int = 200
+    auto_retrain_cooldown_seconds: int = 6 * 3600     # don't retrain more than every 6h
+
+    # Champion/challenger A/B policy: a freshly trained model becomes the
+    # challenger for this many ticks before being eligible for promotion.
+    shadow_window_min_samples: int = 100
+    shadow_promotion_min_advantage: float = 0.0   # challenger must equal or beat champion
+
+    @property
+    def foundry_sync_configured(self) -> bool:
+        return bool(
+            self.foundry_sync_enabled
+            and self.foundry_stack_url
+            and self.foundry_token.get_secret_value()
+            and self.foundry_space_weather_raw_rid
+        )
+
+    @property
+    def foundry_fused_sync_configured(self) -> bool:
+        return bool(
+            self.foundry_sync_enabled
+            and self.foundry_stack_url
+            and self.foundry_token.get_secret_value()
+            and self.foundry_location_risk_rid
+        )
+
     @property
     def smtp_enabled(self) -> bool:
         return bool(self.smtp_host and self.smtp_username)

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IonShield · Simulation Mode</title>
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+  <style>
+    body { margin: 0; background: #0a0e1a; color: #e2e8f0;
+           font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; }
+    .sim-wrap { display: grid; grid-template-rows: auto auto 1fr auto;
+                height: 100vh; max-height: 100vh; }
+    header.sim {
+      padding: 14px 20px; background: #0f172a; border-bottom: 1px solid #1e293b;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    header.sim h1 {
+      margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 2px;
+      color: #38bdf8;
+    }
+    header.sim a {
+      color: #94a3b8; text-decoration: none; font-size: 13px; margin-left: 16px;
+    }
+    header.sim a:hover { color: #e2e8f0; }
+    .scenario-bar {
+      display: flex; gap: 10px; padding: 12px 20px; background: #0c1729;
+      border-bottom: 1px solid #1e293b; overflow-x: auto;
+    }
+    .scenario-card {
+      flex: 0 0 auto; padding: 10px 14px; border-radius: 8px;
+      background: #0f172a; border: 1px solid #1e293b; cursor: pointer;
+      min-width: 240px; transition: border-color .2s;
+    }
+    .scenario-card:hover { border-color: #38bdf8; }
+    .scenario-card.active { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8 inset; }
+    .scenario-card .title { font-weight: 700; font-size: 13px; color: #e2e8f0; }
+    .scenario-card .tagline { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .scenario-card .tags { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+    .tag { padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700;
+           background: #1e293b; color: #94a3b8; text-transform: uppercase;
+           letter-spacing: .5px; }
+    .tag.live { background: #22c55e; color: #052e16; }
+    .tag.g5 { background: #ef4444; color: white; }
+    .tag.g4 { background: #f59e0b; color: #451a03; }
+
+    .sim-main { display: grid; grid-template-columns: 1fr 360px; min-height: 0; }
+    #map { height: 100%; }
+    aside.detail {
+      background: #0f172a; border-left: 1px solid #1e293b; padding: 16px;
+      overflow-y: auto;
+    }
+    aside.detail h2 {
+      margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #38bdf8;
+      text-transform: uppercase; letter-spacing: 1.5px;
+    }
+    aside.detail .summary {
+      font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;
+    }
+    aside.detail .video-slot {
+      background: #0a0e1a; border: 1px dashed #1e293b; border-radius: 6px;
+      aspect-ratio: 16 / 9; display: flex; align-items: center;
+      justify-content: center; color: #64748b; font-size: 11px;
+      text-align: center; padding: 0 12px; margin-bottom: 14px;
+    }
+    aside.detail video { width: 100%; border-radius: 6px; margin-bottom: 14px; }
+    .downloads { display: flex; }
+    .dl-btn {
+      flex: 1; min-width: 100px;
+      padding: 6px 10px; border-radius: 6px;
+      background: #1e293b; color: #38bdf8; text-decoration: none;
+      font-size: 11px; font-weight: 700; letter-spacing: .5px;
+      text-align: center; border: 1px solid #1e293b; transition: border-color .15s;
+    }
+    .dl-btn:hover { border-color: #38bdf8; background: #0f172a; }
+    .stat-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+    }
+    .stat {
+      background: #0a0e1a; border: 1px solid #1e293b; border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .stat-label { font-size: 9px; color: #64748b; text-transform: uppercase;
+                  letter-spacing: 1px; }
+    .stat-val { font-size: 18px; font-weight: 700; color: #e2e8f0; margin-top: 3px; }
+    .v-green { color: #22c55e; } .v-amber { color: #f59e0b; } .v-red { color: #ef4444; }
+
+    footer.controls {
+      padding: 12px 20px; background: #0c1729; border-top: 1px solid #1e293b;
+      display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+    }
+    footer button {
+      background: #38bdf8; color: #0a0e1a; border: 0; padding: 8px 14px;
+      border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px;
+    }
+    footer button:disabled { background: #1e293b; color: #475569; cursor: default; }
+    footer input[type=range] { width: 100%; }
+    footer .time-label {
+      font-family: ui-monospace, monospace; font-size: 12px; color: #94a3b8;
+      min-width: 220px; text-align: right;
+    }
+    .loader {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      color: #94a3b8; font-size: 12px;
+    }
+
+    .leaflet-container { background: #0a0e1a; }
+    .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.95); }
+  </style>
+</head>
+<body>
+  <div class="sim-wrap">
+    <header class="sim">
+      <h1 id="sim-title">⚡ IONSHIELD · SIMULATION MODE</h1>
+      <nav>
+        <select id="customer-picker" title="Switch audience profile"
+                style="background:#0f172a; color:#e2e8f0; border:1px solid #1e293b;
+                       padding:6px 10px; border-radius:6px; font-size:12px;">
+          <option value="">All audiences (default)</option>
+        </select>
+        <a href="/dashboard">Live dashboard</a>
+        <a href="/docs">Docs</a>
+      </nav>
+    </header>
+
+    <section class="scenario-bar" id="scenario-bar">
+      <span style="color:#64748b; font-size:11px; align-self:center;">Loading scenarios…</span>
+    </section>
+
+    <section class="sim-main">
+      <div id="map"></div>
+      <aside class="detail">
+        <h2 id="detail-title">Pick a scenario above</h2>
+        <p class="summary" id="detail-summary">
+          Each scenario replays IonShield's full impact model against historical
+          NOAA data. Use the timeline below to scrub through the storm.
+        </p>
+        <div class="video-slot" id="video-slot">
+          Pre-rendered Earth Studio mp4 will appear here once exported (B4 deliverable).
+        </div>
+        <div class="downloads" id="downloads" style="display:none;
+             gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
+          <a class="dl-btn" id="dl-kmz" download
+             title="Layered KMZ for Google Earth / Earth Studio">↓ KMZ</a>
+          <a class="dl-btn" id="dl-csv" download
+             title="Earth Studio Tracks CSV — drag into Tracks panel">↓ Keyframes CSV</a>
+          <a class="dl-btn" id="dl-gj" download
+             title="Time-indexed GeoJSON FeatureCollection">↓ GeoJSON</a>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="stat-label">Kp</div>
+            <div class="stat-val" id="stat-kp">—</div></div>
+          <div class="stat"><div class="stat-label">GPS L1 max (m)</div>
+            <div class="stat-val" id="stat-gps">—</div></div>
+          <div class="stat"><div class="stat-label">HF max (dB)</div>
+            <div class="stat-val" id="stat-hf">—</div></div>
+          <div class="stat"><div class="stat-label">SATCOM L peak (dB)</div>
+            <div class="stat-val" id="stat-sat">—</div></div>
+        </div>
+        <div id="highlights"></div>
+      </aside>
+    </section>
+
+    <footer class="controls">
+      <button id="play-btn" disabled>▶ Play</button>
+      <input type="range" id="time-slider" min="0" max="0" value="0" disabled />
+      <span class="time-label" id="time-label">—</span>
+    </footer>
+  </div>
+
+  <div class="loader" id="loader" style="display:none">Loading scenario data…</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
+  <script src="/static/simulation.js"></script>
+</body>
+</html>

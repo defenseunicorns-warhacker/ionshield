@@ -1,0 +1,537 @@
+{
+  "scenarios": [
+    {
+      "id": "may-2024-g5",
+      "title": "May 2024 \u2014 Gannon Storm (G5)",
+      "tagline": "Strongest geomagnetic storm in 20 years",
+      "summary": "Five X-class flares from AR3664 produced a G5 (Kp = 9) storm on 10\u201311 May 2024. Aurora visible to mid-latitudes; widespread GPS surveying outages; Starlink reentry anomalies.",
+      "start": "2024-05-10T00:00:00Z",
+      "end": "2024-05-12T00:00:00Z",
+      "step_seconds": 1800,
+      "video_url": null,
+      "tags": [
+        "g5",
+        "x-class",
+        "polar",
+        "real"
+      ],
+      "highlights": [
+        {
+          "time": "2024-05-10T17:30:00Z",
+          "label": "G5 onset"
+        },
+        {
+          "time": "2024-05-11T02:00:00Z",
+          "label": "Peak Kp 9"
+        },
+        {
+          "time": "2024-05-11T18:00:00Z",
+          "label": "Recovery phase"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/may-2024-g5/scenario.geojson",
+        "kmz_url": "/static/scenarios/may-2024-g5/scenario.kmz",
+        "keyframes_url": "/static/scenarios/may-2024-g5/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 30,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 60,
+            "lon": -70,
+            "altitude_m": 25000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "wide global"
+          },
+          {
+            "t": 8,
+            "lat": 65,
+            "lon": -90,
+            "altitude_m": 12000000,
+            "heading": 12,
+            "tilt": 25,
+            "label": "approach polar"
+          },
+          {
+            "t": 18,
+            "lat": 70,
+            "lon": -50,
+            "altitude_m": 7000000,
+            "heading": 35,
+            "tilt": 35,
+            "label": "main phase peak"
+          },
+          {
+            "t": 28,
+            "lat": 50,
+            "lon": -30,
+            "altitude_m": 18000000,
+            "heading": 0,
+            "tilt": 10,
+            "label": "pull back recovery"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "halloween-2003",
+      "title": "Halloween Storms 2003 (G5)",
+      "tagline": "Multi-day X17 flare sequence",
+      "summary": "October 28 \u2013 November 4, 2003. X17 flare from AR10486 caused HF blackouts on dayside Earth and a 30-minute GPS WAAS outage. Aurora visible to Texas.",
+      "start": "2003-10-28T00:00:00Z",
+      "end": "2003-11-04T00:00:00Z",
+      "step_seconds": 10800,
+      "geometry": "point",
+      "video_url": null,
+      "tags": [
+        "g5",
+        "x17",
+        "sep",
+        "historic"
+      ],
+      "highlights": [
+        {
+          "time": "2003-10-28T11:10:00Z",
+          "label": "X17 flare"
+        },
+        {
+          "time": "2003-10-29T06:00:00Z",
+          "label": "G5 onset"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/halloween-2003/scenario.geojson",
+        "kmz_url": "/static/scenarios/halloween-2003/scenario.kmz",
+        "keyframes_url": "/static/scenarios/halloween-2003/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 45,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 0,
+            "lon": -90,
+            "altitude_m": 30000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "wide global"
+          },
+          {
+            "t": 12,
+            "lat": 70,
+            "lon": -100,
+            "altitude_m": 9000000,
+            "heading": 20,
+            "tilt": 30,
+            "label": "polar PCA window"
+          },
+          {
+            "t": 25,
+            "lat": 80,
+            "lon": 0,
+            "altitude_m": 6000000,
+            "heading": 90,
+            "tilt": 35,
+            "label": "trans-polar HF cutoff"
+          },
+          {
+            "t": 40,
+            "lat": 30,
+            "lon": -90,
+            "altitude_m": 25000000,
+            "heading": 0,
+            "tilt": 5,
+            "label": "global recovery"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "st-patrick-2015",
+      "title": "St. Patrick's Day 2015 (G4)",
+      "tagline": "Largest storm of solar cycle 24",
+      "summary": "March 17, 2015. CME from M-class flare drove Kp = 8 (G4). Aurora visible across CONUS. NOAA-issued storm warning lead time only 30 minutes.",
+      "start": "2015-03-17T00:00:00Z",
+      "end": "2015-03-19T00:00:00Z",
+      "step_seconds": 1800,
+      "video_url": null,
+      "tags": [
+        "g4",
+        "cme",
+        "real"
+      ],
+      "highlights": [
+        {
+          "time": "2015-03-17T14:00:00Z",
+          "label": "Sudden commencement"
+        },
+        {
+          "time": "2015-03-17T22:00:00Z",
+          "label": "Kp = 8 peak"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/st-patrick-2015/scenario.geojson",
+        "kmz_url": "/static/scenarios/st-patrick-2015/scenario.kmz",
+        "keyframes_url": "/static/scenarios/st-patrick-2015/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 25,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 50,
+            "lon": -100,
+            "altitude_m": 22000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "CONUS wide"
+          },
+          {
+            "t": 10,
+            "lat": 60,
+            "lon": -90,
+            "altitude_m": 10000000,
+            "heading": 15,
+            "tilt": 25,
+            "label": "Kp 8 peak"
+          },
+          {
+            "t": 20,
+            "lat": 50,
+            "lon": -100,
+            "altitude_m": 22000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "recovery"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "live-7d",
+      "title": "Live \u2014 Last 7 Days",
+      "tagline": "Replay current solar activity",
+      "summary": "Replay the last 7 days of NOAA SWPC data through the IonShield impact model.",
+      "start": "live-7d",
+      "end": "now",
+      "step_seconds": 3600,
+      "video_url": null,
+      "tags": [
+        "live"
+      ],
+      "highlights": [],
+      "precomputed": null
+    },
+    {
+      "id": "geomag-progression",
+      "title": "Geomagnetic Storm Progression",
+      "tagline": "Onset \u2192 main phase \u2192 recovery",
+      "summary": "Tracks the 36-hour Kp evolution of the May 2024 G5 storm \u2014 quiet onset, sudden commencement, main-phase peak at Kp 9, and the 12-hour recovery.",
+      "source_storm": "may-2024-g5",
+      "start": "2024-05-10T12:00:00Z",
+      "end": "2024-05-12T00:00:00Z",
+      "step_seconds": 3600,
+      "layer": "hf",
+      "video_url": null,
+      "tags": [
+        "progression",
+        "kp",
+        "showcase"
+      ],
+      "highlights": [
+        {
+          "time": "2024-05-10T17:30:00Z",
+          "label": "Sudden commencement"
+        },
+        {
+          "time": "2024-05-11T02:00:00Z",
+          "label": "Main phase Kp 9"
+        },
+        {
+          "time": "2024-05-11T18:00:00Z",
+          "label": "Recovery"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/geomag-progression/scenario.geojson",
+        "kmz_url": "/static/scenarios/geomag-progression/scenario.kmz",
+        "keyframes_url": "/static/scenarios/geomag-progression/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 30,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 30,
+            "lon": 0,
+            "altitude_m": 35000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "earth-day-side"
+          },
+          {
+            "t": 12,
+            "lat": 30,
+            "lon": 0,
+            "altitude_m": 35000000,
+            "heading": 30,
+            "tilt": 0,
+            "label": "rotate-1"
+          },
+          {
+            "t": 24,
+            "lat": 30,
+            "lon": 0,
+            "altitude_m": 35000000,
+            "heading": 60,
+            "tilt": 0,
+            "label": "rotate-2"
+          },
+          {
+            "t": 30,
+            "lat": 30,
+            "lon": 0,
+            "altitude_m": 35000000,
+            "heading": 90,
+            "tilt": 0,
+            "label": "rotate-end"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "gps-spread",
+      "title": "GPS Degradation Spread",
+      "tagline": "Surveying outage at Halloween X28 peak",
+      "summary": "Mid-latitude GPS L1 error during the Halloween 2003 X28 flare and main-phase Kp 9. Layer colored by `gps_l1_error_m` to highlight the geographic spread of meter-scale positioning errors.",
+      "source_storm": "halloween-2003",
+      "start": "2003-10-29T18:00:00Z",
+      "end": "2003-10-31T06:00:00Z",
+      "step_seconds": 3600,
+      "layer": "gps",
+      "region_filter": null,
+      "video_url": null,
+      "tags": [
+        "gps",
+        "l1",
+        "surveying",
+        "showcase"
+      ],
+      "highlights": [
+        {
+          "time": "2003-10-29T23:00:00Z",
+          "label": "Kp 8.7 peak"
+        },
+        {
+          "time": "2003-10-30T08:00:00Z",
+          "label": "Recovery starts"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/gps-spread/scenario.geojson",
+        "kmz_url": "/static/scenarios/gps-spread/scenario.kmz",
+        "keyframes_url": "/static/scenarios/gps-spread/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 25,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 35,
+            "lon": -90,
+            "altitude_m": 20000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "CONUS wide"
+          },
+          {
+            "t": 10,
+            "lat": 35,
+            "lon": -90,
+            "altitude_m": 8000000,
+            "heading": 0,
+            "tilt": 25,
+            "label": "zoom CONUS"
+          },
+          {
+            "t": 20,
+            "lat": 50,
+            "lon": -90,
+            "altitude_m": 18000000,
+            "heading": 10,
+            "tilt": 5,
+            "label": "spread to Canada"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "hf-blackout",
+      "title": "HF Blackout \u2014 Polar PCA",
+      "tagline": "Polar Cap Absorption from S3 SEP event",
+      "summary": "Halloween 2003 polar HF blackout window. Proton flux peaked near 10\u2074 pfu, driving polar D-region absorption above 50 dB \u2014 well past most HF link fade margins. Layer colored by hf_absorption_db.",
+      "source_storm": "halloween-2003",
+      "start": "2003-10-29T20:00:00Z",
+      "end": "2003-10-31T00:00:00Z",
+      "step_seconds": 3600,
+      "layer": "hf",
+      "video_url": null,
+      "tags": [
+        "hf",
+        "pca",
+        "polar",
+        "showcase"
+      ],
+      "highlights": [
+        {
+          "time": "2003-10-30T01:00:00Z",
+          "label": "PCA peak"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/hf-blackout/scenario.geojson",
+        "kmz_url": "/static/scenarios/hf-blackout/scenario.kmz",
+        "keyframes_url": "/static/scenarios/hf-blackout/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 25,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 80,
+            "lon": 0,
+            "altitude_m": 22000000,
+            "heading": 0,
+            "tilt": 0,
+            "label": "polar wide"
+          },
+          {
+            "t": 10,
+            "lat": 75,
+            "lon": -90,
+            "altitude_m": 9000000,
+            "heading": 30,
+            "tilt": 30,
+            "label": "trans-Atlantic blackout"
+          },
+          {
+            "t": 20,
+            "lat": 80,
+            "lon": 90,
+            "altitude_m": 16000000,
+            "heading": 60,
+            "tilt": 15,
+            "label": "pan over polar cap"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "satcom-disruption",
+      "title": "SATCOM L-Band Auroral Scintillation",
+      "tagline": "May 2024 G5 \u2014 auroral scint disrupts L-band uplinks",
+      "summary": "L-band SATCOM fade during the May 2024 G5 storm. Auroral oval scintillation drives 1\u20133 dB amplitude fades across high-latitude beam footprints. Layer colored by satcom_l_fade_db.",
+      "source_storm": "may-2024-g5",
+      "start": "2024-05-10T20:00:00Z",
+      "end": "2024-05-11T18:00:00Z",
+      "step_seconds": 1800,
+      "layer": "sat",
+      "video_url": null,
+      "tags": [
+        "satcom",
+        "l-band",
+        "auroral",
+        "showcase"
+      ],
+      "highlights": [
+        {
+          "time": "2024-05-11T02:00:00Z",
+          "label": "Peak scintillation"
+        }
+      ],
+      "precomputed": {
+        "geojson_url": "/static/scenarios/satcom-disruption/scenario.geojson",
+        "kmz_url": "/static/scenarios/satcom-disruption/scenario.kmz",
+        "keyframes_url": "/static/scenarios/satcom-disruption/keyframes.csv"
+      },
+      "recipe": {
+        "duration_seconds": 22,
+        "frame_rate": 30,
+        "camera": [
+          {
+            "t": 0,
+            "lat": 65,
+            "lon": -100,
+            "altitude_m": 18000000,
+            "heading": 0,
+            "tilt": 5,
+            "label": "auroral oval CONUS"
+          },
+          {
+            "t": 8,
+            "lat": 65,
+            "lon": 0,
+            "altitude_m": 12000000,
+            "heading": 20,
+            "tilt": 25,
+            "label": "Europe auroral"
+          },
+          {
+            "t": 18,
+            "lat": 70,
+            "lon": 100,
+            "altitude_m": 18000000,
+            "heading": 35,
+            "tilt": 5,
+            "label": "Asian sector"
+          }
+        ],
+        "render": {
+          "format": "mp4",
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    }
+  ]
+}

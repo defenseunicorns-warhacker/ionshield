@@ -27,9 +27,12 @@ logger = logging.getLogger(__name__)
 NOAA_ENDPOINTS: dict[str, str] = {
     "kp": "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",
     "xray": "https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json",
-    "wind": "https://services.swpc.noaa.gov/json/solar-wind/plasma-2-hour.json",
-    "mag": "https://services.swpc.noaa.gov/json/solar-wind/mag-2-hour.json",
-    "proton": "https://services.swpc.noaa.gov/json/goes/primary/integral-protons-1-hour.json",
+    # Solar wind feeds moved from /json/ to /products/ in 2025+ and switched
+    # from array-of-dicts to header-row + array-of-arrays format.
+    "wind": "https://services.swpc.noaa.gov/products/solar-wind/plasma-2-hour.json",
+    "mag": "https://services.swpc.noaa.gov/products/solar-wind/mag-2-hour.json",
+    # Integral proton 1-hour file was retired; use 3-day file (multi-channel).
+    "proton": "https://services.swpc.noaa.gov/json/goes/primary/integral-protons-3-day.json",
     # 3-day Kp forecast: header row + [time_tag, kp, observed|predicted, noaa_scale] rows
     "kp_forecast": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json",
 }
@@ -72,8 +75,10 @@ async def fetch_noaa(timeout: float = 10.0) -> None:
                 r = await client.get(url)
                 r.raise_for_status()
                 data = r.json()
-                # kp_forecast has a header row so needs len >= 2; all others need >= 1
-                min_len = 2 if key == "kp_forecast" else 1
+                # wind, mag, and kp_forecast use a header row + tuple rows
+                # (ASCII-style products); others are arrays of dicts.
+                header_row_feeds = {"kp_forecast", "wind", "mag"}
+                min_len = 2 if key in header_row_feeds else 1
                 if not isinstance(data, list) or len(data) < min_len:
                     raise ValueError(f"Unexpected payload shape for {key}")
                 _cache[key] = data
@@ -146,15 +151,38 @@ def get_xray_class() -> str:
     return "A"
 
 
+def _row_value(rows: list, column: str) -> float | None:
+    """
+    Pull the latest non-null value from a header-row-style NOAA product.
+
+    rows[0] is the column-name header; rows[1:] are tuples in matching order.
+    Walks newest-first and returns the first parseable float for `column`.
+    """
+    if not rows or len(rows) < 2:
+        return None
+    header = rows[0]
+    if column not in header:
+        return None
+    idx = header.index(column)
+    for row in reversed(rows[1:]):
+        if not isinstance(row, list) or len(row) <= idx:
+            continue
+        v = row[idx]
+        if v is None or v == "" or str(v).lower() == "null":
+            continue
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def get_wind_speed() -> float:
     """Solar wind bulk flow speed in km/s."""
     try:
-        data = _cache["wind"]
-        if data:
-            for entry in reversed(data):
-                spd = entry.get("speed")
-                if spd is not None and float(spd) > 0:
-                    return float(spd)
+        v = _row_value(_cache["wind"] or [], "speed")
+        if v is not None and v > 0:
+            return v
     except Exception:
         logger.debug("get_wind_speed: parse error, using fallback")
     return FALLBACK["wind_speed"]
@@ -163,12 +191,9 @@ def get_wind_speed() -> float:
 def get_wind_density() -> float:
     """Solar wind proton number density in cm⁻³."""
     try:
-        data = _cache["wind"]
-        if data:
-            for entry in reversed(data):
-                dens = entry.get("density")
-                if dens is not None and float(dens) > 0:
-                    return float(dens)
+        v = _row_value(_cache["wind"] or [], "density")
+        if v is not None and v > 0:
+            return v
     except Exception:
         logger.debug("get_wind_density: parse error, using fallback")
     return FALLBACK["wind_density"]
@@ -183,12 +208,9 @@ def get_bz() -> float:
     geomagnetic storm. Bz > 0 (northward) is partially protective.
     """
     try:
-        data = _cache["mag"]
-        if data:
-            for entry in reversed(data):
-                bz = entry.get("bz_gsm")
-                if bz is not None:
-                    return float(bz)
+        v = _row_value(_cache["mag"] or [], "bz_gsm")
+        if v is not None:
+            return v
     except Exception:
         logger.debug("get_bz: parse error, using fallback")
     return FALLBACK["bz"]

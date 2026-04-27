@@ -56,6 +56,24 @@ services:
       - key: COT_SERVER_HOST
         sync: false
 
+      # ── Foundry data sync (A1+A2+A3 — pushes to ionshield.usw-16.palantirfoundry.com) ─
+      # All four datasets must exist on the stack. RIDs are not secret;
+      # the bearer token is — set FOUNDRY_TOKEN in the Render dashboard only.
+      - key: FOUNDRY_SYNC_ENABLED
+        value: "true"
+      - key: FOUNDRY_STACK_URL
+        value: https://ionshield.usw-16.palantirfoundry.com
+      - key: FOUNDRY_TOKEN
+        sync: false           # paste the bearer token in Render dashboard
+      - key: FOUNDRY_SPACE_WEATHER_RAW_RID
+        value: ri.foundry.main.dataset.61803d11-27c4-4de4-a353-0a7efe59430b
+      - key: FOUNDRY_LOCATION_RISK_RID
+        value: ri.foundry.main.dataset.1e4f9d47-ff27-417a-a9dd-f40fd78d65bf
+      - key: FOUNDRY_EVENTS_RID
+        value: ri.foundry.main.dataset.2921a258-20d9-4667-a98d-214099323b72
+      - key: FOUNDRY_IMPACT_RID
+        value: ri.foundry.main.dataset.b1a1616b-aaa9-4dec-9636-b4801c7eb02f
+
     # Persistent disk keeps the SQLite archive across deploys.
     # Requires at least the "starter" plan ($7/mo).
     # Remove this block if you switch to Postgres (free tier has no disk).
