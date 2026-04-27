@@ -1,0 +1,42 @@
+// IonShield ATAK plugin — gradle module template.
+//
+// The Android engineer adopts this into the official ATAK plugin SDK
+// (https://tak.gov/products/atak-civ); the SDK supplies the parent
+// build.gradle, signing config, and ATAK-specific tasks.
+
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.ionshield.atak'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.ionshield.atak"
+        minSdkVersion 26
+        targetSdkVersion 34
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Real ATAK SDK comes from tak.gov, not a public Maven repo. Drop the
+    // signed .jar (typically `atak-civ-x.y.z.jar`) into ./libs/ after
+    // accepting the tak.gov licence.
+    compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+
+    // HTTP — OkHttp is a common ATAK plugin choice
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
+    // JSON
+    implementation 'com.squareup.moshi:moshi:1.15.1'
+}

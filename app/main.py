@@ -504,6 +504,10 @@ def create_app() -> FastAPI:
     async def mkt_compliance():
         return _page("compliance.html")
 
+    @app.get("/atak", include_in_schema=False)
+    async def mkt_atak():
+        return _page("atak.html")
+
     # ── 3D Dashboard ──────────────────────────────────────────────────────────
     @app.get("/dashboard", include_in_schema=False)
     async def dashboard():

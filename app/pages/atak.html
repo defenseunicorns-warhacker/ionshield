@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IonShield — ATAK Integration Guide</title>
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    body { background:#0a0e1a; color:#e2e8f0; margin:0;
+           font-family:'Inter',-apple-system,sans-serif; line-height:1.6; }
+    main { max-width: 800px; margin: 0 auto; padding: 100px 20px 80px; }
+    h1 { color:#38bdf8; font-size:32px; letter-spacing:-0.5px; margin:0 0 8px; }
+    h2 { color:#38bdf8; font-size:18px; letter-spacing:1px;
+         text-transform:uppercase; margin-top:48px; margin-bottom:16px; }
+    p { color:#94a3b8; margin: 8px 0 16px; }
+    code, pre { background:#0f172a; border:1px solid #1e293b; border-radius:6px;
+                padding: 1px 6px; color:#fbbf24; font-size:13px; }
+    pre { display:block; padding:14px 16px; overflow-x:auto; }
+    .lead { font-size:16px; color:#cbd5e1; }
+    .cta-row { display:flex; gap:12px; margin: 20px 0 32px; flex-wrap:wrap; }
+    .cta {
+      background:#38bdf8; color:#0a0e1a; padding:12px 18px;
+      border-radius:8px; text-decoration:none; font-weight:700; font-size:13px;
+      letter-spacing:0.3px; box-shadow:0 4px 14px rgba(56,189,248,0.25);
+    }
+    .cta-ghost {
+      background:transparent; color:#38bdf8; border:1px solid #38bdf8;
+      padding:12px 18px; border-radius:8px; text-decoration:none;
+      font-weight:700; font-size:13px;
+    }
+    ol li, ul li { margin: 4px 0; color:#cbd5e1; }
+    .pill {
+      display:inline-block; padding:2px 8px; border-radius:10px;
+      font-size:10px; font-weight:700; letter-spacing:1px;
+      background:rgba(56,189,248,0.15); color:#38bdf8;
+      text-transform:uppercase; margin-left:8px;
+    }
+    .pill.ok { background:rgba(34,197,94,0.15); color:#22c55e; }
+    table { width:100%; border-collapse:collapse; margin: 16px 0; }
+    td, th { padding: 8px 10px; border-bottom:1px solid #1e293b;
+             font-size:13px; text-align:left; vertical-align:top; }
+    th { color:#64748b; text-transform:uppercase; letter-spacing:1px; font-size:11px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ATAK Integration <span class="pill ok">Live</span></h1>
+    <p class="lead">
+      IonShield ships a live KML network link, a self-contained DDIL pack, and
+      a Cursor-on-Target (CoT) feed — all consumable by any ATAK,
+      WinTAK, or iTAK client without a custom plugin.
+    </p>
+
+    <div class="cta-row">
+      <a class="cta" href="/atak/network-link.kml" download>↓ Download Network Link KML</a>
+      <a class="cta-ghost" href="/atak/offline-pack.kmz" download>↓ Offline Pack (DDIL)</a>
+      <a class="cta-ghost" href="/overlay/ionshield.cot">CoT Feed</a>
+    </div>
+
+    <h2>1. Live Overlay (Recommended)</h2>
+    <p>
+      Drop the network-link KML into ATAK once. ATAK will auto-refresh
+      IonShield's risk zones every 5 minutes — no plugin required, durable
+      across data-schema changes.
+    </p>
+    <ol>
+      <li>Click <strong>Download Network Link KML</strong> above on the device.</li>
+      <li>In ATAK, open <em>Settings → Network Connections → Import Bundle</em> and pick the file.</li>
+      <li>The IonShield layer appears under <em>Overlays</em>. Toggle visibility from the overlay menu.</li>
+      <li>Tap any colored region for current Kp / GPS / HF / SATCOM values.</li>
+    </ol>
+
+    <h2>2. Offline Pack (DDIL)</h2>
+    <p>
+      For Disconnected/Degraded/Intermittent/Limited operations: download a
+      single self-contained KMZ pre-mission. Includes current risk + 24h
+      Kp forecast. Refresh by re-downloading when comms return.
+    </p>
+    <ol>
+      <li>On a connected device, fetch <code>/atak/offline-pack.kmz</code>.</li>
+      <li>Transfer to the field device (USB / sneaker-net).</li>
+      <li>In ATAK, <em>Import → KML/KMZ file</em>. Layer appears as a static overlay.</li>
+    </ol>
+
+    <h2>3. CoT Feed</h2>
+    <p>
+      For TAK Server pull: GET <code>/overlay/ionshield.cot</code> on a
+      schedule. Each monitored location is a CoT event with stable UID
+      (<code>IONSHIELD-&lt;id&gt;</code>) and ARGB color matching risk severity.
+      For TAK Server push, set <code>COT_SERVER_HOST</code> in IonShield's env
+      and we'll push events directly over TCP/8087.
+    </p>
+
+    <h2>4. Endpoints</h2>
+    <table>
+      <thead><tr><th>Endpoint</th><th>Format</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td><code>/atak/network-link.kml</code></td><td>KML NetworkLink</td><td>One-shot import; ATAK auto-refreshes</td></tr>
+        <tr><td><code>/atak/offline-pack.kmz</code></td><td>KMZ archive</td><td>DDIL fallback; cache pre-mission</td></tr>
+        <tr><td><code>/overlay/risk.kml</code></td><td>KML</td><td>Live polygons (used by NetworkLink)</td></tr>
+        <tr><td><code>/overlay/risk.geojson</code></td><td>GeoJSON</td><td>For ATAK plugins or WinTAK that prefer it</td></tr>
+        <tr><td><code>/overlay/ionshield.cot</code></td><td>CoT XML 2.0</td><td>TAK Server pull feed</td></tr>
+        <tr><td><code>/api/risk/location?lat&amp;lon</code></td><td>JSON</td><td>Per-coordinate risk for plot ops</td></tr>
+        <tr><td><code>/api/risk/route</code></td><td>JSON (POST)</td><td>Per-waypoint route analysis</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. Native Plugin <span class="pill">Roadmap</span></h2>
+    <p>
+      A native ATAK plugin (proactive alerts, route-overlay mode, persistent
+      DDIL cache) is on the roadmap. Until then, the network link covers ~90%
+      of operator workflows. Contact us if you need plugin-specific features.
+    </p>
+  </main>
+  <script src="/static/nav.js"></script>
+</body>
+</html>

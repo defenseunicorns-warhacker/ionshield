@@ -398,3 +398,68 @@ async def overlay_geojson(request: Request, _: None = _auth):
             detail="GeoJSON generation failed. Check server logs.",
         )
     return data
+
+
+# ── Phase 3a: ATAK readiness pack ────────────────────────────────────────────
+
+
+@router.get("/atak/network-link.kml")
+@limiter.limit(settings.rate_limit)
+async def atak_network_link(request: Request):
+    """
+    KML NetworkLink config — operator imports this once, ATAK then auto-
+    refreshes our /overlay/risk.kml every 5 min. Durable: survives data
+    schema changes without operator re-install.
+    """
+    from app.outputs.atak import network_link_xml
+
+    base = str(request.base_url).rstrip("/")
+    xml = network_link_xml(base_url=base, refresh_seconds=300, view_refresh=True)
+    return Response(
+        content=xml,
+        media_type="application/vnd.google-earth.kml+xml",
+        headers={"Content-Disposition": 'attachment; filename="ionshield-network-link.kml"'},
+    )
+
+
+@router.get("/atak/offline-pack.kmz")
+@limiter.limit(settings.rate_limit)
+async def atak_offline_pack(request: Request):
+    """
+    Self-contained KMZ for DDIL ops: current risk overlay + 24h Kp forecast.
+    Operator caches pre-mission and falls back when comms are limited.
+    """
+    from app.outputs.atak import offline_pack_kmz
+
+    forecast = None
+    try:
+        # Best-effort: include the forecast if Phase 2 model is available
+        from app.models import kp_forecaster as kpf
+        from datetime import datetime, timedelta, timezone
+
+        artifact = kpf.load()
+        if artifact is not None:
+            feats = await kpf.build_live_features()
+            if feats is not None:
+                preds = kpf.predict(feats, artifact)
+                now = datetime.now(timezone.utc)
+                forecast = {
+                    "entries": [
+                        {
+                            "horizon_h": h,
+                            "valid_at": (now + timedelta(hours=h)).isoformat(),
+                            "kp_predicted": preds[f"h{h}"],
+                            "severity": kpf.kp_to_severity(preds[f"h{h}"]),
+                        }
+                        for h in artifact["horizons_h"]
+                    ]
+                }
+    except Exception as exc:
+        logger.warning("Forecast skipped in offline pack: %s", exc)
+
+    body = offline_pack_kmz(forecast=forecast)
+    return Response(
+        content=body,
+        media_type="application/vnd.google-earth.kmz",
+        headers={"Content-Disposition": 'attachment; filename="ionshield-offline.kmz"'},
+    )
