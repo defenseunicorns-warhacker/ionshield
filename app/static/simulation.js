@@ -22,6 +22,24 @@
     { maxZoom: 18 },
   ).addTo(map);
 
+  // ── Severity legend (bottom-right map overlay) ─────────────────────────────
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div', 'sim-legend');
+    div.innerHTML = `
+      <div style="font-weight:700;font-size:10px;letter-spacing:1px;color:#94a3b8;
+                  text-transform:uppercase;margin-bottom:6px;">HF Absorption</div>
+      <div class="sim-legend-row"><span style="background:#22c55e;"></span>&lt; 5 dB · nominal</div>
+      <div class="sim-legend-row"><span style="background:#fbbf24;"></span>5–10 dB · degraded</div>
+      <div class="sim-legend-row"><span style="background:#f59e0b;"></span>10–20 dB · severe</div>
+      <div class="sim-legend-row"><span style="background:#ef4444;"></span>20–30 dB · blackout</div>
+      <div class="sim-legend-row"><span style="background:#dc2626;"></span>&gt; 30 dB · total loss</div>
+      <div style="font-size:10px;color:#64748b;margin-top:6px;">Click any region for detail</div>
+    `;
+    return div;
+  };
+  legend.addTo(map);
+
   // State
   let scenarios = [];
   let activeScenarioId = null;
@@ -32,6 +50,7 @@
   let layer = null;
   let playing = false;
   let playInterval = null;
+  let pinnedRegionId = null;      // region clicked on the map → drives drill-in
 
   // Severity → color buckets (matches NOAA G-scale visual conventions)
   function gpsColor(m) {
@@ -228,9 +247,14 @@
           `<b>${p.region_id}</b><br>`
           + `Kp ${p.kp.toFixed(1)} · TEC ${p.tec_tecu.toFixed(1)}<br>`
           + `GPS L1 ${p.gps_l1_error_m.toFixed(1)} m · HF ${p.hf_absorption_db.toFixed(1)} dB<br>`
-          + `Blackout p=${p.hf_blackout_probability.toFixed(2)}`,
+          + `Blackout p=${p.hf_blackout_probability.toFixed(2)}<br>`
+          + `<i style="opacity:.7;">click to pin region</i>`,
           { sticky: true },
         );
+        lyr.on('click', () => {
+          pinnedRegionId = p.region_id;
+          updateRegionDetail();
+        });
       },
     }).addTo(map);
 
@@ -252,7 +276,76 @@
     document.getElementById('stat-gps').textContent = gpsMax.toFixed(1);
     document.getElementById('stat-hf').textContent = hfMax.toFixed(1);
     document.getElementById('stat-sat').textContent = satMax.toFixed(1);
+
+    updateStormPhase();
+    updateRegionDetail();
   }
+
+  // ── Storm-phase indicator ──────────────────────────────────────────────────
+  // Computes whether the current frame is in the storm's initial / main /
+  // recovery phase based on Kp peak across the timeline. A simple but
+  // operationally useful heuristic: < 0.5×peak before peak = initial,
+  // peak ± 1 frame = main, falling back to nominal = recovery.
+  function updateStormPhase() {
+    const phaseEl = document.getElementById('storm-phase');
+    if (!phaseEl || !frames.length) return;
+    let peakKp = 0, peakIdx = 0;
+    frames.forEach((f, i) => {
+      const fmax = f.features.reduce((m, ft) => Math.max(m, ft.properties.kp || 0), 0);
+      if (fmax > peakKp) { peakKp = fmax; peakIdx = i; }
+    });
+    let label, cls;
+    if (timeIndex < peakIdx - 1) { label = 'INITIAL · build-up'; cls = 'phase-initial'; }
+    else if (timeIndex <= peakIdx + 1) { label = 'MAIN PHASE · peak'; cls = 'phase-main'; }
+    else { label = 'RECOVERY'; cls = 'phase-recovery'; }
+    phaseEl.textContent = label;
+    phaseEl.className = 'phase-pill ' + cls;
+  }
+
+  // ── Region drill-in: shows pinned region's per-system status ───────────────
+  function updateRegionDetail() {
+    const el = document.getElementById('region-detail');
+    if (!el) return;
+    if (!pinnedRegionId || !frames.length) {
+      el.innerHTML = '<div style="font-size:11px;color:#64748b;">'
+        + 'Click any region on the map to pin it and see per-system impact.</div>';
+      return;
+    }
+    const frame = frames[timeIndex];
+    const feat = frame.features.find(f => f.properties.region_id === pinnedRegionId);
+    if (!feat) {
+      el.innerHTML = `<div style="font-size:11px;color:#64748b;">`
+        + `Region <b>${pinnedRegionId}</b> not in this frame.</div>`;
+      return;
+    }
+    const p = feat.properties;
+    const status = (val, thresh) => val >= thresh.severe ? 'red'
+      : val >= thresh.degraded ? 'amber' : 'green';
+    const dot = (col) => `<span style="display:inline-block;width:8px;height:8px;`
+      + `border-radius:50%;background:${col === 'red' ? '#ef4444' : col === 'amber' ? '#f59e0b' : '#22c55e'};`
+      + `margin-right:6px;"></span>`;
+    const gpsCol = status(p.gps_l1_error_m, { degraded: 5, severe: 15 });
+    const hfCol  = status(p.hf_absorption_db, { degraded: 10, severe: 20 });
+    const satCol = status(p.satcom_l_fade_db, { degraded: 1.5, severe: 3 });
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:8px;">
+        Region ${pinnedRegionId}
+        <span style="float:right;font-size:10px;color:#64748b;font-weight:500;cursor:pointer;"
+              onclick="document.dispatchEvent(new CustomEvent('unpin-region'))">unpin ✕</span>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;line-height:1.7;">
+        <div>${dot(gpsCol)}<b>GPS L1</b>  ${p.gps_l1_error_m.toFixed(1)} m position error</div>
+        <div>${dot(hfCol)}<b>HF Radio</b>  ${p.hf_absorption_db.toFixed(1)} dB absorption · ${(p.hf_blackout_probability*100).toFixed(0)}% blackout</div>
+        <div>${dot(satCol)}<b>SATCOM L</b>  ${p.satcom_l_fade_db.toFixed(1)} dB fade</div>
+        <div style="margin-top:6px;color:#64748b;">
+          Kp ${p.kp.toFixed(1)} · TEC ${p.tec_tecu.toFixed(1)} TECU
+        </div>
+      </div>`;
+  }
+  document.addEventListener('unpin-region', () => {
+    pinnedRegionId = null;
+    updateRegionDetail();
+  });
 
   function renderDetail(sc) {
     document.getElementById('detail-title').textContent = sc.title;
@@ -265,21 +358,25 @@
         slot.style.display = 'none';
       }
     }
-    // B3 caveat 4: per-scenario download buttons for Earth Studio operators
-    const downloads = document.getElementById('downloads');
+    // Export menu: collapse the three dev-targeted file types into one
+    // dropdown labeled "Export for analysts" so the casual viewer isn't
+    // confronted with KMZ / Tracks CSV / GeoJSON jargon.
+    const exportWrap = document.getElementById('export-wrap');
     const pc = sc.precomputed;
-    if (pc && (pc.kmz_url || pc.keyframes_url || pc.geojson_url)) {
-      downloads.style.display = 'flex';
-      const set = (id, url) => {
-        const el = document.getElementById(id);
-        if (url) { el.href = url; el.style.display = ''; }
-        else { el.style.display = 'none'; }
-      };
-      set('dl-kmz', pc.kmz_url);
-      set('dl-csv', pc.keyframes_url);
-      set('dl-gj', pc.geojson_url);
-    } else {
-      downloads.style.display = 'none';
+    if (exportWrap) {
+      if (pc && (pc.kmz_url || pc.keyframes_url || pc.geojson_url)) {
+        exportWrap.style.display = '';
+        const items = [];
+        if (pc.kmz_url) items.push(`<a href="${pc.kmz_url}" download class="export-item">
+          <b>KMZ</b><div>Open in Google Earth or any KML viewer</div></a>`);
+        if (pc.keyframes_url) items.push(`<a href="${pc.keyframes_url}" download class="export-item">
+          <b>Adobe Earth Studio CSV</b><div>Animator-ready camera keyframes</div></a>`);
+        if (pc.geojson_url) items.push(`<a href="${pc.geojson_url}" download class="export-item">
+          <b>GeoJSON</b><div>Time-indexed for QGIS, Mapbox, ArcGIS</div></a>`);
+        document.getElementById('export-menu').innerHTML = items.join('');
+      } else {
+        exportWrap.style.display = 'none';
+      }
     }
     const hi = document.getElementById('highlights');
     hi.innerHTML = '';

@@ -108,6 +108,58 @@
 
     .leaflet-container { background: #0a0e1a; }
     .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.95); }
+
+    /* ── Severity legend (map overlay) ─────────────────────────────────── */
+    .sim-legend {
+      background: rgba(15,23,42,0.92); border: 1px solid #1e293b;
+      border-radius: 6px; padding: 10px 12px; color: #e2e8f0;
+      font-size: 11px; line-height: 1.5; min-width: 170px;
+      backdrop-filter: blur(6px);
+    }
+    .sim-legend-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+    .sim-legend-row span {
+      display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    /* ── Storm-phase pill (right panel) ────────────────────────────────── */
+    .phase-pill {
+      display: inline-block; padding: 4px 10px; border-radius: 14px;
+      font-size: 10px; font-weight: 800; letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .phase-pill.phase-initial  { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .phase-pill.phase-main     { background: rgba(239,68,68,0.18);  color: #ef4444; }
+    .phase-pill.phase-recovery { background: rgba(34,197,94,0.15);  color: #22c55e; }
+
+    /* ── Region drill-in card ──────────────────────────────────────────── */
+    #region-detail {
+      background: #0a0e1a; border: 1px solid #1e293b; border-radius: 8px;
+      padding: 12px; margin-bottom: 14px;
+    }
+
+    /* ── Export dropdown ───────────────────────────────────────────────── */
+    .export-wrap { position: relative; margin-bottom: 14px; }
+    .export-btn {
+      width: 100%; padding: 9px 12px; border-radius: 6px;
+      background: #0a0e1a; border: 1px solid #1e293b; color: #e2e8f0;
+      font-size: 12px; font-weight: 600; cursor: pointer; text-align: left;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .export-btn:hover { border-color: #38bdf8; }
+    .export-menu {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 6px;
+      z-index: 50; overflow: hidden;
+    }
+    .export-wrap.open .export-menu { display: block; }
+    .export-item {
+      display: block; padding: 9px 12px; color: #e2e8f0;
+      text-decoration: none; border-bottom: 1px solid #1e293b; font-size: 12px;
+    }
+    .export-item:last-child { border-bottom: 0; }
+    .export-item:hover { background: #1e293b; }
+    .export-item div { font-size: 10px; color: #64748b; margin-top: 2px; font-weight: 400; }
   </style>
 </head>
 <body>
@@ -136,21 +188,19 @@
     <section class="sim-main">
       <div id="map"></div>
       <aside class="detail">
-        <h2 id="detail-title">Pick a scenario above</h2>
-        <p class="summary" id="detail-summary">
-          Each scenario replays IonShield's full impact model against historical
-          NOAA data. Use the timeline below to scrub through the storm.
-        </p>
+        <h2 id="detail-title">Loading scenario…</h2>
+        <span class="phase-pill phase-initial" id="storm-phase">—</span>
+        <p class="summary" id="detail-summary"></p>
         <div class="video-slot" id="video-slot" style="display:none;"></div>
-        <div class="downloads" id="downloads" style="display:none;
-             gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
-          <a class="dl-btn" id="dl-kmz" download
-             title="Layered KMZ for Google Earth / Earth Studio">↓ KMZ</a>
-          <a class="dl-btn" id="dl-csv" download
-             title="Earth Studio Tracks CSV — drag into Tracks panel">↓ Keyframes CSV</a>
-          <a class="dl-btn" id="dl-gj" download
-             title="Time-indexed GeoJSON FeatureCollection">↓ GeoJSON</a>
+
+        <!-- Region drill-in: populated when a user clicks a region on the map -->
+        <div id="region-detail">
+          <div style="font-size:11px;color:#64748b;">
+            Click any region on the map to pin it and see per-system impact.
+          </div>
         </div>
+
+        <!-- Whole-frame max stats (the "what's the worst it gets" snapshot) -->
         <div class="stat-row">
           <div class="stat"><div class="stat-label">Kp</div>
             <div class="stat-val" id="stat-kp">—</div></div>
@@ -161,6 +211,17 @@
           <div class="stat"><div class="stat-label">SATCOM L peak (dB)</div>
             <div class="stat-val" id="stat-sat">—</div></div>
         </div>
+
+        <!-- Export dropdown: collapses KMZ / CSV / GeoJSON behind one menu -->
+        <div class="export-wrap" id="export-wrap" style="display:none;">
+          <button class="export-btn" id="export-btn"
+                  onclick="this.parentElement.classList.toggle('open')">
+            <span>↓ Export for analysts</span>
+            <span style="font-size:10px;color:#64748b;">▾</span>
+          </button>
+          <div class="export-menu" id="export-menu"></div>
+        </div>
+
         <div id="highlights"></div>
       </aside>
     </section>
