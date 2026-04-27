@@ -1409,3 +1409,60 @@ async def scenarios_for_customer(
     _attach_cache_bust(derived)
     await _attach_video_registrations(derived)
     return {"profile": profile, "scenarios": derived}
+
+
+# ── Foundry admin: force schema (re)apply ────────────────────────────────────
+
+
+@router_v3.post("/foundry/apply-schema")
+async def foundry_apply_schema(request: Request) -> dict:
+    """
+    Force-apply Foundry schemas to all configured datasets *now*.
+
+    Useful after the very first deploy: the metadata-service endpoint shape
+    varies across Foundry versions, so the sync-time attempt may have logged
+    "all endpoints failed". Hit this admin route to retry on-demand and see
+    which endpoint shape worked. Returns one row per configured dataset.
+    """
+    from app.config import settings
+    from app.data import foundry_sync
+    from app.data.noaa import cache_snapshot as noaa_cache_snapshot
+    from app.data.ustec import cache_snapshot as iono_cache_snapshot
+
+    if not settings.foundry_sync_enabled:
+        return {"applied": [], "skipped_reason": "foundry_sync_disabled"}
+    token = settings.foundry_token.get_secret_value() if settings.foundry_token else ""
+    if not token or not settings.foundry_stack_url:
+        return {"applied": [], "skipped_reason": "missing_foundry_config"}
+
+    sample_snapshot = foundry_sync.build_snapshot_payload(
+        noaa_cache_snapshot(),
+        iono_cache_snapshot(),
+    )
+
+    targets = [
+        ("space_weather_raw", settings.foundry_space_weather_raw_rid, sample_snapshot),
+        ("location_risk", settings.foundry_location_risk_rid, sample_snapshot),
+        ("events", settings.foundry_events_rid, sample_snapshot),
+        ("impact", settings.foundry_impact_rid, sample_snapshot),
+    ]
+
+    import httpx
+
+    results = []
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for label, rid, sample in targets:
+            if not rid:
+                results.append({"dataset": label, "rid": None, "ok": False, "reason": "no_rid"})
+                continue
+            ok = await foundry_sync._apply_schema(
+                client,
+                settings.foundry_stack_url,
+                rid,
+                token,
+                sample,
+            )
+            if ok:
+                foundry_sync._SCHEMA_APPLIED.add(rid)
+            results.append({"dataset": label, "rid": rid, "ok": ok})
+    return {"applied": results}

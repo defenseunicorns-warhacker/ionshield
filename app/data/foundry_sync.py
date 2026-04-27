@@ -37,6 +37,12 @@ class FoundrySyncError(RuntimeError):
     """Raised on transaction failure. Always caught and logged in sync_snapshot."""
 
 
+# Per-process memo: which dataset RIDs have already had a schema attached this
+# run. Schema in Foundry is durable across transactions so we only need to do
+# this once per dataset per deploy. Reset when the process restarts.
+_SCHEMA_APPLIED: set[str] = set()
+
+
 async def _start_transaction(
     client: httpx.AsyncClient,
     stack_url: str,
@@ -93,6 +99,99 @@ async def _commit_transaction(
         raise FoundrySyncError(f"commit_transaction {r.status_code}: {r.text[:200]}")
 
 
+# ── Schema auto-apply ───────────────────────────────────────────────────────
+#
+# Foundry stores raw JSONL files in a "Raw dataset" by default — preview, SQL
+# console, and Analyze data all show "Failed to load preview" until a schema
+# is attached. We POST a JSON-format schema to Foundry's metadata service
+# right after each commit so the dataset becomes immediately queryable.
+#
+# Endpoint shapes vary across Foundry deployments. We try a small set of
+# known-good paths in order; first 2xx wins, the rest are skipped. Failures
+# are logged but never propagate — schema attachment is best-effort.
+
+_SCHEMA_TYPE_BY_PYTYPE: dict[type, str] = {
+    bool: "BOOLEAN",
+    int: "LONG",
+    float: "DOUBLE",
+    str: "STRING",
+}
+
+
+def _infer_field_schemas(sample: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build a Foundry fieldSchemaList from one representative payload."""
+    fields: list[dict[str, Any]] = []
+    for name, value in sample.items():
+        if isinstance(value, bool):
+            t = "BOOLEAN"
+        elif isinstance(value, int):
+            t = "LONG"
+        elif isinstance(value, float):
+            t = "DOUBLE"
+        elif value is None:
+            t = "STRING"  # nullable string is the safest default
+        else:
+            t = "STRING"
+        fields.append(
+            {
+                "name": name,
+                "type": t,
+                "nullable": True,
+                "customMetadata": {},
+                "arraySubtype": None,
+                "mapKeyType": None,
+                "mapValueType": None,
+                "subSchemas": None,
+                "userDefinedTypeClass": None,
+            }
+        )
+    return fields
+
+
+async def _apply_schema(
+    client: httpx.AsyncClient,
+    stack_url: str,
+    dataset_rid: str,
+    token: str,
+    sample: dict[str, Any],
+) -> bool:
+    """
+    Best-effort schema attachment so Foundry preview / SQL works on JSONL files.
+    Tries known endpoint shapes; returns True on first success.
+    """
+    if not sample:
+        return False
+    field_schema_list = _infer_field_schemas(sample)
+    schema_body = {
+        "fieldSchemaList": field_schema_list,
+        "primaryKey": None,
+        "dataFrameReaderClass": "com.palantir.foundry.spark.input.JsonDataFrameReader",
+        "customMetadata": {"format": "json"},
+    }
+    base = stack_url.rstrip("/")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    candidates = [
+        ("POST", f"{base}/foundry-metadata/api/schemas/datasets/{dataset_rid}/branches/master"),
+        ("PUT", f"{base}/foundry-metadata/api/v1/schemas/datasets/{dataset_rid}/branches/master"),
+        ("POST", f"{base}/api/v2/datasets/{dataset_rid}/applySchema?preview=false"),
+        ("PUT", f"{base}/api/v1/datasets/{dataset_rid}/schemas?branchName=master"),
+    ]
+    for method, url in candidates:
+        try:
+            r = await client.request(method, url, headers=headers, json=schema_body)
+            if r.status_code < 300:
+                logger.info("Foundry schema applied via %s %s", method, url)
+                return True
+            logger.debug("Foundry schema %s %s → %d %s", method, url, r.status_code, r.text[:120])
+        except Exception as exc:
+            logger.debug("Foundry schema %s %s error: %s", method, url, exc)
+    logger.warning("Foundry schema not applied (all endpoints failed) for %s", dataset_rid)
+    return False
+
+
 async def sync_rows(
     rows: list[dict[str, Any]],
     *,
@@ -123,6 +222,9 @@ async def sync_rows(
             tx = await _start_transaction(client, stack_url, dataset_rid, token, "APPEND")
             await _put_file(client, stack_url, dataset_rid, tx, token, filename, body)
             await _commit_transaction(client, stack_url, dataset_rid, tx, token)
+            if dataset_rid not in _SCHEMA_APPLIED:
+                if await _apply_schema(client, stack_url, dataset_rid, token, rows[0]):
+                    _SCHEMA_APPLIED.add(dataset_rid)
         logger.info(
             "Foundry sync_rows OK: dataset=%s file=%s rows=%d bytes=%d",
             dataset_rid,
@@ -166,6 +268,9 @@ async def sync_snapshot(
             tx = await _start_transaction(client, stack_url, dataset_rid, token, "APPEND")
             await _put_file(client, stack_url, dataset_rid, tx, token, filename, body)
             await _commit_transaction(client, stack_url, dataset_rid, tx, token)
+            if dataset_rid not in _SCHEMA_APPLIED:
+                if await _apply_schema(client, stack_url, dataset_rid, token, snapshot):
+                    _SCHEMA_APPLIED.add(dataset_rid)
         logger.info(
             "Foundry sync OK: dataset=%s file=%s bytes=%d",
             dataset_rid,
