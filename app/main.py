@@ -419,6 +419,32 @@ def create_app() -> FastAPI:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
+    # Phase 1: audit log — record every /api/v3/* request with resolved tenant.
+    @app.middleware("http")
+    async def audit_log_mw(request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if not path.startswith("/api/v3/"):
+            return response
+        # Don't audit metrics scrapes or open admin probe endpoints.
+        if path in ("/api/v3/metrics", "/api/v3/health"):
+            return response
+        try:
+            from app.data import audit_log
+
+            await audit_log.record(
+                tenant_id=getattr(request.state, "tenant_id", None),
+                key_id=getattr(request.state, "key_id", None),
+                method=request.method,
+                path=path,
+                status_code=response.status_code,
+                remote_addr=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+        except Exception:  # never block the response on audit failure
+            pass
+        return response
+
     # Static assets (CSS, JS)
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 

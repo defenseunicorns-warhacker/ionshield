@@ -41,6 +41,9 @@ services:
       # ── Auth (set a strong random value in the Render dashboard) ─────────────
       - key: API_KEY
         sync: false           # set manually in Render dashboard — never commit
+      # Phase 1: bootstrap secret for /api/v3/admin/keys (mint per-tenant keys)
+      - key: ADMIN_BEARER
+        sync: false
 
       # ── Email / contact form (all optional — leave blank to disable) ─────────
       - key: SMTP_HOST

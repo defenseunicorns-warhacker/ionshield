@@ -1487,3 +1487,74 @@ async def foundry_apply_schema(request: Request) -> dict:
                 foundry_sync._SCHEMA_APPLIED.add(rid)
             results.append({"dataset": label, "rid": rid, "ok": ok})
     return {"applied": results}
+
+
+# ── Phase 1: API key admin (bootstrap via IONSHIELD_ADMIN_BEARER) ────────────
+
+
+def _require_admin(request: Request) -> None:
+    """Bootstrap admin guard. Checks Authorization: Bearer <admin_bearer>."""
+    from app.config import settings
+
+    if not settings.admin_bearer:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin endpoint disabled. Set IONSHIELD_ADMIN_BEARER to enable.",
+        )
+    raw = request.headers.get("Authorization", "")
+    token = raw[7:].strip() if raw.lower().startswith("bearer ") else ""
+    if token != settings.admin_bearer:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin bearer required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+@router_v3.post("/admin/keys", status_code=201)
+async def admin_mint_key(request: Request, body: dict) -> dict:
+    """
+    Mint a new per-tenant API key. Requires Authorization: Bearer <admin_bearer>.
+
+    Body: {"tenant_id": "acme-corp", "label": "ops dashboard", "scopes": "read"}
+    Response includes plaintext exactly once — store it securely; we cannot
+    show it again.
+    """
+    _require_admin(request)
+    from app.data import api_keys
+
+    tenant_id = (body or {}).get("tenant_id", "").strip()
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="tenant_id required")
+    return await api_keys.mint_key(
+        tenant_id=tenant_id,
+        label=(body or {}).get("label", ""),
+        scopes=(body or {}).get("scopes", "read"),
+    )
+
+
+@router_v3.get("/admin/keys")
+async def admin_list_keys(request: Request, tenant_id: str | None = None) -> dict:
+    _require_admin(request)
+    from app.data import api_keys
+
+    return {"keys": await api_keys.list_keys(tenant_id=tenant_id)}
+
+
+@router_v3.delete("/admin/keys/{key_id}")
+async def admin_revoke_key(request: Request, key_id: int) -> dict:
+    _require_admin(request)
+    from app.data import api_keys
+
+    revoked = await api_keys.revoke_key(key_id)
+    if not revoked:
+        raise HTTPException(status_code=404, detail="key not found or already revoked")
+    return {"revoked": True, "id": key_id}
+
+
+@router_v3.get("/admin/audit")
+async def admin_audit(request: Request, limit: int = 100, tenant_id: str | None = None) -> dict:
+    _require_admin(request)
+    from app.data import audit_log
+
+    return {"entries": await audit_log.recent(limit=limit, tenant_id=tenant_id)}

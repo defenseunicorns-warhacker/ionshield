@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Leave empty to run in open mode (suitable for local dev / internal nets).
     api_key: str = ""
 
+    # Phase 1: bootstrap secret for the /api/v3/admin/keys mint endpoint.
+    # Set this in the Render dashboard once; rotate by changing the env var.
+    # Required to mint the first per-tenant Bearer key. Empty = admin disabled.
+    admin_bearer: str = ""
+
     # Comma-separated CORS origins. Use "*" to allow all (open data use case).
     cors_origins: str = "*"
 

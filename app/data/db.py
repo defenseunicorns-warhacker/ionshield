@@ -209,6 +209,41 @@ scenario_videos = Table(
 )
 
 
+# Phase 1: per-tenant API keys (Bearer token auth) + audit log
+api_keys = Table(
+    "api_keys",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("tenant_id", Text, nullable=False),
+    Column("label", Text, nullable=False, server_default=""),
+    Column("prefix", Text, nullable=False),
+    Column("key_hash", Text, nullable=False, unique=True),
+    Column("scopes", Text, nullable=False, server_default="read"),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("last_used", DateTime(timezone=True), nullable=True),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    Index("idx_api_keys_tenant", "tenant_id"),
+    Index("idx_api_keys_active", "revoked_at"),
+)
+
+
+api_audit_log = Table(
+    "api_audit_log",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("at", DateTime(timezone=True), nullable=False),
+    Column("tenant_id", Text, nullable=True),
+    Column("key_id", Integer, nullable=True),
+    Column("method", Text, nullable=False),
+    Column("path", Text, nullable=False),
+    Column("status_code", Integer, nullable=False),
+    Column("remote_addr", Text, nullable=True),
+    Column("user_agent", Text, nullable=True),
+    Index("idx_audit_at", "at"),
+    Index("idx_audit_tenant", "tenant_id"),
+)
+
+
 breaker_state = Table(
     "breaker_state",
     metadata,
