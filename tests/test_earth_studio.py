@@ -7,7 +7,6 @@ import io
 import zipfile
 import xml.etree.ElementTree as ET
 
-import pytest
 from starlette.testclient import TestClient
 
 from app.main import app
@@ -28,21 +27,31 @@ KML_NS = "{http://www.opengis.net/kml/2.2}"
 
 def _sample_fc() -> dict:
     """A 3-region × 2-time FC matching B1's polygon output shape."""
+
     def feat(time_tag, rid, lat, lon, hf, gps, sat):
         return {
             "type": "Feature",
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [[
-                    [lon-10, lat-5], [lon+10, lat-5],
-                    [lon+10, lat+5], [lon-10, lat+5], [lon-10, lat-5],
-                ]],
+                "coordinates": [
+                    [
+                        [lon - 10, lat - 5],
+                        [lon + 10, lat - 5],
+                        [lon + 10, lat + 5],
+                        [lon - 10, lat + 5],
+                        [lon - 10, lat - 5],
+                    ]
+                ],
             },
             "properties": {
                 "time_tag": time_tag,
                 "region_id": rid,
-                "lat_deg": lat, "lon_deg": lon, "geomag_lat_deg": lat,
-                "kp": 9.0, "bz_nt": -25.0, "tec_tecu": 30.0,
+                "lat_deg": lat,
+                "lon_deg": lon,
+                "geomag_lat_deg": lat,
+                "kp": 9.0,
+                "bz_nt": -25.0,
+                "tec_tecu": 30.0,
                 "gps_l1_error_m": gps,
                 "hf_absorption_db": hf,
                 "hf_blackout_probability": 1.0 if hf >= 25 else 0.5,
@@ -50,6 +59,7 @@ def _sample_fc() -> dict:
                 "radar_l_range_bias_m": 5.0,
             },
         }
+
     return {
         "type": "FeatureCollection",
         "metadata": {
@@ -59,7 +69,7 @@ def _sample_fc() -> dict:
         },
         "features": [
             feat("2024-05-11T01:30:00+00:00", "R+035-090", 35, -90, 42, 13, 2),
-            feat("2024-05-11T01:30:00+00:00", "R+075-010", 75, 10,  85,  9, 1),
+            feat("2024-05-11T01:30:00+00:00", "R+075-010", 75, 10, 85, 9, 1),
             feat("2024-05-11T02:30:00+00:00", "R+035-090", 35, -90, 26, 11, 0.5),
         ],
     }
@@ -81,7 +91,7 @@ def test_kml_color_byte_order_is_aabbggrr():
     """KML colors are aabbggrr — verify by structure rather than exact match."""
     for table in (HF_STYLES, GPS_STYLES, SAT_STYLES):
         for thresh, color, sid in table:
-            assert len(color) == 8           # 4 bytes hex
+            assert len(color) == 8  # 4 bytes hex
             # alpha byte is non-zero (visible)
             assert int(color[0:2], 16) > 0
 
@@ -159,8 +169,8 @@ def test_kml_severity_routes_to_correct_style():
     kml = geojson_to_kml(fc, layer_by="hf")
     root = ET.fromstring(kml)
     style_urls = [el.text for el in root.findall(f".//{KML_NS}styleUrl")]
-    assert "#hf-severe" in style_urls         # 85 dB Greenland
-    assert "#hf-degraded" in style_urls       # 26 dB second time-step
+    assert "#hf-severe" in style_urls  # 85 dB Greenland
+    assert "#hf-degraded" in style_urls  # 26 dB second time-step
 
 
 def test_kml_layered_has_three_folders():
@@ -178,7 +188,7 @@ def test_kml_polygon_coordinates_are_lon_lat_alt_triples():
     coords_text = root.find(f".//{KML_NS}coordinates").text
     triples = [c.split(",") for c in coords_text.strip().split()]
     for t in triples:
-        assert len(t) == 3                # lon, lat, altitude
+        assert len(t) == 3  # lon, lat, altitude
         # First sample: lon -100..-80, lat 30..40
         lon, lat, alt = float(t[0]), float(t[1]), float(t[2])
         assert -180 <= lon <= 180
@@ -198,7 +208,7 @@ def test_kml_description_is_cdata_with_properties():
 
 def test_kmz_is_valid_zip_with_doc_kml_entry():
     blob = geojson_to_kmz(_sample_fc())
-    assert blob[:2] == b"PK"          # ZIP magic
+    assert blob[:2] == b"PK"  # ZIP magic
     z = zipfile.ZipFile(io.BytesIO(blob))
     assert "doc.kml" in z.namelist()
     inner = z.read("doc.kml").decode()
@@ -246,7 +256,9 @@ def test_geojson_to_kml_omits_legend_overlay_by_default():
 
 def test_geojson_to_kml_emits_legend_when_requested():
     kml = geojson_to_kml(
-        _sample_fc(), layer_by="hf", include_legend_overlay=True,
+        _sample_fc(),
+        layer_by="hf",
+        include_legend_overlay=True,
     )
     assert "<ScreenOverlay>" in kml
     assert "legend.png" in kml
@@ -255,6 +267,7 @@ def test_geojson_to_kml_emits_legend_when_requested():
 def test_legend_png_is_valid_decodable_png():
     """The hand-rolled stdlib PNG writer must produce structurally valid bytes."""
     from app.outputs.earth_studio import _build_legend_png
+
     blob = _build_legend_png()
     # Signature
     assert blob[:8] == b"\x89PNG\r\n\x1a\n"
@@ -262,6 +275,7 @@ def test_legend_png_is_valid_decodable_png():
     assert blob[12:16] == b"IHDR"
     # Width and height encoded big-endian at offset 16
     import struct
+
     width, height = struct.unpack("!II", blob[16:24])
     assert width == 240 and height == 280
     # IEND must be present
@@ -274,11 +288,11 @@ def test_legend_png_is_valid_decodable_png():
 def test_keyframes_csv_header_and_count():
     csv_text = geojson_to_keyframes_csv(_sample_fc())
     lines = csv_text.strip().split("\n")
-    assert lines[0].startswith("# IonShield")    # comment line
+    assert lines[0].startswith("# IonShield")  # comment line
     reader = csv.reader(io.StringIO("\n".join(lines[1:])))
     rows = list(reader)
-    assert rows[0][0] == "time_tag"               # header
-    assert len(rows) == 1 + 3                     # header + 3 features
+    assert rows[0][0] == "time_tag"  # header
+    assert len(rows) == 1 + 3  # header + 3 features
 
 
 def test_keyframes_csv_filters_to_single_region():
@@ -294,59 +308,73 @@ def test_keyframes_csv_filters_to_single_region():
 
 def test_export_endpoint_kml_format():
     with TestClient(app) as client:
-        r = client.get("/api/v3/scenarios/export", params={
-            "start": "2020-01-01T00:00:00Z",
-            "end": "2020-01-02T00:00:00Z",
-            "fmt": "kml",
-        })
+        r = client.get(
+            "/api/v3/scenarios/export",
+            params={
+                "start": "2020-01-01T00:00:00Z",
+                "end": "2020-01-02T00:00:00Z",
+                "fmt": "kml",
+            },
+        )
         assert r.status_code == 200
-        assert r.headers["content-type"].startswith(
-            "application/vnd.google-earth.kml+xml")
+        assert r.headers["content-type"].startswith("application/vnd.google-earth.kml+xml")
         assert "<kml" in r.text
 
 
 def test_export_endpoint_kmz_format():
     with TestClient(app) as client:
-        r = client.get("/api/v3/scenarios/export", params={
-            "start": "2020-01-01T00:00:00Z",
-            "end": "2020-01-02T00:00:00Z",
-            "fmt": "kmz",
-        })
+        r = client.get(
+            "/api/v3/scenarios/export",
+            params={
+                "start": "2020-01-01T00:00:00Z",
+                "end": "2020-01-02T00:00:00Z",
+                "fmt": "kmz",
+            },
+        )
         assert r.status_code == 200
-        assert r.headers["content-type"].startswith(
-            "application/vnd.google-earth.kmz")
+        assert r.headers["content-type"].startswith("application/vnd.google-earth.kmz")
         assert r.content[:2] == b"PK"
-        assert "filename=\"ionshield-scenario.kmz\"" in r.headers["content-disposition"]
+        assert 'filename="ionshield-scenario.kmz"' in r.headers["content-disposition"]
 
 
 def test_export_endpoint_keyframes_format():
     with TestClient(app) as client:
-        r = client.get("/api/v3/scenarios/export", params={
-            "start": "2020-01-01T00:00:00Z",
-            "end": "2020-01-02T00:00:00Z",
-            "fmt": "keyframes",
-        })
+        r = client.get(
+            "/api/v3/scenarios/export",
+            params={
+                "start": "2020-01-01T00:00:00Z",
+                "end": "2020-01-02T00:00:00Z",
+                "fmt": "keyframes",
+            },
+        )
         assert r.status_code == 200
         assert "text/csv" in r.headers["content-type"]
         assert r.text.startswith("# IonShield")
-        assert "filename=\"ionshield-keyframes.csv\"" in r.headers["content-disposition"]
+        assert 'filename="ionshield-keyframes.csv"' in r.headers["content-disposition"]
 
 
 def test_export_endpoint_unknown_fmt_rejected():
     with TestClient(app) as client:
-        r = client.get("/api/v3/scenarios/export", params={
-            "start": "2020-01-01T00:00:00Z",
-            "end": "2020-01-02T00:00:00Z",
-            "fmt": "shapefile",
-        })
+        r = client.get(
+            "/api/v3/scenarios/export",
+            params={
+                "start": "2020-01-01T00:00:00Z",
+                "end": "2020-01-02T00:00:00Z",
+                "fmt": "shapefile",
+            },
+        )
         assert r.status_code == 422
 
 
 def test_export_endpoint_unknown_layer_rejected():
     with TestClient(app) as client:
-        r = client.get("/api/v3/scenarios/export", params={
-            "start": "2020-01-01T00:00:00Z",
-            "end": "2020-01-02T00:00:00Z",
-            "fmt": "kml", "layer": "asdf",
-        })
+        r = client.get(
+            "/api/v3/scenarios/export",
+            params={
+                "start": "2020-01-01T00:00:00Z",
+                "end": "2020-01-02T00:00:00Z",
+                "fmt": "kml",
+                "layer": "asdf",
+            },
+        )
         assert r.status_code == 422

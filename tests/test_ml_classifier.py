@@ -5,15 +5,12 @@ from __future__ import annotations
 import json
 import math
 from datetime import datetime, timezone
-from pathlib import Path
 
-import pytest
 
 from app.models.ml_classifier import (
     ARTIFACT_PATH,
     CLASSES,
     FEATURE_NAMES,
-    TrainedClassifier,
     _softmax,
     _train_softmax,
     featurize,
@@ -26,9 +23,16 @@ def _obs(*, kp=2.0, xray=1e-7, proton=0.1, wind=400.0, bz=0.0):
     return FusedObservation(
         region=Region.from_center(0, 0),
         when=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp_index=kp, bz_nt=bz, wind_speed_km_s=wind,
-        xray_flux_wm2=xray, proton_flux_10mev_pfu=proton, f107_sfu=70.0,
-        tec_tecu=15.0, tec_anomaly_tecu=0.0, hmf2_km=300.0, nmf2=1.5e11,
+        kp_index=kp,
+        bz_nt=bz,
+        wind_speed_km_s=wind,
+        xray_flux_wm2=xray,
+        proton_flux_10mev_pfu=proton,
+        f107_sfu=70.0,
+        tec_tecu=15.0,
+        tec_anomaly_tecu=0.0,
+        hmf2_km=300.0,
+        nmf2=1.5e11,
     )
 
 
@@ -105,10 +109,7 @@ def test_softmax_train_separates_two_classes():
     # Predict on each row using softmax
     correct = 0
     for xi, yi in zip(X, y):
-        logits = [
-            sum(coef[k][j] * xi[j] for j in range(2)) + intercept[k]
-            for k in range(2)
-        ]
+        logits = [sum(coef[k][j] * xi[j] for j in range(2)) + intercept[k] for k in range(2)]
         pred = logits.index(max(logits))
         if pred == yi:
             correct += 1

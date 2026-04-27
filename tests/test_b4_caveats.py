@@ -15,8 +15,6 @@ from starlette.testclient import TestClient
 from app.data import db as db_module
 from app.main import app
 from app.outputs.earth_studio_recipe import (
-    ALTITUDE_MAX_M,
-    ALTITUDE_MIN_M,
     CAMERA_CSV_COLUMNS,
     _interp_lon,
     lint_catalog,
@@ -33,12 +31,9 @@ def _good_recipe() -> dict:
         "duration_seconds": 30,
         "frame_rate": 30,
         "camera": [
-            {"t": 0,  "lat": 0,  "lon": 0,  "altitude_m": 25_000_000,
-             "heading": 0, "tilt": 0, "label": "wide"},
-            {"t": 15, "lat": 60, "lon": -90, "altitude_m": 8_000_000,
-             "heading": 30, "tilt": 25, "label": "approach"},
-            {"t": 28, "lat": 50, "lon": -30, "altitude_m": 18_000_000,
-             "heading": 0, "tilt": 10, "label": "pull back"},
+            {"t": 0, "lat": 0, "lon": 0, "altitude_m": 25_000_000, "heading": 0, "tilt": 0, "label": "wide"},
+            {"t": 15, "lat": 60, "lon": -90, "altitude_m": 8_000_000, "heading": 30, "tilt": 25, "label": "approach"},
+            {"t": 28, "lat": 50, "lon": -30, "altitude_m": 18_000_000, "heading": 0, "tilt": 10, "label": "pull back"},
         ],
         "render": {"format": "mp4", "width": 1920, "height": 1080},
     }
@@ -50,7 +45,7 @@ def test_validate_recipe_accepts_clean_input():
 
 def test_validate_recipe_rejects_non_monotonic_time():
     r = _good_recipe()
-    r["camera"][2]["t"] = 5      # earlier than waypoint 1's t=15
+    r["camera"][2]["t"] = 5  # earlier than waypoint 1's t=15
     issues = validate_recipe(r)
     assert any("not strictly increasing" in i for i in issues)
 
@@ -66,32 +61,31 @@ def test_validate_recipe_rejects_out_of_bounds_lat_lon():
 
 def test_validate_recipe_rejects_impossible_altitudes():
     r = _good_recipe()
-    r["camera"][1]["altitude_m"] = 0.0     # below Earth Studio min
+    r["camera"][1]["altitude_m"] = 0.0  # below Earth Studio min
     issues = validate_recipe(r)
     assert any("altitude" in i for i in issues)
 
 
 def test_validate_recipe_rejects_final_waypoint_after_duration():
     r = _good_recipe()
-    r["camera"][-1]["t"] = 999      # past duration_seconds=30
+    r["camera"][-1]["t"] = 999  # past duration_seconds=30
     issues = validate_recipe(r)
     assert any("exceeds duration_seconds" in i for i in issues)
 
 
 def test_validate_recipe_rejects_short_camera_path():
-    issues = validate_recipe({
-        "duration_seconds": 10, "frame_rate": 30,
-        "camera": [{"t": 0, "lat": 0, "lon": 0, "altitude_m": 1e7,
-                    "heading": 0, "tilt": 0}],
-    })
+    issues = validate_recipe(
+        {
+            "duration_seconds": 10,
+            "frame_rate": 30,
+            "camera": [{"t": 0, "lat": 0, "lon": 0, "altitude_m": 1e7, "heading": 0, "tilt": 0}],
+        }
+    )
     assert any("at least 2 waypoints" in i for i in issues)
 
 
 def test_lint_catalog_includes_every_recipe():
-    catalog = json.loads(
-        (Path(__file__).parent.parent / "app" / "static" / "scenarios.json")
-        .read_text()
-    )
+    catalog = json.loads((Path(__file__).parent.parent / "app" / "static" / "scenarios.json").read_text())
     issues = lint_catalog(catalog)
     # Every concrete scenario has a recipe → entry in the lint map
     assert "may-2024-g5" in issues
@@ -124,8 +118,8 @@ def test_camera_csv_first_row_matches_first_waypoint():
     rows = list(csv.reader(io.StringIO(csv_text)))
     first = rows[1]
     assert first[0] == "0.0000"
-    assert float(first[1]) == 0.0       # lat
-    assert float(first[2]) == 0.0       # lon
+    assert float(first[1]) == 0.0  # lat
+    assert float(first[2]) == 0.0  # lon
     assert float(first[3]) == 25_000_000.0
 
 
@@ -144,7 +138,7 @@ def test_interp_lon_handles_date_line():
     assert out > 175 or out < -175 or abs(out) > 179
     # Going west across date line — interp should travel ~10° not ~350°
     out_west = _interp_lon(170, -170, 0.5)
-    assert abs(out_west) > 170    # near ±180 line
+    assert abs(out_west) > 170  # near ±180 line
 
 
 # ── Caveat 3: DB-backed video registration ──────────────────────────────────
@@ -164,6 +158,7 @@ async def memory_db():
 @pytest.mark.asyncio
 async def test_video_store_register_and_lookup(memory_db):
     from app.data import scenario_video_store as svs
+
     row = await svs.register(
         "may-2024-g5",
         video_url="https://cdn.example.com/may.mp4",
@@ -179,6 +174,7 @@ async def test_video_store_register_and_lookup(memory_db):
 @pytest.mark.asyncio
 async def test_video_store_register_is_upsert(memory_db):
     from app.data import scenario_video_store as svs
+
     await svs.register("x", video_url="https://a.example.com/v.mp4")
     await svs.register("x", video_url="https://b.example.com/v.mp4")
     rows = await svs.lookup_all()
@@ -189,6 +185,7 @@ async def test_video_store_register_is_upsert(memory_db):
 @pytest.mark.asyncio
 async def test_video_store_unregister_returns_bool(memory_db):
     from app.data import scenario_video_store as svs
+
     await svs.register("x", video_url="https://a.example.com/v.mp4")
     assert await svs.unregister("x") is True
     assert await svs.unregister("x") is False
@@ -196,21 +193,24 @@ async def test_video_store_unregister_returns_bool(memory_db):
 
 @pytest.mark.asyncio
 async def test_register_endpoint_writes_db_first_sidecar_second(
-    memory_db, tmp_path, monkeypatch,
+    memory_db,
+    tmp_path,
+    monkeypatch,
 ):
     from app.data import scenario_precompute as sp
+
     monkeypatch.setattr(sp, "OUTPUT_ROOT", tmp_path / "out")
 
     with TestClient(app) as client:
         r = client.post(
             "/api/v3/scenarios/may-2024-g5/video",
-            json={"video_url": "https://cdn.example.com/may.mp4",
-                  "duration_seconds": 30},
+            json={"video_url": "https://cdn.example.com/may.mp4", "duration_seconds": 30},
         )
         assert r.status_code == 200, r.text
 
     # DB row exists
     from app.data import scenario_video_store as svs
+
     row = await svs.lookup("may-2024-g5")
     assert row["video_url"] == "https://cdn.example.com/may.mp4"
     # Sidecar also exists (write-through)
@@ -222,6 +222,7 @@ async def test_register_endpoint_writes_db_first_sidecar_second(
 async def test_catalog_uses_db_when_sidecar_missing(memory_db, tmp_path, monkeypatch):
     """Free-tier scenario: ephemeral disk wiped, sidecar gone, DB persists."""
     from app.data import scenario_precompute as sp, scenario_video_store as svs
+
     monkeypatch.setattr(sp, "OUTPUT_ROOT", tmp_path / "empty")
 
     await svs.register(
@@ -240,40 +241,46 @@ async def test_catalog_uses_db_when_sidecar_missing(memory_db, tmp_path, monkeyp
 
 def test_validate_url_rejects_javascript_scheme(memory_db):
     from app.data.scenario_video_store import validate_video_url, InvalidVideoURL
+
     with pytest.raises(InvalidVideoURL):
         validate_video_url("javascript:alert(1)")
 
 
 def test_validate_url_rejects_data_scheme(memory_db):
     from app.data.scenario_video_store import validate_video_url, InvalidVideoURL
+
     with pytest.raises(InvalidVideoURL):
         validate_video_url("data:video/mp4;base64,AAA")
 
 
 def test_validate_url_rejects_external_http(memory_db):
     from app.data.scenario_video_store import validate_video_url, InvalidVideoURL
+
     with pytest.raises(InvalidVideoURL):
         validate_video_url("http://untrusted.example.com/v.mp4")
 
 
 def test_validate_url_allows_localhost_http_for_dev(memory_db):
     from app.data.scenario_video_store import validate_video_url
+
     assert validate_video_url("http://localhost:8000/v.mp4")
     assert validate_video_url("http://127.0.0.1:8000/v.mp4")
 
 
 def test_validate_url_accepts_https(memory_db):
     from app.data.scenario_video_store import validate_video_url
+
     assert validate_video_url("https://cdn.example.com/v.mp4")
 
 
 def test_validate_url_enforces_allowlist_when_configured(memory_db, monkeypatch):
     from app.config import settings
     from app.data.scenario_video_store import (
-        InvalidVideoURL, validate_video_url,
+        InvalidVideoURL,
+        validate_video_url,
     )
-    monkeypatch.setattr(settings, "video_domain_allowlist",
-                        "cdn.example.com,r2.example.org")
+
+    monkeypatch.setattr(settings, "video_domain_allowlist", "cdn.example.com,r2.example.org")
     # Allowed
     assert validate_video_url("https://cdn.example.com/x.mp4")
     assert validate_video_url("https://sub.cdn.example.com/x.mp4")
@@ -310,7 +317,7 @@ def test_recipe_endpoint_lint_flag_returns_issues_field():
 
 
 def test_b4_caveats_migration_exists():
-    p = (Path(__file__).parent.parent / "migrations" / "0003_b4_caveats.sql")
+    p = Path(__file__).parent.parent / "migrations" / "0003_b4_caveats.sql"
     assert p.exists()
     text = p.read_text()
     assert "scenario_videos" in text

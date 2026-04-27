@@ -208,11 +208,7 @@ def main() -> None:
             gunso_blackout_steps += 1
 
         mimku_hf = hf_results["MIMKU"]
-        mimku_best = (
-            f"{mimku_hf['best_frequency_mhz']} MHz"
-            if mimku_hf["best_frequency_mhz"]
-            else "NONE"
-        )
+        mimku_best = f"{mimku_hf['best_frequency_mhz']} MHz" if mimku_hf["best_frequency_mhz"] else "NONE"
         gunso_ok = "YES" if gunso_reliable else "NO ⚠"
 
         line = (
@@ -283,9 +279,7 @@ def main() -> None:
     print(f"  Peak Kp modeled:              {peak_kp:.1f}  ({peak_step['note']})")
     print(f"  Peak GPS error at GUNSO:      {peak_gunso_gps:.1f} m")
     print("  (Documented G5 range:         10–50 m at high lat)")
-    print(
-        f"  HF blackout at GUNSO (peak):  {'YES' if gunso_blackout_steps > 0 else 'NO'}"
-    )
+    print(f"  HF blackout at GUNSO (peak):  {'YES' if gunso_blackout_steps > 0 else 'NO'}")
     print(f"  HF blackout duration sim:     ~{blackout_hours} hours")
     print(f"  Model assessment:             {assessment}")
     print("=" * 56)

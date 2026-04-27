@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -19,9 +18,16 @@ def _obs(when, *, kp=2.0, xray=1e-7, proton=0.1) -> FusedObservation:
     return FusedObservation(
         region=Region.from_center(0, 0),
         when=when,
-        kp_index=kp, bz_nt=0.0, wind_speed_km_s=400.0,
-        xray_flux_wm2=xray, proton_flux_10mev_pfu=proton, f107_sfu=70.0,
-        tec_tecu=15.0, tec_anomaly_tecu=0.0, hmf2_km=300.0, nmf2=1.5e11,
+        kp_index=kp,
+        bz_nt=0.0,
+        wind_speed_km_s=400.0,
+        xray_flux_wm2=xray,
+        proton_flux_10mev_pfu=proton,
+        f107_sfu=70.0,
+        tec_tecu=15.0,
+        tec_anomaly_tecu=0.0,
+        hmf2_km=300.0,
+        nmf2=1.5e11,
     )
 
 

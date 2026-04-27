@@ -26,9 +26,8 @@ Physics references — same as risk.py:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 from app.models.ontology import FusedObservation, Region
 
@@ -38,7 +37,7 @@ from app.models.ontology import FusedObservation, Region
 
 @dataclass(frozen=True)
 class GpsImpact:
-    asset_type: str          # GPS_L1 | GPS_L1L2 | GPS_L1L5 | GPS_INS | SBAS
+    asset_type: str  # GPS_L1 | GPS_L1L2 | GPS_L1L5 | GPS_INS | SBAS
     error_m: float
     error_low_m: float
     error_high_m: float
@@ -49,17 +48,17 @@ class GpsImpact:
 @dataclass(frozen=True)
 class HfImpact:
     absorption_total_db: float
-    absorption_sid_db: float        # X-ray driven (dayside only)
-    absorption_storm_db: float      # Kp driven (geomag latitude scaled)
-    absorption_pca_db: float        # proton driven (polar only)
-    blackout_probability: float     # P[total_abs > 25 dB fade margin]
+    absorption_sid_db: float  # X-ray driven (dayside only)
+    absorption_storm_db: float  # Kp driven (geomag latitude scaled)
+    absorption_pca_db: float  # proton driven (polar only)
+    blackout_probability: float  # P[total_abs > 25 dB fade margin]
     is_dayside: bool
     pca_active: bool
 
 
 @dataclass(frozen=True)
 class SatcomImpact:
-    band: str                       # "L" | "Ku"
+    band: str  # "L" | "Ku"
     fade_db: float
     outage_probability: float
     s4_used: float
@@ -67,7 +66,7 @@ class SatcomImpact:
 
 @dataclass(frozen=True)
 class RadarImpact:
-    band: str                       # "L" | "S" | "C" | "X"
+    band: str  # "L" | "S" | "C" | "X"
     range_bias_m: float
     coherence_degraded: bool
 
@@ -97,28 +96,57 @@ class ImpactAssessment:
             "when_utc": when_iso,
         }
         for asset, g in self.gps.items():
-            out.append({**base, "system": "GPS", "subsystem": asset,
-                        "metric": "error_m", "value": g.error_m,
-                        "value_low": g.error_low_m, "value_high": g.error_high_m,
-                        "vtec_tecu": g.vtec_used_tecu,
-                        "iono_correction_active": g.iono_correction_active})
-        out.append({**base, "system": "HF", "subsystem": "TOTAL",
-                    "metric": "absorption_db", "value": self.hf.absorption_total_db,
-                    "abs_sid_db": self.hf.absorption_sid_db,
-                    "abs_storm_db": self.hf.absorption_storm_db,
-                    "abs_pca_db": self.hf.absorption_pca_db,
-                    "blackout_probability": self.hf.blackout_probability,
-                    "dayside": self.hf.is_dayside,
-                    "pca_active": self.hf.pca_active})
+            out.append(
+                {
+                    **base,
+                    "system": "GPS",
+                    "subsystem": asset,
+                    "metric": "error_m",
+                    "value": g.error_m,
+                    "value_low": g.error_low_m,
+                    "value_high": g.error_high_m,
+                    "vtec_tecu": g.vtec_used_tecu,
+                    "iono_correction_active": g.iono_correction_active,
+                }
+            )
+        out.append(
+            {
+                **base,
+                "system": "HF",
+                "subsystem": "TOTAL",
+                "metric": "absorption_db",
+                "value": self.hf.absorption_total_db,
+                "abs_sid_db": self.hf.absorption_sid_db,
+                "abs_storm_db": self.hf.absorption_storm_db,
+                "abs_pca_db": self.hf.absorption_pca_db,
+                "blackout_probability": self.hf.blackout_probability,
+                "dayside": self.hf.is_dayside,
+                "pca_active": self.hf.pca_active,
+            }
+        )
         for band, s in self.satcom.items():
-            out.append({**base, "system": "SATCOM", "subsystem": band,
-                        "metric": "fade_db", "value": s.fade_db,
-                        "outage_probability": s.outage_probability,
-                        "s4": s.s4_used})
+            out.append(
+                {
+                    **base,
+                    "system": "SATCOM",
+                    "subsystem": band,
+                    "metric": "fade_db",
+                    "value": s.fade_db,
+                    "outage_probability": s.outage_probability,
+                    "s4": s.s4_used,
+                }
+            )
         for band, r in self.radar.items():
-            out.append({**base, "system": "RADAR", "subsystem": band,
-                        "metric": "range_bias_m", "value": r.range_bias_m,
-                        "coherence_degraded": r.coherence_degraded})
+            out.append(
+                {
+                    **base,
+                    "system": "RADAR",
+                    "subsystem": band,
+                    "metric": "range_bias_m",
+                    "value": r.range_bias_m,
+                    "coherence_degraded": r.coherence_degraded,
+                }
+            )
         return out
 
 
@@ -148,10 +176,7 @@ def _solar_zenith_angle(lat_deg: float, lon_deg: float, when: datetime) -> float
     lat_r = math.radians(lat_deg)
     decl_r = math.radians(decl)
     h_r = math.radians(h_angle)
-    cos_z = (
-        math.sin(lat_r) * math.sin(decl_r)
-        + math.cos(lat_r) * math.cos(decl_r) * math.cos(h_r)
-    )
+    cos_z = math.sin(lat_r) * math.sin(decl_r) + math.cos(lat_r) * math.cos(decl_r) * math.cos(h_r)
     cos_z = max(-1.0, min(1.0, cos_z))
     return math.degrees(math.acos(cos_z))
 
@@ -159,19 +184,19 @@ def _solar_zenith_angle(lat_deg: float, lon_deg: float, when: datetime) -> float
 # Ionospheric correction factors per asset type (from risk.py ASSET_IONO_FACTOR)
 ASSET_IONO_FACTOR: dict[str, float] = {
     "GPS_L1": 1.00,
-    "GPS_L1L2": 0.05,    # dual-freq cancels first-order TEC
+    "GPS_L1L2": 0.05,  # dual-freq cancels first-order TEC
     "GPS_L1L5": 0.05,
-    "GPS_INS": 0.40,     # INS bridges short outages
-    "SBAS": 0.10,        # WAAS corrections (degrade in storms — see compute_gps)
+    "GPS_INS": 0.40,  # INS bridges short outages
+    "SBAS": 0.10,  # WAAS corrections (degrade in storms — see compute_gps)
 }
 
 NON_IONO_FLOOR_M: float = 1.5
 
 # Constants for ionospheric delay calculations
 TEC_TO_L1_M_PER_TECU: float = 0.162  # 40.3e16 / f1^2, f1 = 1.57542 GHz
-OBLIQUITY_FACTOR: float = 2.5        # mixed-elevation fleet average
-SCINT_NOISE_GAIN: float = 18.0       # dB-equivalent above S4=0.30
-HF_FADE_MARGIN_DB: float = 25.0      # conservative HF link budget
+OBLIQUITY_FACTOR: float = 2.5  # mixed-elevation fleet average
+SCINT_NOISE_GAIN: float = 18.0  # dB-equivalent above S4=0.30
+HF_FADE_MARGIN_DB: float = 25.0  # conservative HF link budget
 
 
 # ── GPS impact ───────────────────────────────────────────────────────────────
@@ -246,9 +271,7 @@ def assess_gps(obs: FusedObservation, asset_type: str = "GPS_L1") -> GpsImpact:
 
 
 def assess_hf(obs: FusedObservation) -> HfImpact:
-    sza = _solar_zenith_angle(
-        obs.region.lat_deg, obs.region.lon_deg, obs.when
-    )
+    sza = _solar_zenith_angle(obs.region.lat_deg, obs.region.lon_deg, obs.when)
     cos_sza = max(0.0, math.cos(math.radians(sza)))
     is_dayside = cos_sza > 0.1
 
@@ -310,16 +333,14 @@ def assess_satcom(obs: FusedObservation) -> dict[str, SatcomImpact]:
     if s4 <= 0.01:
         l_fade = 0.0
     elif s4 < 0.6:
-        l_fade = min(15.0, -10.0 * math.log10(max(1e-3, 1.0 - s4 ** 2)))
+        l_fade = min(15.0, -10.0 * math.log10(max(1e-3, 1.0 - s4**2)))
     else:
         l_fade = min(22.0, 3.0 + s4 * 24.0)
     l_outage = round(min(1.0, max(0.0, (l_fade - 0.5) / 12.0)), 2)
 
     return {
-        "L": SatcomImpact(band="L", fade_db=round(l_fade, 2),
-                          outage_probability=l_outage, s4_used=round(s4, 3)),
-        "Ku": SatcomImpact(band="Ku", fade_db=0.0,
-                           outage_probability=0.0, s4_used=round(s4, 3)),
+        "L": SatcomImpact(band="L", fade_db=round(l_fade, 2), outage_probability=l_outage, s4_used=round(s4, 3)),
+        "Ku": SatcomImpact(band="Ku", fade_db=0.0, outage_probability=0.0, s4_used=round(s4, 3)),
     }
 
 
@@ -328,7 +349,10 @@ def assess_satcom(obs: FusedObservation) -> dict[str, SatcomImpact]:
 
 # Range bias scales as 40.3·VTEC/f² — coefficients per band (relative to L)
 _BAND_FREQ_HZ: dict[str, float] = {
-    "L": 1.3e9, "S": 3.0e9, "C": 5.5e9, "X": 10.0e9,
+    "L": 1.3e9,
+    "S": 3.0e9,
+    "C": 5.5e9,
+    "X": 10.0e9,
 }
 
 
@@ -340,7 +364,8 @@ def assess_radar(obs: FusedObservation) -> dict[str, RadarImpact]:
     for band, f in _BAND_FREQ_HZ.items():
         bias = 40.3e16 * vtec / (f * f)
         out[band] = RadarImpact(
-            band=band, range_bias_m=round(bias, 3),
+            band=band,
+            range_bias_m=round(bias, 3),
             coherence_degraded=coherence_lost,
         )
     return out
@@ -350,7 +375,11 @@ def assess_radar(obs: FusedObservation) -> dict[str, RadarImpact]:
 
 
 GPS_ASSET_TYPES: tuple[str, ...] = (
-    "GPS_L1", "GPS_L1L2", "GPS_L1L5", "GPS_INS", "SBAS",
+    "GPS_L1",
+    "GPS_L1L2",
+    "GPS_L1L5",
+    "GPS_INS",
+    "SBAS",
 )
 
 

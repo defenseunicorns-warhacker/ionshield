@@ -163,15 +163,14 @@ async def _detect_events() -> None:
 
 async def _push_foundry_impact() -> None:
     """Push per-region impact rows (A4) to Foundry. No-op if disabled."""
-    if not (
-        settings.foundry_sync_configured
-        and settings.foundry_impact_rid
-    ):
+    if not (settings.foundry_sync_configured and settings.foundry_impact_rid):
         return
     iono_snap = iono_cache_snapshot()
     fused = fuse_snapshot(
         when=None,
-        kp=get_kp(), bz_nt=get_bz(), wind_speed_km_s=get_wind_speed(),
+        kp=get_kp(),
+        bz_nt=get_bz(),
+        wind_speed_km_s=get_wind_speed(),
         xray_flux_wm2=get_xray_flux(),
         proton_flux_10mev_pfu=get_proton_flux_10mev(),
         f107_sfu=iono_snap.get("f107_sfu", 70.0),
@@ -201,8 +200,7 @@ async def _push_foundry_fused() -> None:
         proton_flux_10mev_pfu=get_proton_flux_10mev(),
         f107_sfu=iono_snap.get("f107_sfu", 70.0),
         glotec_fc=get_glotec_featurecollection(),
-        feed_quality={**(noaa_cache_snapshot().get("fetch_status") or {}),
-                      **(iono_snap.get("fetch_status") or {})},
+        feed_quality={**(noaa_cache_snapshot().get("fetch_status") or {}), **(iono_snap.get("fetch_status") or {})},
         data_age_seconds=int(noaa_cache_snapshot().get("data_age_seconds") or 0),
     )
     rows = [obs.to_dict() for obs in fused]
@@ -219,22 +217,26 @@ def _register_default_sources() -> None:
     from app.data.noaa import cache_snapshot as _noaa_status
     from app.data.ustec import cache_snapshot as _iono_status
 
-    register(DataSource(
-        name="noaa_swpc",
-        cadence_seconds=settings.refresh_interval_seconds,
-        fetch_async=lambda timeout: fetch_noaa(timeout=timeout),
-        status_async=_noaa_status,
-        timeout_seconds=settings.noaa_timeout_seconds,
-        breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
-    ))
-    register(DataSource(
-        name="ionosphere",
-        cadence_seconds=settings.refresh_interval_seconds,
-        fetch_async=lambda timeout: fetch_ionosphere(timeout=timeout),
-        status_async=_iono_status,
-        timeout_seconds=settings.noaa_timeout_seconds,
-        breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
-    ))
+    register(
+        DataSource(
+            name="noaa_swpc",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: fetch_noaa(timeout=timeout),
+            status_async=_noaa_status,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    register(
+        DataSource(
+            name="ionosphere",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: fetch_ionosphere(timeout=timeout),
+            status_async=_iono_status,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
 
 
 _egress_locks: dict[str, asyncio.Semaphore] = {}
@@ -252,7 +254,8 @@ async def _fire_and_forget(coro_factory, *, label: str) -> None:
     sem = _egress_locks.setdefault(label, asyncio.Semaphore(1))
     if sem.locked():
         logger.warning(
-            "Background task %s skipped — previous run still in flight", label,
+            "Background task %s skipped — previous run still in flight",
+            label,
         )
         return
 
@@ -308,9 +311,7 @@ async def _refresh_loop() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _configure_logging()
-    logger.info(
-        "IonShield v%s starting — performing initial NOAA fetch…", settings.app_version
-    )
+    logger.info("IonShield v%s starting — performing initial NOAA fetch…", settings.app_version)
     await init_db()
     set_persistor(breaker_store.persist)
     _register_default_sources()
@@ -342,12 +343,14 @@ async def lifespan(app: FastAPI):
     async def _bootstrap_scenarios() -> None:
         try:
             from app.data import historical_backfill, scenario_precompute
+
             await historical_backfill.backfill_all_predefined()
             results = await scenario_precompute.precompute_all()
             written = sum(1 for r in results if r.get("written"))
             logger.info(
                 "Scenario precompute bootstrap: %d/%d scenarios written",
-                written, len(results),
+                written,
+                len(results),
             )
         except Exception as exc:
             logger.warning("Scenario bootstrap failed: %s", exc)
@@ -357,6 +360,7 @@ async def lifespan(app: FastAPI):
     # Auto-pilot loop — drift-driven retrain, challenger auto-promote, sample
     # archive. Independent of the refresh loop; safe to disable via config.
     from app.models.auto_pilot import run_loop as auto_pilot_loop
+
     auto_task = asyncio.create_task(auto_pilot_loop())
 
     yield
@@ -410,13 +414,9 @@ def create_app() -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), camera=(), microphone=()"
-        )
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
         # HSTS: only set when behind TLS (PaaS platforms handle TLS termination)
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
     # Static assets (CSS, JS)
@@ -489,15 +489,10 @@ def create_app() -> FastAPI:
             "/pricing",
             "/compliance",
         ]
-        loc_tags = "\n".join(
-            f"  <url><loc>{base}{u}</loc><changefreq>weekly</changefreq></url>"
-            for u in urls
-        )
+        loc_tags = "\n".join(f"  <url><loc>{base}{u}</loc><changefreq>weekly</changefreq></url>" for u in urls)
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-            + loc_tags
-            + "\n</urlset>"
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + loc_tags + "\n</urlset>"
         )
         return Response(xml, media_type="application/xml")
 

@@ -287,12 +287,8 @@ class TestReplayDeterminism:
         row = await get_snapshot_by_id(1)
         env = snapshot_row_to_env(row)
 
-        rec1 = _ENGINE.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
-        rec2 = _ENGINE.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec1 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
+        rec2 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
 
         assert rec1.provenance.input_hash == rec2.provenance.input_hash
 
@@ -302,12 +298,8 @@ class TestReplayDeterminism:
         row = await get_snapshot_by_id(1)
         env = snapshot_row_to_env(row)
 
-        rec1 = _ENGINE.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
-        rec2 = _ENGINE.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec1 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
+        rec2 = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
 
         assert rec1.action == rec2.action
 
@@ -320,12 +312,8 @@ class TestReplayDeterminism:
         env_g5 = snapshot_row_to_env(row_g5)
         env_quiet = snapshot_row_to_env(row_quiet)
 
-        rec_g5 = _ENGINE.comms_fallback(
-            env_g5, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
-        rec_quiet = _ENGINE.comms_fallback(
-            env_quiet, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec_g5 = _ENGINE.comms_fallback(env_g5, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
+        rec_quiet = _ENGINE.comms_fallback(env_quiet, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
 
         assert rec_g5.provenance.input_hash != rec_quiet.provenance.input_hash
 
@@ -411,9 +399,7 @@ class TestReplayEndpoints:
         r_list = await seeded_http_client.get("/api/v2/snapshots")
         snap_id = r_list.json()["snapshots"][0]["id"]
 
-        r = await seeded_http_client.get(
-            f"/api/v2/replay?lat=45.0&lon=0.0&snapshot_id={snap_id}"
-        )
+        r = await seeded_http_client.get(f"/api/v2/replay?lat=45.0&lon=0.0&snapshot_id={snap_id}")
         assert r.status_code == 200
         data = r.json()
         assert "action" in data
@@ -427,9 +413,7 @@ class TestReplayEndpoints:
     async def test_replay_comms_by_at_timestamp(self, seeded_http_client):
         """GET /api/v2/replay?at=ISO returns snapshot nearest to that time."""
         # Query between G5 and quiet — should pick G5 (earlier)
-        r = await seeded_http_client.get(
-            "/api/v2/replay?lat=45.0&lon=0.0&at=2024-05-12T00:00:00Z"
-        )
+        r = await seeded_http_client.get("/api/v2/replay?lat=45.0&lon=0.0&at=2024-05-12T00:00:00Z")
         assert r.status_code == 200
         data = r.json()
         assert "replay" in data
@@ -480,23 +464,18 @@ class TestReplayEndpoints:
         snap_id = g5["id"]
 
         # Hash via HTTP replay
-        r_replay = await seeded_http_client.get(
-            f"/api/v2/replay?lat=45.0&lon=0.0&snapshot_id={snap_id}"
-        )
+        r_replay = await seeded_http_client.get(f"/api/v2/replay?lat=45.0&lon=0.0&snapshot_id={snap_id}")
         assert r_replay.status_code == 200
         replay_hash = r_replay.json()["provenance"]["input_hash"]
 
         # Hash via direct engine call with same EnvironmentSnapshot
         row = await get_snapshot_by_id(snap_id)
         env = snapshot_row_to_env(row)
-        rec = _ENGINE.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec = _ENGINE.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
         direct_hash = rec.provenance.input_hash
 
         assert replay_hash == direct_hash, (
-            f"Replay hash {replay_hash!r} does not match direct hash {direct_hash!r}. "
-            "Determinism violated."
+            f"Replay hash {replay_hash!r} does not match direct hash {direct_hash!r}. " "Determinism violated."
         )
 
     @pytest.mark.asyncio
@@ -547,9 +526,7 @@ class TestReplayEndpoints:
         """replay block must contain a non-empty replay_note string."""
         r_list = await seeded_http_client.get("/api/v2/snapshots")
         snap_id = r_list.json()["snapshots"][0]["id"]
-        r = await seeded_http_client.get(
-            f"/api/v2/replay?lat=45.0&lon=0.0&snapshot_id={snap_id}"
-        )
+        r = await seeded_http_client.get(f"/api/v2/replay?lat=45.0&lon=0.0&snapshot_id={snap_id}")
         assert r.status_code == 200
         note = r.json()["replay"]["replay_note"]
         assert isinstance(note, str) and len(note) > 20

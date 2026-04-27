@@ -41,7 +41,7 @@ USTEC_ENDPOINTS: dict[str, str] = {
 
 # Quiet-time ionospheric defaults — solar minimum, mid-latitude midday
 FALLBACK: dict[str, float] = {
-    "f107_sfu": 70.0,            # solar minimum baseline
+    "f107_sfu": 70.0,  # solar minimum baseline
     "glotec_median_tecu": 15.0,  # quiet daytime mid-lat TEC
     "glotec_p95_tecu": 30.0,
     "glotec_max_tecu": 50.0,
@@ -49,8 +49,8 @@ FALLBACK: dict[str, float] = {
 
 _cache: dict = {
     "f107": None,
-    "glotec": None,            # latest FeatureCollection
-    "glotec_time_tag": None,   # ISO time of latest snapshot
+    "glotec": None,  # latest FeatureCollection
+    "glotec_time_tag": None,  # ISO time of latest snapshot
     "glotec_last_good_fetch": None,  # UTC iso of last successful fetch (stale-cache TTL)
     "last_fetch": None,
     "fetch_status": {},
@@ -106,14 +106,13 @@ async def fetch_ionosphere(timeout: float = 10.0) -> None:
             _cache["fetch_status"]["glotec"] = "ok"
             logger.debug(
                 "Ionosphere glotec: %d features @ %s",
-                len(fc.get("features", [])), time_tag,
+                len(fc.get("features", [])),
+                time_tag,
             )
         except httpx.TimeoutException:
             _cache["fetch_status"]["glotec"] = _glotec_status_with_stale("timeout")
         except httpx.HTTPStatusError as exc:
-            _cache["fetch_status"]["glotec"] = _glotec_status_with_stale(
-                f"http_{exc.response.status_code}"
-            )
+            _cache["fetch_status"]["glotec"] = _glotec_status_with_stale(f"http_{exc.response.status_code}")
         except Exception as exc:
             logger.warning("Ionosphere glotec: %s", exc)
             _cache["fetch_status"]["glotec"] = _glotec_status_with_stale("error")

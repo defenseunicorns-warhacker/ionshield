@@ -51,8 +51,8 @@ class BreakerState(str, Enum):
 
 @dataclass
 class BreakerConfig:
-    failure_threshold: int = 4         # consecutive failures to open
-    cooldown_seconds: float = 300.0    # wait before half-open probe
+    failure_threshold: int = 4  # consecutive failures to open
+    cooldown_seconds: float = 300.0  # wait before half-open probe
     name: str = ""
 
 
@@ -110,10 +110,7 @@ class CircuitBreaker:
             elapsed = max(0.0, now_wall - self.stats.last_change_epoch)
             self.stats.last_change_at = time.monotonic() - elapsed
 
-            if (
-                self.stats.state == BreakerState.OPEN
-                and elapsed >= self.config.cooldown_seconds
-            ):
+            if self.stats.state == BreakerState.OPEN and elapsed >= self.config.cooldown_seconds:
                 self.stats.state = BreakerState.HALF_OPEN
 
     def _to_persistable(self) -> dict:
@@ -133,8 +130,7 @@ class CircuitBreaker:
         try:
             await _persistor(self.config.name, self._to_persistable())
         except Exception as exc:
-            logger.debug("Breaker[%s] persistence failed: %s",
-                         self.config.name, exc)
+            logger.debug("Breaker[%s] persistence failed: %s", self.config.name, exc)
 
     async def allow(self) -> bool:
         """Decide whether a call should be made now."""
@@ -147,13 +143,12 @@ class CircuitBreaker:
                 if now - self.stats.last_change_at >= self.config.cooldown_seconds:
                     self.stats.state = BreakerState.HALF_OPEN
                     self.stats.last_change_at = now
-                    self.stats.last_change_epoch = (
-                        datetime.now(timezone.utc).timestamp()
-                    )
+                    self.stats.last_change_epoch = datetime.now(timezone.utc).timestamp()
                     transitioned = True
                     logger.info(
                         "Breaker[%s] OPEN→HALF_OPEN after %.0fs cooldown",
-                        self.config.name, self.config.cooldown_seconds,
+                        self.config.name,
+                        self.config.cooldown_seconds,
                     )
                 else:
                     return False
@@ -174,7 +169,8 @@ class CircuitBreaker:
             if self.stats.state in (BreakerState.HALF_OPEN, BreakerState.OPEN):
                 logger.info(
                     "Breaker[%s] %s→CLOSED after success",
-                    self.config.name, self.stats.state.value,
+                    self.config.name,
+                    self.stats.state.value,
                 )
                 self.stats.state = BreakerState.CLOSED
                 self.stats.last_change_at = now
@@ -196,7 +192,8 @@ class CircuitBreaker:
             ):
                 logger.warning(
                     "Breaker[%s] CLOSED→OPEN after %d consecutive failures",
-                    self.config.name, self.stats.consecutive_failures,
+                    self.config.name,
+                    self.stats.consecutive_failures,
                 )
                 self.stats.state = BreakerState.OPEN
                 self.stats.last_change_at = now

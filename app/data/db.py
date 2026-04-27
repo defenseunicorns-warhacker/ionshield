@@ -88,14 +88,14 @@ events = Table(
     "events",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("event_type", Text, nullable=False),       # ontology.EventType.value
-    Column("state", Text, nullable=False),            # "ONSET" | "PEAK" | "ENDED"
-    Column("severity", Text, nullable=False),         # G1..G5 / S1..S5 / R1..R5 / NA
+    Column("event_type", Text, nullable=False),  # ontology.EventType.value
+    Column("state", Text, nullable=False),  # "ONSET" | "PEAK" | "ENDED"
+    Column("severity", Text, nullable=False),  # G1..G5 / S1..S5 / R1..R5 / NA
     Column("region_id", Text, nullable=False, server_default="GLOBAL"),
     Column("t_onset", DateTime(timezone=True), nullable=False),
     Column("t_peak", DateTime(timezone=True), nullable=True),
     Column("t_end", DateTime(timezone=True), nullable=True),
-    Column("driver", Text, nullable=False),           # which Driver triggered it
+    Column("driver", Text, nullable=False),  # which Driver triggered it
     Column("peak_value", Float, nullable=True),
     Column("trigger_value", Float, nullable=False),
     Column("threshold_value", Float, nullable=False),
@@ -132,8 +132,8 @@ training_samples = Table(
     Column("region_id", Text, nullable=False, server_default="GLOBAL"),
     # JSON-encoded feature vector matching FEATURE_NAMES in ml_classifier
     Column("features_json", Text, nullable=False),
-    Column("rule_label", Text, nullable=False),         # ground truth from rules
-    Column("ml_label", Text, nullable=True),            # classifier prediction
+    Column("rule_label", Text, nullable=False),  # ground truth from rules
+    Column("ml_label", Text, nullable=True),  # classifier prediction
     Column("ml_confidence", Float, nullable=True),
     # Operator-provided correction; empty string = unlabeled
     Column("user_feedback", Text, nullable=False, server_default=""),
@@ -178,9 +178,9 @@ outcomes = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("region_id", Text, nullable=True),
-    Column("system", Text, nullable=False),         # GPS / HF / SATCOM / RADAR
-    Column("subsystem", Text, nullable=False),      # GPS_L1, L, X, etc
-    Column("metric", Text, nullable=False),         # error_m, fade_db, ...
+    Column("system", Text, nullable=False),  # GPS / HF / SATCOM / RADAR
+    Column("subsystem", Text, nullable=False),  # GPS_L1, L, X, etc
+    Column("metric", Text, nullable=False),  # error_m, fade_db, ...
     Column("observed_value", Float, nullable=False),
     Column("observed_at", DateTime(timezone=True), nullable=False),
     Column("source", Text, nullable=False, server_default="user"),

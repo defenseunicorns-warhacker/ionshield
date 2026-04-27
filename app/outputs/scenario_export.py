@@ -28,7 +28,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Iterable
 
 from sqlalchemy import select
@@ -65,18 +65,26 @@ def _utc_iso(t) -> str:
 
 
 async def fetch_snapshots_in_range(
-    start: datetime, end: datetime, max_rows: int = 5000,
+    start: datetime,
+    end: datetime,
+    max_rows: int = 5000,
 ) -> list[dict]:
     """Pull noaa_snapshots in [start, end] ordered by fetched_at ascending."""
     engine = get_engine()
     async with engine.begin() as conn:
-        rows = (await conn.execute(
-            select(noaa_snapshots)
-            .where(noaa_snapshots.c.fetched_at >= start)
-            .where(noaa_snapshots.c.fetched_at <= end)
-            .order_by(noaa_snapshots.c.fetched_at.asc())
-            .limit(max_rows)
-        )).mappings().all()
+        rows = (
+            (
+                await conn.execute(
+                    select(noaa_snapshots)
+                    .where(noaa_snapshots.c.fetched_at >= start)
+                    .where(noaa_snapshots.c.fetched_at <= end)
+                    .order_by(noaa_snapshots.c.fetched_at.asc())
+                    .limit(max_rows)
+                )
+            )
+            .mappings()
+            .all()
+        )
     return [dict(r) for r in rows]
 
 
@@ -103,8 +111,8 @@ def _grid_for_snapshot(snapshot: dict) -> tuple[list, list]:
         wind_speed_km_s=float(snapshot["wind_speed_km_s"]),
         xray_flux_wm2=float(snapshot["xray_flux"]),
         proton_flux_10mev_pfu=float(snapshot["proton_flux_10mev"]),
-        f107_sfu=70.0,           # not stored in noaa_snapshots; use solar-min default
-        glotec_fc=None,          # historical replay uses storm-aware climatology
+        f107_sfu=70.0,  # not stored in noaa_snapshots; use solar-min default
+        glotec_fc=None,  # historical replay uses storm-aware climatology
     )
     return fused, assess_grid(fused)
 
@@ -123,16 +131,22 @@ def _region_polygon(r: Region) -> list[list[list[float]]]:
     lat1 = r.lat_deg + half_lat
     lon0 = r.lon_deg - half_lon
     lon1 = r.lon_deg + half_lon
-    return [[
-        [lon0, lat0], [lon1, lat0], [lon1, lat1], [lon0, lat1], [lon0, lat0],
-    ]]
+    return [
+        [
+            [lon0, lat0],
+            [lon1, lat0],
+            [lon1, lat1],
+            [lon0, lat1],
+            [lon0, lat0],
+        ]
+    ]
 
 
 def build_scenario_geojson(
     snapshots: list[dict],
     *,
     region_filter: Iterable[str] | None = None,
-    geometry: str = "polygon",   # "polygon" | "point"
+    geometry: str = "polygon",  # "polygon" | "point"
 ) -> dict[str, Any]:
     """
     Emit one FeatureCollection covering the full time range.
@@ -165,11 +179,9 @@ def build_scenario_geojson(
                 "radar_l_range_bias_m": ia.radar["L"].range_bias_m,
             }
             if geometry == "point":
-                geom = {"type": "Point",
-                        "coordinates": [obs.region.lon_deg, obs.region.lat_deg]}
+                geom = {"type": "Point", "coordinates": [obs.region.lon_deg, obs.region.lat_deg]}
             else:
-                geom = {"type": "Polygon",
-                        "coordinates": _region_polygon(obs.region)}
+                geom = {"type": "Polygon", "coordinates": _region_polygon(obs.region)}
             features.append({"type": "Feature", "geometry": geom, "properties": props})
 
     return {
@@ -177,10 +189,8 @@ def build_scenario_geojson(
         "metadata": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "snapshot_count": len(snapshots),
-            "time_start": (_utc_iso(snapshots[0]["fetched_at"])
-                           if snapshots else None),
-            "time_end": (_utc_iso(snapshots[-1]["fetched_at"])
-                         if snapshots else None),
+            "time_start": (_utc_iso(snapshots[0]["fetched_at"]) if snapshots else None),
+            "time_end": (_utc_iso(snapshots[-1]["fetched_at"]) if snapshots else None),
             "regions": (sorted(feature_set) if feature_set else "all"),
         },
         "features": features,
@@ -191,12 +201,21 @@ def build_scenario_geojson(
 
 
 CSV_HEADERS = (
-    "time_tag", "region_id", "lat_deg", "lon_deg", "geomag_lat_deg",
-    "kp", "bz_nt", "tec_tecu",
-    "gps_l1_error_m", "gps_l1l2_error_m",
-    "hf_absorption_db", "hf_blackout_probability",
+    "time_tag",
+    "region_id",
+    "lat_deg",
+    "lon_deg",
+    "geomag_lat_deg",
+    "kp",
+    "bz_nt",
+    "tec_tecu",
+    "gps_l1_error_m",
+    "gps_l1l2_error_m",
+    "hf_absorption_db",
+    "hf_blackout_probability",
     "satcom_l_fade_db",
-    "radar_l_range_bias_m", "radar_x_range_bias_m",
+    "radar_l_range_bias_m",
+    "radar_x_range_bias_m",
 )
 
 
@@ -216,16 +235,25 @@ def build_scenario_csv(
         for obs, ia in zip(fused, impacts):
             if feature_set and obs.region.region_id not in feature_set:
                 continue
-            writer.writerow((
-                time_tag,
-                obs.region.region_id, obs.region.lat_deg, obs.region.lon_deg,
-                round(obs.region.geomag_lat_deg, 2),
-                obs.kp_index, obs.bz_nt, round(obs.tec_tecu, 3),
-                ia.gps["GPS_L1"].error_m, ia.gps["GPS_L1L2"].error_m,
-                ia.hf.absorption_total_db, ia.hf.blackout_probability,
-                ia.satcom["L"].fade_db,
-                ia.radar["L"].range_bias_m, ia.radar["X"].range_bias_m,
-            ))
+            writer.writerow(
+                (
+                    time_tag,
+                    obs.region.region_id,
+                    obs.region.lat_deg,
+                    obs.region.lon_deg,
+                    round(obs.region.geomag_lat_deg, 2),
+                    obs.kp_index,
+                    obs.bz_nt,
+                    round(obs.tec_tecu, 3),
+                    ia.gps["GPS_L1"].error_m,
+                    ia.gps["GPS_L1L2"].error_m,
+                    ia.hf.absorption_total_db,
+                    ia.hf.blackout_probability,
+                    ia.satcom["L"].fade_db,
+                    ia.radar["L"].range_bias_m,
+                    ia.radar["X"].range_bias_m,
+                )
+            )
     return buf.getvalue()
 
 
@@ -259,10 +287,13 @@ async def export_scenario(
 
     if fmt == "geojson":
         return build_scenario_geojson(
-            snapshots, region_filter=region_filter, geometry=geometry,
+            snapshots,
+            region_filter=region_filter,
+            geometry=geometry,
         ), meta
     if fmt == "csv":
         return build_scenario_csv(
-            snapshots, region_filter=region_filter,
+            snapshots,
+            region_filter=region_filter,
         ), meta
     raise ValueError(f"Unknown export format: {fmt}")

@@ -69,8 +69,7 @@ _sources: dict[str, DataSource] = {}
 def register(source: DataSource) -> None:
     """Register a data source. Re-registering the same name overwrites."""
     _sources[source.name] = source
-    logger.info("Registered data source: %s (cadence=%ds)",
-                source.name, source.cadence_seconds)
+    logger.info("Registered data source: %s (cadence=%ds)", source.name, source.cadence_seconds)
 
 
 def unregister(name: str) -> None:

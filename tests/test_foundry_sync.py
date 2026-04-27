@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 
 from app.data import foundry_sync
 
@@ -41,11 +40,7 @@ def test_build_snapshot_payload_shape():
 
 
 def test_sync_skipped_when_unconfigured():
-    ok = asyncio.run(
-        foundry_sync.sync_snapshot(
-            {"k": "v"}, stack_url="", dataset_rid="", token=""
-        )
-    )
+    ok = asyncio.run(foundry_sync.sync_snapshot({"k": "v"}, stack_url="", dataset_rid="", token=""))
     assert ok is False
 
 
@@ -125,9 +120,5 @@ def test_sync_returns_false_on_http_error(monkeypatch):
 
     monkeypatch.setattr(foundry_sync.httpx, "AsyncClient", lambda **kw: _Client())
 
-    ok = asyncio.run(
-        foundry_sync.sync_snapshot(
-            {"kp": 4}, stack_url="https://x", dataset_rid="r", token="T"
-        )
-    )
+    ok = asyncio.run(foundry_sync.sync_snapshot({"kp": 4}, stack_url="https://x", dataset_rid="r", token="T"))
     assert ok is False

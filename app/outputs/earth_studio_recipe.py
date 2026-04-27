@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Iterable
 
 
 # Earth Studio camera limits — sourced from the public docs / project
@@ -30,12 +29,17 @@ from typing import Iterable
 # bottom out at the terrain mesh, neither of which is what an operator
 # wants for a storm replay.
 EARTH_RADIUS_M: float = 6_371_000.0
-ALTITUDE_MIN_M: float = 1_000.0           # ~1 km — below this Earth Studio
-                                          # auto-clamps to terrain
-ALTITUDE_MAX_M: float = 60_000_000.0      # ~60 Mm — beyond LEO
+ALTITUDE_MIN_M: float = 1_000.0  # ~1 km — below this Earth Studio
+# auto-clamps to terrain
+ALTITUDE_MAX_M: float = 60_000_000.0  # ~60 Mm — beyond LEO
 
 CAMERA_CSV_COLUMNS = (
-    "time", "latitude", "longitude", "altitude", "heading", "tilt",
+    "time",
+    "latitude",
+    "longitude",
+    "altitude",
+    "heading",
+    "tilt",
 )
 
 
@@ -63,8 +67,7 @@ def validate_recipe(recipe: dict) -> list[str]:
                 continue
         t = wp.get("t")
         if t is not None and t <= last_t:
-            issues.append(f"waypoint {i} time {t}s is not strictly increasing "
-                          f"(previous {last_t}s)")
+            issues.append(f"waypoint {i} time {t}s is not strictly increasing " f"(previous {last_t}s)")
         if t is not None:
             last_t = t
 
@@ -77,8 +80,7 @@ def validate_recipe(recipe: dict) -> list[str]:
         alt = wp.get("altitude_m")
         if alt is not None and not (ALTITUDE_MIN_M <= alt <= ALTITUDE_MAX_M):
             issues.append(
-                f"waypoint {i} altitude {alt} m outside Earth Studio range "
-                f"[{ALTITUDE_MIN_M:g}, {ALTITUDE_MAX_M:g}]"
+                f"waypoint {i} altitude {alt} m outside Earth Studio range " f"[{ALTITUDE_MIN_M:g}, {ALTITUDE_MAX_M:g}]"
             )
         h = wp.get("heading")
         if h is not None and not (-360 <= h <= 360):
@@ -88,9 +90,7 @@ def validate_recipe(recipe: dict) -> list[str]:
             issues.append(f"waypoint {i} tilt {tilt} outside [-90, 90]")
 
     if cam and last_t > duration:
-        issues.append(
-            f"final waypoint t={last_t}s exceeds duration_seconds={duration}"
-        )
+        issues.append(f"final waypoint t={last_t}s exceeds duration_seconds={duration}")
 
     return issues
 
@@ -161,14 +161,16 @@ def recipe_to_camera_csv(recipe: dict) -> str:
     for i in range(n_frames):
         t = i / fps
         wp = _interpolate(cam, t)
-        writer.writerow((
-            f"{t:.4f}",
-            f"{wp['lat']:.6f}",
-            f"{wp['lon']:.6f}",
-            f"{wp['altitude_m']:.1f}",
-            f"{wp['heading']:.4f}",
-            f"{wp['tilt']:.4f}",
-        ))
+        writer.writerow(
+            (
+                f"{t:.4f}",
+                f"{wp['lat']:.6f}",
+                f"{wp['lon']:.6f}",
+                f"{wp['altitude_m']:.1f}",
+                f"{wp['heading']:.4f}",
+                f"{wp['tilt']:.4f}",
+            )
+        )
     return buf.getvalue()
 
 

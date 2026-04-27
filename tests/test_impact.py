@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
 
 from app.models.impact import (
     GPS_ASSET_TYPES,
@@ -22,16 +21,30 @@ from app.models.ontology import FusedObservation, Region
 
 def _obs(
     region: Region | None = None,
-    *, kp=2.0, bz=0.0, wind=400.0, xray=1e-7,
-    proton=0.1, f107=70.0, tec=15.0, anomaly=0.0,
+    *,
+    kp=2.0,
+    bz=0.0,
+    wind=400.0,
+    xray=1e-7,
+    proton=0.1,
+    f107=70.0,
+    tec=15.0,
+    anomaly=0.0,
     when: datetime | None = None,
 ) -> FusedObservation:
     return FusedObservation(
         region=region or Region.from_center(38, -98),
         when=when or datetime(2026, 4, 26, 18, 0, tzinfo=timezone.utc),
-        kp_index=kp, bz_nt=bz, wind_speed_km_s=wind,
-        xray_flux_wm2=xray, proton_flux_10mev_pfu=proton, f107_sfu=f107,
-        tec_tecu=tec, tec_anomaly_tecu=anomaly, hmf2_km=300.0, nmf2=1.5e11,
+        kp_index=kp,
+        bz_nt=bz,
+        wind_speed_km_s=wind,
+        xray_flux_wm2=xray,
+        proton_flux_10mev_pfu=proton,
+        f107_sfu=f107,
+        tec_tecu=tec,
+        tec_anomaly_tecu=anomaly,
+        hmf2_km=300.0,
+        nmf2=1.5e11,
     )
 
 
@@ -121,10 +134,14 @@ def test_hf_pca_only_polar():
 
 def test_hf_blackout_probability_caps_at_one():
     """Total absorption > 25 dB fade margin → blackout_prob = 1.0."""
-    hf = assess_hf(_obs(
-        region=Region.from_center(80, 0),
-        xray=5e-4, proton=10000.0, kp=8.0,
-    ))
+    hf = assess_hf(
+        _obs(
+            region=Region.from_center(80, 0),
+            xray=5e-4,
+            proton=10000.0,
+            kp=8.0,
+        )
+    )
     assert hf.blackout_probability == 1.0
 
 
@@ -171,7 +188,7 @@ def test_radar_range_bias_scales_inversely_with_freq_squared():
 def test_radar_range_bias_known_value_lband():
     """40.3 × 10^16 × 15 / (1.3e9)² ≈ 3.58 m at 15 TECu."""
     r = assess_radar(_obs(tec=15.0))
-    expected = 40.3e16 * 15.0 / (1.3e9 ** 2)
+    expected = 40.3e16 * 15.0 / (1.3e9**2)
     assert abs(r["L"].range_bias_m - expected) < 0.05
 
 
@@ -206,14 +223,22 @@ def test_to_rows_flattens_and_carries_region_id():
 
 def test_assess_grid_runs_over_full_global_mesh():
     from app.models.ontology import global_grid
+
     grid = global_grid()
     obs_list = [
         FusedObservation(
             region=r,
             when=datetime(2026, 4, 26, 18, 0, tzinfo=timezone.utc),
-            kp_index=3.7, bz_nt=-2.0, wind_speed_km_s=420.0,
-            xray_flux_wm2=1e-6, proton_flux_10mev_pfu=0.5, f107_sfu=120.0,
-            tec_tecu=18.0, tec_anomaly_tecu=2.0, hmf2_km=310.0, nmf2=2.5e11,
+            kp_index=3.7,
+            bz_nt=-2.0,
+            wind_speed_km_s=420.0,
+            xray_flux_wm2=1e-6,
+            proton_flux_10mev_pfu=0.5,
+            f107_sfu=120.0,
+            tec_tecu=18.0,
+            tec_anomaly_tecu=2.0,
+            hmf2_km=310.0,
+            nmf2=2.5e11,
         )
         for r in grid
     ]

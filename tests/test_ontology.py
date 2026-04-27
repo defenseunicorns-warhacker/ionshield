@@ -79,9 +79,7 @@ def test_operational_threshold_fires():
 
 
 def test_polar_filter_only_fires_polar():
-    rule = OperationalThreshold(
-        Driver.PROTON_FLUX, ">=", 10, OperationalState.ELEVATED, region_filter="polar"
-    )
+    rule = OperationalThreshold(Driver.PROTON_FLUX, ">=", 10, OperationalState.ELEVATED, region_filter="polar")
     r_polar = Region.from_center(85, 0)
     r_eq = Region.from_center(0, 0)
     assert rule.fires(50.0, r_polar)
@@ -93,9 +91,16 @@ def test_fused_observation_to_dict_is_flat():
     obs = FusedObservation(
         region=r,
         when=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp_index=3.7, bz_nt=-2.0, wind_speed_km_s=420.0,
-        xray_flux_wm2=1e-6, proton_flux_10mev_pfu=0.5, f107_sfu=120.0,
-        tec_tecu=18.0, tec_anomaly_tecu=2.0, hmf2_km=310.0, nmf2=2.5e11,
+        kp_index=3.7,
+        bz_nt=-2.0,
+        wind_speed_km_s=420.0,
+        xray_flux_wm2=1e-6,
+        proton_flux_10mev_pfu=0.5,
+        f107_sfu=120.0,
+        tec_tecu=18.0,
+        tec_anomaly_tecu=2.0,
+        hmf2_km=310.0,
+        nmf2=2.5e11,
     )
     d = obs.to_dict()
     assert d["region_id"] == r.region_id

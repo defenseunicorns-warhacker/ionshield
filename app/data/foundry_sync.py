@@ -87,10 +87,7 @@ async def _commit_transaction(
     transaction_rid: str,
     token: str,
 ) -> None:
-    url = (
-        f"{stack_url.rstrip('/')}/api/v2/datasets/{dataset_rid}/"
-        f"transactions/{transaction_rid}/commit"
-    )
+    url = f"{stack_url.rstrip('/')}/api/v2/datasets/{dataset_rid}/" f"transactions/{transaction_rid}/commit"
     r = await client.post(url, headers={"Authorization": f"Bearer {token}"})
     if r.status_code >= 400:
         raise FoundrySyncError(f"commit_transaction {r.status_code}: {r.text[:200]}")
@@ -128,7 +125,10 @@ async def sync_rows(
             await _commit_transaction(client, stack_url, dataset_rid, tx, token)
         logger.info(
             "Foundry sync_rows OK: dataset=%s file=%s rows=%d bytes=%d",
-            dataset_rid, filename, len(rows), len(body),
+            dataset_rid,
+            filename,
+            len(rows),
+            len(body),
         )
         return True
     except FoundrySyncError as exc:
@@ -163,18 +163,14 @@ async def sync_snapshot(
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            tx = await _start_transaction(
-                client, stack_url, dataset_rid, token, "APPEND"
-            )
-            await _put_file(
-                client, stack_url, dataset_rid, tx, token, filename, body
-            )
-            await _commit_transaction(
-                client, stack_url, dataset_rid, tx, token
-            )
+            tx = await _start_transaction(client, stack_url, dataset_rid, token, "APPEND")
+            await _put_file(client, stack_url, dataset_rid, tx, token, filename, body)
+            await _commit_transaction(client, stack_url, dataset_rid, tx, token)
         logger.info(
             "Foundry sync OK: dataset=%s file=%s bytes=%d",
-            dataset_rid, filename, len(body),
+            dataset_rid,
+            filename,
+            len(body),
         )
         return True
     except FoundrySyncError as exc:

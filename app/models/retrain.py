@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import random
 from datetime import datetime, timezone
 from pathlib import Path
@@ -114,8 +113,10 @@ def _build_training_set(
 
 
 def _evaluate(
-    X: list[list[float]], y: list[int],
-    coef: list[list[float]], intercept: list[float],
+    X: list[list[float]],
+    y: list[int],
+    coef: list[list[float]],
+    intercept: list[float],
 ) -> float:
     if not X:
         return 1.0  # no held-out test → no regression possible
@@ -123,10 +124,7 @@ def _evaluate(
     n_classes = len(mlc.CLASSES)
     n_features = len(X[0])
     for xi, yi in zip(X, y):
-        logits = [
-            sum(coef[k][j] * xi[j] for j in range(n_features)) + intercept[k]
-            for k in range(n_classes)
-        ]
+        logits = [sum(coef[k][j] * xi[j] for j in range(n_features)) + intercept[k] for k in range(n_classes)]
         pred = logits.index(max(logits))
         if pred == yi:
             correct += 1
@@ -180,19 +178,14 @@ async def retrain_and_maybe_swap(
     norm_test: list[list[float]] = []
     if X_test:
         for r in X_test:
-            norm_test.append([
-                (r[i] - mean[i]) / std[i] for i in range(len(mean))
-            ])
+            norm_test.append([(r[i] - mean[i]) / std[i] for i in range(len(mean))])
     val_acc = _evaluate(norm_test, y_test, coef, intercept)
 
     # Decide: swap or reject?
     if val_acc < MIN_VALIDATION_ACCURACY:
         return {
             "status": "rejected",
-            "reason": (
-                f"validation accuracy {val_acc:.3f} < threshold "
-                f"{MIN_VALIDATION_ACCURACY}"
-            ),
+            "reason": (f"validation accuracy {val_acc:.3f} < threshold " f"{MIN_VALIDATION_ACCURACY}"),
             "n_train": len(X_train),
             "n_real_samples": n_real_used,
             "train_accuracy": round(train_acc, 4),
@@ -207,8 +200,7 @@ async def retrain_and_maybe_swap(
         "n_train": len(X_train),
         "n_real_samples": n_real_used,
         "n_user_corrected": sum(
-            1 for s in real if s["is_user_corrected"]
-            and _real_label_to_class_idx(s["label"]) is not None
+            1 for s in real if s["is_user_corrected"] and _real_label_to_class_idx(s["label"]) is not None
         ),
         "feature_names": mlc.FEATURE_NAMES,
         "classes": mlc.CLASSES,
@@ -283,12 +275,10 @@ async def maybe_auto_promote(
         return {"promoted": False, "reason": "no_challenger"}
     metrics = await feedback_store.shadow_metrics(window=max(min_samples, 100))
     if metrics["n"] < min_samples:
-        return {"promoted": False, "reason": "insufficient_samples",
-                "n": metrics["n"]}
+        return {"promoted": False, "reason": "insufficient_samples", "n": metrics["n"]}
     advantage = metrics["advantage"]
     if advantage is None or advantage < min_advantage:
-        return {"promoted": False, "reason": "insufficient_advantage",
-                "advantage": advantage}
+        return {"promoted": False, "reason": "insufficient_advantage", "advantage": advantage}
     # Swap on disk
     challenger_path = Path(challenger["artifact_path"])
     if not challenger_path.exists():

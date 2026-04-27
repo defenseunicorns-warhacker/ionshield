@@ -61,12 +61,8 @@ def _env(
     available = [f for f in all_feeds if f not in unavailable]
     now_iso = datetime.now(timezone.utc).isoformat()
     obs = [
-        ObservationInput(
-            "NOAA_SWPC", "kp_index", kp, "index", now_iso, data_age_seconds
-        ),
-        ObservationInput(
-            "NOAA_SWPC", "bz_gsm_nt", bz_nt, "nT", now_iso, data_age_seconds
-        ),
+        ObservationInput("NOAA_SWPC", "kp_index", kp, "index", now_iso, data_age_seconds),
+        ObservationInput("NOAA_SWPC", "bz_gsm_nt", bz_nt, "nT", now_iso, data_age_seconds),
     ]
     return EnvironmentSnapshot(
         kp=kp,
@@ -204,9 +200,7 @@ class TestCommsFallback:
     def test_nominal_hf_viable(self):
         """Low Kp, daytime — expect USE_PRIMARY_HF or USE_ALTERNATE_HF."""
         env = _env(kp=2.0, bz_nt=0.0, xray_flux=3e-7, proton_flux_10mev=0.1)
-        rec = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
         assert rec.action in ("USE_PRIMARY_HF", "USE_ALTERNATE_HF", "DEGRADED_MODE")
         assert rec.decision_type == "COMMS_FALLBACK"
         assert rec.action_sentence  # non-empty
@@ -214,29 +208,21 @@ class TestCommsFallback:
     def test_pca_triggers_hf_not_viable(self):
         """High proton flux at polar latitude → PCA → HF_NOT_VIABLE."""
         env = _env(kp=8.0, bz_nt=-25.0, xray_flux=1e-4, proton_flux_10mev=2000.0)
-        rec = _engine.comms_fallback(
-            env, lat=70.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec = _engine.comms_fallback(env, lat=70.0, lon=0.0, dest_lat=None, dest_lon=None)
         assert rec.action == "HF_NOT_VIABLE"
         assert "PCA" in rec.action_sentence or "Polar Cap" in rec.action_sentence
 
     def test_satcom_alternative_present_during_hf_blackout(self):
         env = _env(kp=8.0, bz_nt=-25.0, xray_flux=1e-4, proton_flux_10mev=2000.0)
-        platform = PlatformInput(
-            system_dependencies=[SystemDependencyInput("HF", fallback_modes=["SATCOM"])]
-        )
-        rec = _engine.comms_fallback(
-            env, lat=70.0, lon=0.0, dest_lat=None, dest_lon=None, platform=platform
-        )
+        platform = PlatformInput(system_dependencies=[SystemDependencyInput("HF", fallback_modes=["SATCOM"])])
+        rec = _engine.comms_fallback(env, lat=70.0, lon=0.0, dest_lat=None, dest_lon=None, platform=platform)
         # PCA active → HF_NOT_VIABLE; SATCOM should be in alternatives
         assert rec.action == "HF_NOT_VIABLE"
         assert "SWITCH_TO_SATCOM" in rec.alternatives
 
     def test_stale_data_reflected_in_confidence(self):
         env = _env(data_age_seconds=3700)  # >1 hour
-        rec = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None
-        )
+        rec = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None)
         assert rec.confidence.stale_data is True
         assert rec.confidence.score < 0.5
 
@@ -245,9 +231,7 @@ class TestCommsFallback:
         import json
 
         env = _env(kp=3.0)
-        rec = _engine.comms_fallback(
-            env, lat=38.8, lon=-104.5, dest_lat=None, dest_lon=None
-        )
+        rec = _engine.comms_fallback(env, lat=38.8, lon=-104.5, dest_lat=None, dest_lon=None)
         d = rec.to_dict()
         # Should not raise
         serialized = json.dumps(d)
@@ -256,21 +240,15 @@ class TestCommsFallback:
     def test_valid_until_is_future(self):
         now = datetime.now(timezone.utc)
         env = _env(kp=2.0)
-        rec = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=now
-        )
+        rec = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=now)
         valid_until = datetime.fromisoformat(rec.valid_until)
         assert valid_until > now
 
     def test_now_parameter_makes_valid_until_deterministic(self):
         fixed_now = datetime(2024, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
         env = _env(kp=2.0)
-        rec1 = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=fixed_now
-        )
-        rec2 = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=fixed_now
-        )
+        rec1 = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=fixed_now)
+        rec2 = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=fixed_now)
         assert rec1.valid_until == rec2.valid_until
 
 
@@ -370,12 +348,8 @@ class TestReplayDeterminism:
     def test_comms_action_deterministic(self):
         now = datetime(2024, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
         env = _env(kp=3.0, bz_nt=-5.0, proton_flux_10mev=0.1)
-        r1 = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=now
-        )
-        r2 = _engine.comms_fallback(
-            env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=now
-        )
+        r1 = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=now)
+        r2 = _engine.comms_fallback(env, lat=45.0, lon=0.0, dest_lat=None, dest_lon=None, now=now)
         assert r1.action == r2.action
         assert r1.valid_until == r2.valid_until
         assert r1.provenance.input_hash == r2.provenance.input_hash
@@ -410,9 +384,7 @@ class TestV2Endpoints:
         assert data["decision_type"] == "COMMS_FALLBACK"
 
     def test_comms_decision_with_dest(self):
-        r = client.get(
-            "/api/v2/comms-decision?lat=45.0&lon=0.0&dest_lat=55.0&dest_lon=-10.0"
-        )
+        r = client.get("/api/v2/comms-decision?lat=45.0&lon=0.0&dest_lat=55.0&dest_lon=-10.0")
         assert r.status_code == 200
         assert "action" in r.json()
 

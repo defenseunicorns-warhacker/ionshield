@@ -61,9 +61,7 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
 
     assessment = location.get("assessment") or {}
     a = assessment.get("assessment") or {}
-    risk_level = location.get("alert", {}).get("risk_level") or a.get(
-        "risk_level", "NOMINAL"
-    )
+    risk_level = location.get("alert", {}).get("risk_level") or a.get("risk_level", "NOMINAL")
     risk_score = a.get("risk_score", 0)
     gps_error = a.get("gps_error_m", 0.0)
     kp_val = assessment.get("kp_current", "?")
@@ -123,12 +121,7 @@ def build_cot_feed(locations: list[dict], stale_minutes: int = 10) -> str:
     CoT events.
     """
     body = "\n".join(build_cot_event(loc, stale_minutes) for loc in locations)
-    return (
-        "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n"
-        "<events>\n"
-        f"{body}\n"
-        "</events>"
-    )
+    return "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n" "<events>\n" f"{body}\n" "</events>"
 
 
 # ── TCP push client ───────────────────────────────────────────────────────────

@@ -202,17 +202,13 @@ class ConfidenceObject:
             freshness_detail = f"Data {age}s old — significantly degraded"
 
         if freshness_penalty != 0.0:
-            drivers.append(
-                ConfidenceFactor("data_freshness", freshness_penalty, freshness_detail)
-            )
+            drivers.append(ConfidenceFactor("data_freshness", freshness_penalty, freshness_detail))
         score += freshness_penalty
         stale_penalty_applied = freshness_penalty < 0.0
 
         # Data completeness
         total_feeds = len(env.feeds_available) + len(env.feeds_unavailable)
-        completeness = (
-            len(env.feeds_available) / total_feeds if total_feeds > 0 else 1.0
-        )
+        completeness = len(env.feeds_available) / total_feeds if total_feeds > 0 else 1.0
         if completeness < 1.0:
             missing = len(env.feeds_unavailable)
             completeness_penalty = -0.10 * missing
@@ -326,11 +322,7 @@ class ProvenanceObject:
         input_hash = "sha256:" + hashlib.sha256(canonical_json.encode()).hexdigest()
 
         phenomena = [o.phenomenon for o in env.observations]
-        forecasts = (
-            [f"kp_forecast_24h={env.kp_forecast_24h}"]
-            if env.kp_forecast_24h is not None
-            else []
-        )
+        forecasts = [f"kp_forecast_24h={env.kp_forecast_24h}"] if env.kp_forecast_24h is not None else []
 
         return cls(
             model_version=model_version,
@@ -386,9 +378,7 @@ class RecommendationObject:
     provenance: ProvenanceObject
     operator_ack: bool = False
     operator_note: str = ""
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict:
         """Serialize to a JSON-serializable dict."""
@@ -490,9 +480,7 @@ class DecisionEngine:
         conditions = hf["conditions"]
 
         fallback_modes = self._platform_fallback_modes(platform)
-        action, sentence, alternatives = self._resolve_comms_action(
-            summary, conditions, env, lat, fallback_modes
-        )
+        action, sentence, alternatives = self._resolve_comms_action(summary, conditions, env, lat, fallback_modes)
 
         impacts = self._build_comms_impacts(hf, env)
         recs = self._build_comms_recommendations(summary, conditions, env)
@@ -551,9 +539,7 @@ class DecisionEngine:
             worst = max(wp_decisions, key=lambda w: w.risk_score)
             overall_level = RiskLevel(worst.risk_level)
 
-        action, sentence, alternatives = self._resolve_route_action(
-            overall_level, worst, wp_decisions, env, platform
-        )
+        action, sentence, alternatives = self._resolve_route_action(overall_level, worst, wp_decisions, env, platform)
 
         impacts = self._build_system_impacts(wp_decisions, platform)
         recs = self._build_route_recommendations(overall_level, worst, env)
@@ -562,9 +548,7 @@ class DecisionEngine:
         provenance = ProvenanceObject.build(
             env,
             extra_inputs={
-                "waypoints": [
-                    {"lat": w.lat, "lon": w.lon, "name": w.name} for w in waypoints
-                ],
+                "waypoints": [{"lat": w.lat, "lon": w.lon, "name": w.name} for w in waypoints],
                 "asset_type": platform.asset_type,
                 "criticality": platform.criticality,
             },
@@ -676,10 +660,7 @@ class DecisionEngine:
 
         elif best_rel is not None and best_rel >= 75:
             action = CommsFallbackAction.USE_PRIMARY_HF.value
-            sentence = (
-                f"USE PRIMARY HF — {best_freq} MHz at {best_rel:.0f}% reliability. "
-                "Conditions favorable."
-            )
+            sentence = f"USE PRIMARY HF — {best_freq} MHz at {best_rel:.0f}% reliability. " "Conditions favorable."
             alternatives = ["USE_ALTERNATE_HF"]
 
         elif best_rel is not None and best_rel >= 50:
@@ -779,16 +760,12 @@ class DecisionEngine:
             },
         ]
 
-    def _build_comms_recommendations(
-        self, summary: dict, conditions: dict, env: EnvironmentSnapshot
-    ) -> list[str]:
+    def _build_comms_recommendations(self, summary: dict, conditions: dict, env: EnvironmentSnapshot) -> list[str]:
         recs = []
         if conditions.get("pca_active"):
             recs.append("PCA event detected — avoid HF poleward of 65° latitude.")
         if env.bz_nt < -10:
-            recs.append(
-                f"Southward Bz ({env.bz_nt:.1f} nT) — storm activity likely increasing."
-            )
+            recs.append(f"Southward Bz ({env.bz_nt:.1f} nT) — storm activity likely increasing.")
         if summary.get("viable_count", 0) > 0:
             recs.append(
                 f"Best HF option: {summary['best_frequency_mhz']} MHz "
@@ -798,9 +775,7 @@ class DecisionEngine:
             recs.append("Conditions nominal. Primary HF recommended.")
         return recs
 
-    def _build_system_impacts(
-        self, wp_decisions: list[WaypointDecision], platform: PlatformInput
-    ) -> list[dict]:
+    def _build_system_impacts(self, wp_decisions: list[WaypointDecision], platform: PlatformInput) -> list[dict]:
         if not wp_decisions:
             return []
         max_gps_err = max(w.gps_error_m for w in wp_decisions)
@@ -836,23 +811,13 @@ class DecisionEngine:
     ) -> list[str]:
         recs = []
         if env.kp >= 7:
-            recs.append(
-                f"Kp={env.kp:.1f} — G{int(env.kp) - 4} geomagnetic storm active."
-            )
+            recs.append(f"Kp={env.kp:.1f} — G{int(env.kp) - 4} geomagnetic storm active.")
         if env.bz_nt < -10:
-            recs.append(
-                f"Southward Bz ({env.bz_nt:.1f} nT) — conditions may intensify."
-            )
+            recs.append(f"Southward Bz ({env.bz_nt:.1f} nT) — conditions may intensify.")
         if worst and worst.pca_active:
-            recs.append(
-                f"PCA active at {worst.name} — HF blackout risk poleward of 65°."
-            )
+            recs.append(f"PCA active at {worst.name} — HF blackout risk poleward of 65°.")
         if level in (RiskLevel.DEGRADED, RiskLevel.SEVERE):
-            recs.append(
-                "Activate backup navigation. Verify SATCOM link before departure."
-            )
+            recs.append("Activate backup navigation. Verify SATCOM link before departure.")
         if not recs:
-            recs.append(
-                "No significant space weather alerts. Standard pre-mission checks."
-            )
+            recs.append("No significant space weather alerts. Standard pre-mission checks.")
         return recs

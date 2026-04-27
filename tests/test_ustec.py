@@ -78,6 +78,7 @@ def test_fetch_handles_timeout(monkeypatch):
 
 def test_fetch_glotec_listing_then_snapshot(monkeypatch):
     """Verify the listing → latest-file flow."""
+
     class _Resp:
         def __init__(self, body):
             self._body = body
@@ -90,11 +91,14 @@ def test_fetch_glotec_listing_then_snapshot(monkeypatch):
             return self._body
 
     f107_body = [{"flux": 123.0}]
-    listing = [{"url": "/products/glotec/geojson_2d_urt/glotec_X.geojson",
-                "time_tag": "2026-04-26T18:35:00Z"}]
-    fc = {"type": "FeatureCollection", "features": [
-        {"properties": {"tec": 25.0, "quality_flag": 0}},
-    ], "time_tag": "2026-04-26T18:35:00Z"}
+    listing = [{"url": "/products/glotec/geojson_2d_urt/glotec_X.geojson", "time_tag": "2026-04-26T18:35:00Z"}]
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {"properties": {"tec": 25.0, "quality_flag": 0}},
+        ],
+        "time_tag": "2026-04-26T18:35:00Z",
+    }
 
     seq = {
         ustec.USTEC_ENDPOINTS["f107"]: f107_body,
@@ -142,9 +146,7 @@ def test_glotec_stale_cache_used_when_listing_empty(monkeypatch):
     """When listing returns empty but cache is recent, status=stale and FC stays."""
     from datetime import datetime, timezone
 
-    fc = {"type": "FeatureCollection", "features": [
-        {"properties": {"tec": 22.0, "quality_flag": 0}}
-    ]}
+    fc = {"type": "FeatureCollection", "features": [{"properties": {"tec": 22.0, "quality_flag": 0}}]}
     ustec._cache["glotec"] = fc
     ustec._cache["glotec_time_tag"] = "2026-04-26T18:35:00Z"
     ustec._cache["glotec_last_good_fetch"] = datetime.now(timezone.utc).isoformat()
@@ -154,13 +156,23 @@ def test_glotec_stale_cache_used_when_listing_empty(monkeypatch):
         def __init__(self, body):
             self._body = body
             self.status_code = 200
-        def raise_for_status(self): pass
-        def json(self): return self._body
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._body
 
     class _Client:
-        def __init__(self, **kw): pass
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return False
+        def __init__(self, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
         async def get(self, url):
             if url == ustec.USTEC_ENDPOINTS["f107"]:
                 return _Resp([{"flux": 100.0}])
@@ -177,22 +189,30 @@ def test_glotec_status_is_error_when_cache_too_old(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
     ustec._cache["glotec"] = {"type": "FeatureCollection", "features": []}
-    ustec._cache["glotec_last_good_fetch"] = (
-        datetime.now(timezone.utc) - timedelta(hours=2)
-    ).isoformat()
+    ustec._cache["glotec_last_good_fetch"] = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     ustec._cache["fetch_status"] = {}
 
     class _Resp:
         def __init__(self, body):
             self._body = body
             self.status_code = 200
-        def raise_for_status(self): pass
-        def json(self): return self._body
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._body
 
     class _Client:
-        def __init__(self, **kw): pass
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return False
+        def __init__(self, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
         async def get(self, url):
             if url == ustec.USTEC_ENDPOINTS["f107"]:
                 return _Resp([{"flux": 100.0}])

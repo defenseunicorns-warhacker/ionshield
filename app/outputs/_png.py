@@ -61,7 +61,12 @@ _FONT: dict[str, list[int]] = {
 
 
 def _draw_glyph(
-    pixels: bytearray, w: int, x: int, y: int, ch: str, color: tuple[int, int, int],
+    pixels: bytearray,
+    w: int,
+    x: int,
+    y: int,
+    ch: str,
+    color: tuple[int, int, int],
 ) -> None:
     rows = _FONT.get(ch.upper(), _FONT[" "])
     r, g, b = color
@@ -71,14 +76,18 @@ def _draw_glyph(
                 px = x + col
                 py = y + row_i
                 idx = (py * w + px) * 4
-                pixels[idx]     = r
+                pixels[idx] = r
                 pixels[idx + 1] = g
                 pixels[idx + 2] = b
                 pixels[idx + 3] = 255
 
 
 def draw_text(
-    pixels: bytearray, w: int, x: int, y: int, text: str,
+    pixels: bytearray,
+    w: int,
+    x: int,
+    y: int,
+    text: str,
     color: tuple[int, int, int] = (255, 255, 255),
 ) -> None:
     """Draw a single line of text at (x, y), 5×7 font, 1-pixel tracking."""
@@ -89,7 +98,12 @@ def draw_text(
 
 
 def fill_rect(
-    pixels: bytearray, w: int, x: int, y: int, rw: int, rh: int,
+    pixels: bytearray,
+    w: int,
+    x: int,
+    y: int,
+    rw: int,
+    rh: int,
     color: tuple[int, int, int, int],
 ) -> None:
     """Fill a rectangle with RGBA `color` in-place on the pixel buffer."""
@@ -98,7 +112,7 @@ def fill_rect(
         row_start = (py * w + x) * 4
         for i in range(rw):
             o = row_start + i * 4
-            pixels[o]     = r
+            pixels[o] = r
             pixels[o + 1] = g
             pixels[o + 2] = b
             pixels[o + 3] = a
@@ -127,9 +141,4 @@ def encode_png(width: int, height: int, rgba_pixels: bytes | bytearray) -> bytes
         raw_lines.append(bytes(rgba_pixels[y * stride : (y + 1) * stride]))
     idat = zlib.compress(b"".join(raw_lines), level=9)
 
-    return (
-        sig
-        + _chunk(b"IHDR", ihdr)
-        + _chunk(b"IDAT", idat)
-        + _chunk(b"IEND", b"")
-    )
+    return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")

@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# E701 (multi-statement on one line) — project uses inline `if x: return y`
+# heavily for severity-bucket lookups; readable and intentional.
+ignore = ["E701", "E702"]

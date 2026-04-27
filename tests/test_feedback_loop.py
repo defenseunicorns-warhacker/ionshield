@@ -4,7 +4,6 @@ A7 — feedback loop: persistence, drift, retrain pipeline, API endpoints.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 
 import pytest
@@ -16,7 +15,6 @@ from app.data import db as db_module
 from app.data import feedback_store
 from app.main import app
 from app.models import retrain as retrain_module
-from app.models.ml_classifier import CLASSES
 
 
 @pytest_asyncio.fixture
@@ -51,8 +49,10 @@ async def test_record_sample_and_list(memory_db):
 @pytest.mark.asyncio
 async def test_attach_feedback_persists_correction(memory_db):
     sid = await feedback_store.record_sample(
-        features=[0]*7, rule_label="BACKGROUND",
-        ml_label="FLARE_M", ml_confidence=0.6,
+        features=[0] * 7,
+        rule_label="BACKGROUND",
+        ml_label="FLARE_M",
+        ml_confidence=0.6,
     )
     ok = await feedback_store.attach_feedback(sid, "NOT_AN_EVENT")
     assert ok is True
@@ -66,12 +66,16 @@ async def test_drift_metrics_compute_agreement(memory_db):
     # 3 agreements + 1 disagreement → 0.75 agreement
     for _ in range(3):
         await feedback_store.record_sample(
-            features=[0]*7, rule_label="BACKGROUND",
-            ml_label="BACKGROUND", ml_confidence=0.9,
+            features=[0] * 7,
+            rule_label="BACKGROUND",
+            ml_label="BACKGROUND",
+            ml_confidence=0.9,
         )
     await feedback_store.record_sample(
-        features=[0]*7, rule_label="BACKGROUND",
-        ml_label="FLARE_M", ml_confidence=0.5,
+        features=[0] * 7,
+        rule_label="BACKGROUND",
+        ml_label="FLARE_M",
+        ml_confidence=0.5,
     )
     d = await feedback_store.drift_metrics()
     assert d["n"] == 4
@@ -84,10 +88,13 @@ async def test_drift_metrics_compute_agreement(memory_db):
 @pytest.mark.asyncio
 async def test_record_outcome(memory_db):
     rid = await feedback_store.record_outcome(
-        system="GPS", subsystem="GPS_L1", metric="error_m",
+        system="GPS",
+        subsystem="GPS_L1",
+        metric="error_m",
         observed_value=4.7,
         observed_at=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        region_id="R+035-090", source="receiver-1",
+        region_id="R+035-090",
+        source="receiver-1",
     )
     assert rid is not None
     rows = await feedback_store.list_outcomes()
@@ -97,12 +104,18 @@ async def test_record_outcome(memory_db):
 @pytest.mark.asyncio
 async def test_register_model_version_atomic_swap(memory_db):
     v1 = await feedback_store.register_model_version(
-        version="logreg-v2", n_train=100, n_real_samples=10,
-        train_accuracy=0.9, artifact_path="/x.json",
+        version="logreg-v2",
+        n_train=100,
+        n_real_samples=10,
+        train_accuracy=0.9,
+        artifact_path="/x.json",
     )
     v2 = await feedback_store.register_model_version(
-        version="logreg-v3", n_train=200, n_real_samples=50,
-        train_accuracy=0.95, artifact_path="/y.json",
+        version="logreg-v3",
+        n_train=200,
+        n_real_samples=50,
+        train_accuracy=0.95,
+        artifact_path="/y.json",
     )
     assert v1 != v2
     active = await feedback_store.active_model_version()
@@ -125,17 +138,21 @@ async def test_retrain_noop_with_no_samples(memory_db):
 async def test_retrain_swaps_when_above_threshold(memory_db, tmp_path, monkeypatch):
     """Seed enough rule-labeled samples for a clean swap."""
     from app.models import ml_classifier as mlc
+
     # Redirect the live artifact path into tmp so we don't clobber the bundled one
     monkeypatch.setattr(mlc, "ARTIFACT_PATH", tmp_path / "live.json")
 
     # Seed 200 BACKGROUND samples with realistic feature vectors
     import random
+
     rng = random.Random(11)
     for _ in range(200):
         feats = mlc._synth_sample(rng, "BACKGROUND")
         await feedback_store.record_sample(
-            features=feats, rule_label="BACKGROUND",
-            ml_label="BACKGROUND", ml_confidence=0.8,
+            features=feats,
+            rule_label="BACKGROUND",
+            ml_label="BACKGROUND",
+            ml_confidence=0.8,
         )
 
     result = await retrain_module.retrain_and_maybe_swap()
@@ -173,8 +190,11 @@ def test_v3_outcome_endpoint_persists():
         r = client.post(
             "/api/v3/outcomes",
             json={
-                "system": "GPS", "subsystem": "GPS_L1", "metric": "error_m",
-                "observed_value": 3.2, "observed_at": "2026-04-26T12:00:00Z",
+                "system": "GPS",
+                "subsystem": "GPS_L1",
+                "metric": "error_m",
+                "observed_value": 3.2,
+                "observed_at": "2026-04-26T12:00:00Z",
             },
         )
         assert r.status_code == 201
@@ -187,8 +207,11 @@ def test_v3_outcome_endpoint_bad_timestamp():
         r = client.post(
             "/api/v3/outcomes",
             json={
-                "system": "GPS", "subsystem": "GPS_L1", "metric": "error_m",
-                "observed_value": 3.2, "observed_at": "not-a-time",
+                "system": "GPS",
+                "subsystem": "GPS_L1",
+                "metric": "error_m",
+                "observed_value": 3.2,
+                "observed_at": "not-a-time",
             },
         )
         assert r.status_code == 400

@@ -24,7 +24,6 @@ import copy
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,9 @@ def apply_profile(scenario: dict, profile: dict) -> dict:
             k: v.replace(
                 f"/scenarios/{scenario['id']}/",
                 f"/scenarios/{scenario['id']}/{cid}/",
-            ) if isinstance(v, str) else v
+            )
+            if isinstance(v, str)
+            else v
             for k, v in pc.items()
         }
 

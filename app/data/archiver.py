@@ -122,18 +122,12 @@ def snapshot_row_to_env(row: Any) -> EnvironmentSnapshot:
     feeds_unavailable: list[str] = json.loads(row.feeds_unavailable or "[]")
 
     fetched_at = row.fetched_at
-    fetched_at_iso = (
-        fetched_at.isoformat() if hasattr(fetched_at, "isoformat") else str(fetched_at)
-    )
+    fetched_at_iso = fetched_at.isoformat() if hasattr(fetched_at, "isoformat") else str(fetched_at)
     age = int(row.data_age_seconds or 0)
 
     observations = [
-        ObservationInput(
-            "NOAA_SWPC", "kp_index", float(row.kp), "index", fetched_at_iso, age
-        ),
-        ObservationInput(
-            "NOAA_SWPC", "bz_gsm_nt", float(row.bz_nt), "nT", fetched_at_iso, age
-        ),
+        ObservationInput("NOAA_SWPC", "kp_index", float(row.kp), "index", fetched_at_iso, age),
+        ObservationInput("NOAA_SWPC", "bz_gsm_nt", float(row.bz_nt), "nT", fetched_at_iso, age),
         ObservationInput(
             "NOAA_SWPC",
             "xray_flux_wm2",
@@ -170,9 +164,7 @@ def snapshot_row_to_env(row: Any) -> EnvironmentSnapshot:
         feeds_available=feeds_available,
         feeds_unavailable=feeds_unavailable,
         observations=observations,
-        kp_forecast_24h=(
-            float(row.kp_forecast_24h) if row.kp_forecast_24h is not None else None
-        ),
+        kp_forecast_24h=(float(row.kp_forecast_24h) if row.kp_forecast_24h is not None else None),
     )
 
 
@@ -180,9 +172,7 @@ async def get_snapshot_by_id(snapshot_id: int) -> Any | None:
     """Fetch a single noaa_snapshots row by primary key. Returns None if not found."""
     engine = get_engine()
     async with engine.begin() as conn:
-        result = await conn.execute(
-            select(noaa_snapshots).where(noaa_snapshots.c.id == snapshot_id)
-        )
+        result = await conn.execute(select(noaa_snapshots).where(noaa_snapshots.c.id == snapshot_id))
         return result.mappings().first()
 
 
@@ -207,10 +197,7 @@ async def list_snapshots(limit: int = 20, offset: int = 0) -> list[dict]:
     engine = get_engine()
     async with engine.begin() as conn:
         result = await conn.execute(
-            select(noaa_snapshots)
-            .order_by(noaa_snapshots.c.fetched_at.desc())
-            .limit(limit)
-            .offset(offset)
+            select(noaa_snapshots).order_by(noaa_snapshots.c.fetched_at.desc()).limit(limit).offset(offset)
         )
         rows = result.mappings().all()
 
@@ -218,9 +205,7 @@ async def list_snapshots(limit: int = 20, offset: int = 0) -> list[dict]:
         {
             "id": r["id"],
             "fetched_at": (
-                r["fetched_at"].isoformat()
-                if hasattr(r["fetched_at"], "isoformat")
-                else str(r["fetched_at"])
+                r["fetched_at"].isoformat() if hasattr(r["fetched_at"], "isoformat") else str(r["fetched_at"])
             ),
             "fetch_source": r["fetch_source"],
             "kp": r["kp"],

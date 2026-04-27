@@ -76,11 +76,7 @@ async def mark_email_sent(row_id: int) -> None:
 
     engine = get_engine()
     async with engine.begin() as conn:
-        await conn.execute(
-            pilot_inquiries.update()
-            .where(pilot_inquiries.c.id == row_id)
-            .values(email_sent=1)
-        )
+        await conn.execute(pilot_inquiries.update().where(pilot_inquiries.c.id == row_id).values(email_sent=1))
 
 
 async def list_inquiries(limit: int = 50, offset: int = 0) -> list[dict]:
@@ -91,10 +87,7 @@ async def list_inquiries(limit: int = 50, offset: int = 0) -> list[dict]:
     engine = get_engine()
     async with engine.begin() as conn:
         result = await conn.execute(
-            select(pilot_inquiries)
-            .order_by(pilot_inquiries.c.created_at.desc())
-            .limit(limit)
-            .offset(offset)
+            select(pilot_inquiries).order_by(pilot_inquiries.c.created_at.desc()).limit(limit).offset(offset)
         )
         rows = result.mappings().all()
 
@@ -102,9 +95,7 @@ async def list_inquiries(limit: int = 50, offset: int = 0) -> list[dict]:
         {
             "id": r["id"],
             "created_at": (
-                r["created_at"].isoformat()
-                if hasattr(r["created_at"], "isoformat")
-                else str(r["created_at"])
+                r["created_at"].isoformat() if hasattr(r["created_at"], "isoformat") else str(r["created_at"])
             ),
             "org": r["org"],
             "email": r["email"],

@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -34,11 +34,11 @@ from app.api.auth import verify_api_key
 from app.api.metrics import render as render_metrics
 from app.data import feedback_store
 from app.models import retrain as retrain_module
-from app.models.ml_classifier import CLASSES as ML_CLASSES, get_classifier
-from app.config import settings
+from app.models.ml_classifier import CLASSES as ML_CLASSES
 from app.data.event_store import list_events
 from app.data.fusion import fuse_snapshot
 from app.data.instrumentation import snapshot as instr_snapshot
+from app.outputs.scenario_export import export_scenario
 from app.data.registry import health_snapshot as registry_health
 from app.data.noaa import (
     cache_snapshot as noaa_cache_snapshot,
@@ -53,10 +53,9 @@ from app.data.ustec import (
     cache_snapshot as iono_cache_snapshot,
     get_f107_flux,
     get_glotec_featurecollection,
-    get_glotec_summary,
 )
 from app.models.impact import assess_grid, assess_region
-from app.models.ontology import EventType, FusedObservation, Region, SystemType
+from app.models.ontology import EventType, FusedObservation
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +120,7 @@ class RiskMapResponse(BaseModel):
 class ForecastEntry(BaseModel):
     time_tag: str
     kp_predicted: float
-    severity: str          # G0..G5
+    severity: str  # G0..G5
 
 
 class ForecastResponse(BaseModel):
@@ -188,11 +187,16 @@ class RegionDetailResponse(BaseModel):
 
 
 def _kp_to_severity(kp: float) -> str:
-    if kp >= 9: return "G5"
-    if kp >= 8: return "G4"
-    if kp >= 7: return "G3"
-    if kp >= 6: return "G2"
-    if kp >= 5: return "G1"
+    if kp >= 9:
+        return "G5"
+    if kp >= 8:
+        return "G4"
+    if kp >= 7:
+        return "G3"
+    if kp >= 6:
+        return "G2"
+    if kp >= 5:
+        return "G1"
     return "G0"
 
 
@@ -277,28 +281,27 @@ async def risk_map(
     for ia in impacts:
         r = ia.region
         if bbox_filter:
-            if not (
-                bbox_filter[0] <= r.lat_deg <= bbox_filter[2]
-                and bbox_filter[1] <= r.lon_deg <= bbox_filter[3]
-            ):
+            if not (bbox_filter[0] <= r.lat_deg <= bbox_filter[2] and bbox_filter[1] <= r.lon_deg <= bbox_filter[3]):
                 continue
         obs = next(o for o in fused if o.region.region_id == r.region_id)
-        rows.append(RegionRiskRow(
-            region_id=r.region_id,
-            lat_deg=r.lat_deg,
-            lon_deg=r.lon_deg,
-            geomag_lat_deg=r.geomag_lat_deg,
-            is_polar=r.is_polar,
-            is_auroral=r.is_auroral,
-            is_equatorial=r.is_equatorial,
-            tec_tecu=obs.tec_tecu,
-            tec_anomaly_tecu=obs.tec_anomaly_tecu,
-            gps_l1_error_m=ia.gps["GPS_L1"].error_m,
-            hf_absorption_db=ia.hf.absorption_total_db,
-            hf_blackout_probability=ia.hf.blackout_probability,
-            satcom_l_fade_db=ia.satcom["L"].fade_db,
-            radar_l_range_bias_m=ia.radar["L"].range_bias_m,
-        ))
+        rows.append(
+            RegionRiskRow(
+                region_id=r.region_id,
+                lat_deg=r.lat_deg,
+                lon_deg=r.lon_deg,
+                geomag_lat_deg=r.geomag_lat_deg,
+                is_polar=r.is_polar,
+                is_auroral=r.is_auroral,
+                is_equatorial=r.is_equatorial,
+                tec_tecu=obs.tec_tecu,
+                tec_anomaly_tecu=obs.tec_anomaly_tecu,
+                gps_l1_error_m=ia.gps["GPS_L1"].error_m,
+                hf_absorption_db=ia.hf.absorption_total_db,
+                hf_blackout_probability=ia.hf.blackout_probability,
+                satcom_l_fade_db=ia.satcom["L"].fade_db,
+                radar_l_range_bias_m=ia.radar["L"].range_bias_m,
+            )
+        )
 
     return RiskMapResponse(
         computed_at=datetime.now(timezone.utc).isoformat(),
@@ -342,18 +345,17 @@ async def forecast(
         delta_h = (t - now).total_seconds() / 3600
         if 0 <= delta_h <= 24:
             future_kps.append(kp_pred)
-            entries.append(ForecastEntry(
-                time_tag=t.isoformat(),
-                kp_predicted=kp_pred,
-                severity=_kp_to_severity(kp_pred),
-            ))
+            entries.append(
+                ForecastEntry(
+                    time_tag=t.isoformat(),
+                    kp_predicted=kp_pred,
+                    severity=_kp_to_severity(kp_pred),
+                )
+            )
 
     peak = max(future_kps) if future_kps else None
     # Rough storm-probability proxy: fraction of forecast windows ≥ G1
-    storm_p = (
-        sum(1 for k in future_kps if k >= 5) / len(future_kps)
-        if future_kps else 0.0
-    )
+    storm_p = sum(1 for k in future_kps if k >= 5) / len(future_kps) if future_kps else 0.0
 
     return ForecastResponse(
         computed_at=now.isoformat(),
@@ -393,10 +395,7 @@ async def events_recent(
             state=r["state"],
             severity=r["severity"],
             region_id=r["region_id"],
-            t_onset=(
-                r["t_onset"].isoformat()
-                if hasattr(r["t_onset"], "isoformat") else str(r["t_onset"])
-            ),
+            t_onset=(r["t_onset"].isoformat() if hasattr(r["t_onset"], "isoformat") else str(r["t_onset"])),
             t_peak=(
                 r["t_peak"].isoformat()
                 if r["t_peak"] and hasattr(r["t_peak"], "isoformat")
@@ -432,7 +431,10 @@ async def events_active(
 ) -> EventsResponse:
     """Convenience alias: only events whose state is not ENDED."""
     return await events_recent(
-        request=request, limit=limit, only_open=True, event_type=None,
+        request=request,
+        limit=limit,
+        only_open=True,
+        event_type=None,
     )
 
 
@@ -440,10 +442,12 @@ async def events_active(
 async def impact_grid(
     request: Request,
     system: str | None = Query(
-        None, description="Filter by system (GPS, HF, SATCOM, RADAR)",
+        None,
+        description="Filter by system (GPS, HF, SATCOM, RADAR)",
     ),
     subsystem: str | None = Query(
-        None, description="Filter by subsystem (e.g. GPS_L1, L, Ku, X)",
+        None,
+        description="Filter by subsystem (e.g. GPS_L1, L, Ku, X)",
     ),
     bbox: str | None = Query(
         None,
@@ -469,8 +473,7 @@ async def impact_grid(
     for ia in impacts:
         r = ia.region
         if bbox_filter and not (
-            bbox_filter[0] <= r.lat_deg <= bbox_filter[2]
-            and bbox_filter[1] <= r.lon_deg <= bbox_filter[3]
+            bbox_filter[0] <= r.lat_deg <= bbox_filter[2] and bbox_filter[1] <= r.lon_deg <= bbox_filter[3]
         ):
             continue
         for row in ia.to_rows():
@@ -478,17 +481,19 @@ async def impact_grid(
                 continue
             if subsystem and row["subsystem"] != subsystem:
                 continue
-            out.append(ImpactRow(
-                region_id=row["region_id"],
-                lat_deg=row["lat_deg"],
-                lon_deg=row["lon_deg"],
-                geomag_lat_deg=row["geomag_lat_deg"],
-                when_utc=row["when_utc"],
-                system=row["system"],
-                subsystem=row["subsystem"],
-                metric=row["metric"],
-                value=float(row["value"]),
-            ))
+            out.append(
+                ImpactRow(
+                    region_id=row["region_id"],
+                    lat_deg=row["lat_deg"],
+                    lon_deg=row["lon_deg"],
+                    geomag_lat_deg=row["geomag_lat_deg"],
+                    when_utc=row["when_utc"],
+                    system=row["system"],
+                    subsystem=row["subsystem"],
+                    metric=row["metric"],
+                    value=float(row["value"]),
+                )
+            )
 
     return ImpactResponse(
         computed_at=datetime.now(timezone.utc).isoformat(),
@@ -555,8 +560,7 @@ class FeedbackRequest(BaseModel):
     user_feedback: str = Field(
         ...,
         description=(
-            "Operator label correction. Must match an EventType value or "
-            "'NOT_AN_EVENT' for false-positive flagging."
+            "Operator label correction. Must match an EventType value or " "'NOT_AN_EVENT' for false-positive flagging."
         ),
         max_length=64,
     )
@@ -619,8 +623,7 @@ class RetrainResponse(BaseModel):
 _VALID_FEEDBACK = set(c for c in ML_CLASSES) | {"NOT_AN_EVENT"}
 
 
-@router_v3.post("/training/samples/{sample_id}/feedback",
-                response_model=FeedbackResponse)
+@router_v3.post("/training/samples/{sample_id}/feedback", response_model=FeedbackResponse)
 async def submit_feedback(
     sample_id: int,
     body: FeedbackRequest,
@@ -645,7 +648,9 @@ async def submit_feedback(
             detail=f"sample_id {sample_id} not found",
         )
     return FeedbackResponse(
-        sample_id=sample_id, user_feedback=body.user_feedback, accepted=True,
+        sample_id=sample_id,
+        user_feedback=body.user_feedback,
+        accepted=True,
     )
 
 
@@ -692,7 +697,8 @@ async def list_training_samples(
     _: None = Depends(verify_api_key),
 ) -> dict[str, Any]:
     rows = await feedback_store.list_samples(
-        limit=limit, only_with_feedback=only_with_feedback,
+        limit=limit,
+        only_with_feedback=only_with_feedback,
     )
     total = await feedback_store.count_samples(only_with_feedback=only_with_feedback)
     return {
@@ -702,9 +708,9 @@ async def list_training_samples(
         "samples": [
             {
                 "id": r["id"],
-                "created_at": (r["created_at"].isoformat()
-                               if hasattr(r["created_at"], "isoformat")
-                               else str(r["created_at"])),
+                "created_at": (
+                    r["created_at"].isoformat() if hasattr(r["created_at"], "isoformat") else str(r["created_at"])
+                ),
                 "region_id": r["region_id"],
                 "rule_label": r["rule_label"],
                 "ml_label": r["ml_label"],
@@ -745,9 +751,7 @@ async def training_models(
         ModelVersionRow(
             id=r["id"],
             version=r["version"],
-            trained_at=(r["trained_at"].isoformat()
-                        if hasattr(r["trained_at"], "isoformat")
-                        else str(r["trained_at"])),
+            trained_at=(r["trained_at"].isoformat() if hasattr(r["trained_at"], "isoformat") else str(r["trained_at"])),
             n_train=r["n_train"],
             n_real_samples=r["n_real_samples"],
             train_accuracy=r["train_accuracy"],
@@ -816,6 +820,7 @@ async def promote_challenger(
         )
     from pathlib import Path
     from app.models import ml_classifier as mlc
+
     p = Path(chal["artifact_path"])
     if not p.exists():
         raise HTTPException(
@@ -826,7 +831,8 @@ async def promote_challenger(
     mlc.invalidate_classifier()
     ok = await feedback_store.promote_challenger(chal["version"])
     return PromoteResponse(
-        promoted=ok, version=chal["version"],
+        promoted=ok,
+        version=chal["version"],
         reason="ok" if ok else "db_update_failed",
     )
 
@@ -856,6 +862,7 @@ async def autopilot_run_once(
     check, sample-archive check. Useful for manual smoke tests + scripts.
     """
     from app.models import auto_pilot
+
     return {
         "retrain": await auto_pilot.auto_retrain_tick(),
         "promote": await auto_pilot.auto_promote_tick(),
@@ -866,21 +873,19 @@ async def autopilot_run_once(
 # ── B1: Scenario export ──────────────────────────────────────────────────────
 
 
-from fastapi.responses import JSONResponse, Response
-from app.outputs.scenario_export import export_scenario
-
-
 @router_v3.get("/scenarios/export")
 async def scenario_export(
     request: Request,
     start: str = Query(..., description="ISO 8601 UTC start time"),
     end: str = Query(..., description="ISO 8601 UTC end time"),
     fmt: str = Query(
-        "geojson", pattern=r"^(geojson|csv|kml|kmz|keyframes)$",
+        "geojson",
+        pattern=r"^(geojson|csv|kml|kmz|keyframes)$",
         description="Output format: geojson | csv | kml | kmz | keyframes (Earth Studio CSV)",
     ),
     layer: str = Query(
-        "hf", pattern=r"^(hf|gps|sat)$",
+        "hf",
+        pattern=r"^(hf|gps|sat)$",
         description="KML coloring driver — hf | gps | sat (KML format only)",
     ),
     keyframe_region: str | None = Query(
@@ -888,7 +893,9 @@ async def scenario_export(
         description="Restrict keyframe CSV to a single region_id (camera-POI export)",
     ),
     step_seconds: int = Query(
-        0, ge=0, le=86400,
+        0,
+        ge=0,
+        le=86400,
         description="Downsample to one snapshot every N seconds. 0 = keep all.",
     ),
     region_filter: str | None = Query(
@@ -897,7 +904,8 @@ async def scenario_export(
     ),
     max_snapshots: int = Query(500, ge=1, le=2000),
     geometry: str = Query(
-        "polygon", pattern=r"^(polygon|point)$",
+        "polygon",
+        pattern=r"^(polygon|point)$",
         description="GeoJSON geometry type per feature",
     ),
     _: None = Depends(verify_api_key),
@@ -923,23 +931,30 @@ async def scenario_export(
             detail="end must be >= start",
         )
 
-    regions = (
-        [r.strip() for r in region_filter.split(",") if r.strip()]
-        if region_filter else None
-    )
+    regions = [r.strip() for r in region_filter.split(",") if r.strip()] if region_filter else None
 
     # KML / KMZ / keyframes always need a GeoJSON intermediate; the converters
     # in app.outputs.earth_studio operate on the same FeatureCollection that
     # fmt=geojson would emit, then translate to the wire format.
     if fmt in ("kml", "kmz", "keyframes"):
         gj_payload, meta = await export_scenario(
-            start=t_start, end=t_end, fmt="geojson", step_seconds=step_seconds,
-            region_filter=regions, max_snapshots=max_snapshots, geometry="polygon",
+            start=t_start,
+            end=t_end,
+            fmt="geojson",
+            step_seconds=step_seconds,
+            region_filter=regions,
+            max_snapshots=max_snapshots,
+            geometry="polygon",
         )
     else:
         payload, meta = await export_scenario(
-            start=t_start, end=t_end, fmt=fmt, step_seconds=step_seconds,
-            region_filter=regions, max_snapshots=max_snapshots, geometry=geometry,
+            start=t_start,
+            end=t_end,
+            fmt=fmt,
+            step_seconds=step_seconds,
+            region_filter=regions,
+            max_snapshots=max_snapshots,
+            geometry=geometry,
         )
 
     snap_header = {"X-IonShield-Snapshots": str(meta["downsampled_count"])}
@@ -949,29 +964,29 @@ async def scenario_export(
 
     if fmt == "kml":
         from app.outputs.earth_studio import geojson_to_kml
+
         return Response(
             content=geojson_to_kml(gj_payload, layer_by=layer),
             media_type="application/vnd.google-earth.kml+xml",
-            headers={**snap_header,
-                     "Content-Disposition": 'attachment; filename="ionshield-scenario.kml"'},
+            headers={**snap_header, "Content-Disposition": 'attachment; filename="ionshield-scenario.kml"'},
         )
 
     if fmt == "kmz":
         from app.outputs.earth_studio import geojson_to_kmz
+
         return Response(
             content=geojson_to_kmz(gj_payload),
             media_type="application/vnd.google-earth.kmz",
-            headers={**snap_header,
-                     "Content-Disposition": 'attachment; filename="ionshield-scenario.kmz"'},
+            headers={**snap_header, "Content-Disposition": 'attachment; filename="ionshield-scenario.kmz"'},
         )
 
     if fmt == "keyframes":
         from app.outputs.earth_studio import geojson_to_keyframes_csv
+
         return Response(
             content=geojson_to_keyframes_csv(gj_payload, region_id=keyframe_region),
             media_type="text/csv",
-            headers={**snap_header,
-                     "Content-Disposition": 'attachment; filename="ionshield-keyframes.csv"'},
+            headers={**snap_header, "Content-Disposition": 'attachment; filename="ionshield-keyframes.csv"'},
         )
 
     return JSONResponse(content=payload, headers=snap_header)
@@ -1032,6 +1047,7 @@ async def scenarios_catalog(request: Request) -> dict:
     """
     import json
     from pathlib import Path
+
     p = Path(__file__).parent.parent / "static" / "scenarios.json"
     if not p.exists():
         return {"scenarios": []}
@@ -1066,23 +1082,23 @@ async def scenarios_backfill(
     no-op for already-backfilled windows.
     """
     from app.data import historical_backfill as hb
+
     if profile_id is None:
         results = await hb.backfill_all_predefined()
     else:
         if profile_id not in hb.STORM_PROFILES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unknown profile_id: {profile_id}. "
-                       f"Known: {sorted(hb.STORM_PROFILES.keys())}",
+                detail=f"Unknown profile_id: {profile_id}. " f"Known: {sorted(hb.STORM_PROFILES.keys())}",
             )
         # Pull window from the catalog
         from pathlib import Path
         import json
-        catalog = json.loads(
-            (Path(__file__).parent.parent / "static" / "scenarios.json").read_text()
-        )
+
+        catalog = json.loads((Path(__file__).parent.parent / "static" / "scenarios.json").read_text())
         match = next(
-            (s for s in catalog["scenarios"] if s["id"] == profile_id), None,
+            (s for s in catalog["scenarios"] if s["id"] == profile_id),
+            None,
         )
         if not match:
             raise HTTPException(
@@ -1106,7 +1122,8 @@ async def scenarios_backfill(
 async def scenarios_precompute(
     request: Request,
     only_id: str | None = Query(
-        None, description="Limit precompute to a single scenario id",
+        None,
+        description="Limit precompute to a single scenario id",
     ),
     _: None = Depends(verify_api_key),
 ) -> dict[str, Any]:
@@ -1118,6 +1135,7 @@ async def scenarios_precompute(
     the served assets, or after changing scenarios.json windows.
     """
     from app.data import scenario_precompute as sp
+
     results = await sp.precompute_all(only_id=only_id)
     return {
         "computed_at": datetime.now(timezone.utc).isoformat(),
@@ -1140,14 +1158,15 @@ class VideoRegistration(BaseModel):
 
 
 def _video_sidecar_path(scenario_id: str):
-    from pathlib import Path
     from app.data import scenario_precompute as sp
+
     return sp.OUTPUT_ROOT / scenario_id / _VIDEO_SIDECAR_NAME
 
 
 def _load_video_sidecar(scenario_id: str) -> dict | None:
     """Read the per-scenario video.json sidecar if it exists."""
     import json
+
     p = _video_sidecar_path(scenario_id)
     if not p.exists():
         return None
@@ -1167,6 +1186,7 @@ async def _attach_video_registrations(scenarios: list[dict]) -> None:
     db_rows: dict[str, dict] = {}
     try:
         from app.data import scenario_video_store as svs
+
         db_rows = await svs.lookup_all()
     except Exception as exc:
         logger.debug("video_store lookup_all failed: %s", exc)
@@ -1178,16 +1198,13 @@ async def _attach_video_registrations(scenarios: list[dict]) -> None:
         row = db_rows.get(sid) or _load_video_sidecar(sid)
         if row and row.get("video_url"):
             sc["video_url"] = row["video_url"]
-            sc["video_meta"] = {
-                k: row[k]
-                for k in ("duration_seconds", "rendered_at", "notes")
-                if k in row
-            }
+            sc["video_meta"] = {k: row[k] for k in ("duration_seconds", "rendered_at", "notes") if k in row}
 
 
 @router_v3.get("/scenarios/{scenario_id}/recipe")
 async def scenario_recipe(
-    scenario_id: str, request: Request,
+    scenario_id: str,
+    request: Request,
     lint: bool = Query(
         False,
         description="If true, also return any structural issues with the recipe",
@@ -1204,6 +1221,7 @@ async def scenario_recipe(
     """
     import json
     from pathlib import Path
+
     p = Path(__file__).parent.parent / "static" / "scenarios.json"
     catalog = json.loads(p.read_text())
     sc = next((s for s in catalog["scenarios"] if s["id"] == scenario_id), None)
@@ -1225,6 +1243,7 @@ async def scenario_recipe(
     }
     if lint:
         from app.outputs.earth_studio_recipe import validate_recipe
+
         out["recipe_issues"] = validate_recipe(sc["recipe"])
     return out
 
@@ -1252,6 +1271,7 @@ async def register_scenario_video(
 
     # Confirm the scenario exists in the catalog
     from pathlib import Path
+
     catalog_path = Path(__file__).parent.parent / "static" / "scenarios.json"
     catalog = json.loads(catalog_path.read_text())
     if not any(s["id"] == scenario_id for s in catalog["scenarios"]):
@@ -1304,11 +1324,13 @@ async def register_scenario_video(
 
 @router_v3.delete("/scenarios/{scenario_id}/video")
 async def unregister_scenario_video(
-    scenario_id: str, request: Request,
+    scenario_id: str,
+    request: Request,
     _: None = Depends(verify_api_key),
 ) -> dict:
     """Remove a previously-registered video. 404 if none was set."""
     from app.data import scenario_video_store as svs
+
     removed = await svs.unregister(scenario_id)
     sidecar = _video_sidecar_path(scenario_id)
     if sidecar.exists():
@@ -1332,15 +1354,18 @@ async def unregister_scenario_video(
 async def customers_catalog(request: Request) -> dict:
     """List the available customer profiles (defense / aerospace / commercial)."""
     from app.data import customer_profile as cp
+
     return {"customers": cp.list_profiles()}
 
 
 @router_v3.get("/customers/{customer_id}")
 async def customer_detail(
-    customer_id: str, request: Request,
+    customer_id: str,
+    request: Request,
 ) -> dict:
     """Single customer profile + the derived scenarios it would produce."""
     from app.data import customer_profile as cp
+
     profile = cp.get_profile(customer_id)
     if profile is None:
         raise HTTPException(
@@ -1349,16 +1374,16 @@ async def customer_detail(
         )
     import json
     from pathlib import Path
-    catalog = json.loads(
-        (Path(__file__).parent.parent / "static" / "scenarios.json").read_text()
-    )
+
+    catalog = json.loads((Path(__file__).parent.parent / "static" / "scenarios.json").read_text())
     derived = cp.derive_scenarios(catalog["scenarios"], customer_id)
     return {"profile": profile, "derived_scenarios": derived}
 
 
 @router_v3.get("/scenarios/customer/{customer_id}")
 async def scenarios_for_customer(
-    customer_id: str, request: Request,
+    customer_id: str,
+    request: Request,
 ) -> dict:
     """
     Catalog response with every concrete scenario passed through the
@@ -1367,6 +1392,7 @@ async def scenarios_for_customer(
     correctly cache-busted precomputed URLs (with the customer suffix).
     """
     from app.data import customer_profile as cp
+
     profile = cp.get_profile(customer_id)
     if profile is None:
         raise HTTPException(
@@ -1375,9 +1401,8 @@ async def scenarios_for_customer(
         )
     import json
     from pathlib import Path
-    catalog = json.loads(
-        (Path(__file__).parent.parent / "static" / "scenarios.json").read_text()
-    )
+
+    catalog = json.loads((Path(__file__).parent.parent / "static" / "scenarios.json").read_text())
     derived = cp.derive_scenarios(catalog["scenarios"], customer_id)
     # Apply existing cache-bust + video sidecars so the customer-scoped
     # response gets the same niceties as the base catalog.

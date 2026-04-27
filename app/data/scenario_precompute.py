@@ -71,7 +71,6 @@ def _load_catalog() -> list[dict]:
 def _is_concrete_window(sc: dict) -> bool:
     """A scenario is precomputable when start + end are real ISO timestamps."""
     s = str(sc.get("start", ""))
-    e = str(sc.get("end", ""))
     return (s.startswith("20") or s.startswith("19")) and not s.startswith("live")
 
 
@@ -90,8 +89,7 @@ async def precompute_scenario(sc: dict) -> dict[str, Any]:
         t_start = datetime.fromisoformat(sc["start"].replace("Z", "+00:00"))
         t_end = datetime.fromisoformat(sc["end"].replace("Z", "+00:00"))
     except (KeyError, ValueError) as exc:
-        return {"scenario_id": sid, "written": [],
-                "skipped_reason": f"bad_window:{exc}"}
+        return {"scenario_id": sid, "written": [], "skipped_reason": f"bad_window:{exc}"}
 
     region_filter = sc.get("region_filter")
     if isinstance(region_filter, str):
@@ -100,16 +98,23 @@ async def precompute_scenario(sc: dict) -> dict[str, Any]:
     step = int(sc.get("step_seconds", 0) or 0)
     geometry = sc.get("geometry", "polygon")  # "point" yields ~5x smaller assets
     fc, meta = await export_scenario(
-        start=t_start, end=t_end, fmt="geojson",
-        step_seconds=step, region_filter=region_filter,
-        max_snapshots=2000, geometry=geometry,
+        start=t_start,
+        end=t_end,
+        fmt="geojson",
+        step_seconds=step,
+        region_filter=region_filter,
+        max_snapshots=2000,
+        geometry=geometry,
     )
 
     n_features = len(fc.get("features", []))
     if n_features == 0:
-        return {"scenario_id": sid, "written": [],
-                "skipped_reason": "no_features",
-                "n_snapshots": meta.get("downsampled_count", 0)}
+        return {
+            "scenario_id": sid,
+            "written": [],
+            "skipped_reason": "no_features",
+            "n_snapshots": meta.get("downsampled_count", 0),
+        }
 
     out_dir = OUTPUT_ROOT / sid
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -120,7 +125,8 @@ async def precompute_scenario(sc: dict) -> dict[str, Any]:
 
     geojson_bytes = json.dumps(fc, separators=(",", ":")).encode("utf-8")
     kmz_bytes_blob = geojson_to_kmz(
-        fc, document_name=f'IonShield · {sc.get("title", sid)}',
+        fc,
+        document_name=f'IonShield · {sc.get("title", sid)}',
     )
     keyframes_bytes_str = geojson_to_keyframes_csv(fc).encode("utf-8")
 
@@ -166,10 +172,14 @@ async def precompute_scenario(sc: dict) -> dict[str, Any]:
                 "bytes": len(keyframes_bytes_str),
             },
             **(
-                {"camera.csv": {
-                    "hash": _short_hash(camera_csv_bytes),
-                    "bytes": len(camera_csv_bytes),
-                }} if camera_csv_bytes else {}
+                {
+                    "camera.csv": {
+                        "hash": _short_hash(camera_csv_bytes),
+                        "bytes": len(camera_csv_bytes),
+                    }
+                }
+                if camera_csv_bytes
+                else {}
             ),
         },
         "recipe_issues": recipe_issues,
@@ -204,6 +214,5 @@ async def precompute_all(only_id: str | None = None) -> list[dict]:
             results.append(await precompute_scenario(sc))
         except Exception as exc:
             logger.warning("Precompute %s failed: %s", sc.get("id"), exc)
-            results.append({"scenario_id": sc.get("id"), "written": [],
-                            "skipped_reason": f"error:{exc}"})
+            results.append({"scenario_id": sc.get("id"), "written": [], "skipped_reason": f"error:{exc}"})
     return results

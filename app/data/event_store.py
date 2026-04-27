@@ -17,7 +17,6 @@ the Foundry dataset.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 
 from sqlalchemy import insert, select, update
 
@@ -36,7 +35,6 @@ from app.models.ml_classifier import (
     TrainedClassifier,
     featurize,
     get_challenger,
-    get_classifier,
 )
 from app.models.ontology import Driver, EventType, FusedObservation
 
@@ -105,7 +103,7 @@ async def detect_and_persist(
 
             if result.new_event is not None:
                 ev = result.new_event
-                ev.classifier = (classifier.name if classifier else "rule")
+                ev.classifier = classifier.name if classifier else "rule"
                 if classifier:
                     pred = classifier.classify(window or [obs])
                     if pred is not None:
@@ -126,20 +124,18 @@ async def detect_and_persist(
                     "classifier": ev.classifier,
                     "confidence": ev.confidence,
                 }
-                ins = await conn.execute(insert(events_table).values(**values))
+                await conn.execute(insert(events_table).values(**values))
                 logger.info(
                     "Event ONSET: %s severity=%s value=%.4g",
-                    ev.event_type.value, ev.severity, ev.trigger_value,
+                    ev.event_type.value,
+                    ev.severity,
+                    ev.trigger_value,
                 )
                 onset.append(ev)
 
             elif result.update_existing is not None and existing_row is not None:
                 upd = result.update_existing
-                stmt = (
-                    update(events_table)
-                    .where(events_table.c.id == existing_row["id"])
-                    .values(**upd)
-                )
+                stmt = update(events_table).where(events_table.c.id == existing_row["id"]).values(**upd)
                 await conn.execute(stmt)
                 if upd.get("state") == EventState.ENDED.value:
                     existing.state = EventState.ENDED
@@ -147,7 +143,8 @@ async def detect_and_persist(
                     ended.append(existing)
                     logger.info(
                         "Event ENDED: %s severity=%s",
-                        existing.event_type.value, existing.severity,
+                        existing.event_type.value,
+                        existing.severity,
                     )
                 else:
                     existing.state = EventState.PEAK

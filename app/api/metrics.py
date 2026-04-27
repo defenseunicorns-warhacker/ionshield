@@ -58,26 +58,38 @@ def render() -> str:
     lines.append("# HELP ionshield_source_fetch_duration_ms Per-source fetch latency")
     lines.append("# TYPE ionshield_source_fetch_duration_ms summary")
     for src, hist in inst["sources"].items():
-        lines.extend(_summary_from_hist(
-            "ionshield_source_fetch_duration_ms", hist, {"source": src},
-        ))
+        lines.extend(
+            _summary_from_hist(
+                "ionshield_source_fetch_duration_ms",
+                hist,
+                {"source": src},
+            )
+        )
 
     # ── Refresh-loop stage durations
     lines.append("# HELP ionshield_stage_duration_ms Refresh-loop stage latency")
     lines.append("# TYPE ionshield_stage_duration_ms summary")
     for stage, hist in inst["stages"].items():
-        lines.extend(_summary_from_hist(
-            "ionshield_stage_duration_ms", hist, {"stage": stage},
-        ))
+        lines.extend(
+            _summary_from_hist(
+                "ionshield_stage_duration_ms",
+                hist,
+                {"stage": stage},
+            )
+        )
 
     # ── Loop interval
     li = inst["loop_interval"]
     if li.get("n", 0) > 0:
         lines.append("# HELP ionshield_loop_interval_ms Wall time between refresh loop ticks")
         lines.append("# TYPE ionshield_loop_interval_ms summary")
-        lines.extend(_summary_from_hist(
-            "ionshield_loop_interval_ms", li, {},
-        ))
+        lines.extend(
+            _summary_from_hist(
+                "ionshield_loop_interval_ms",
+                li,
+                {},
+            )
+        )
 
     # ── Breaker state + counters
     lines.append("# HELP ionshield_breaker_state Current breaker state (1 if matching state, else 0)")
@@ -89,20 +101,26 @@ def render() -> str:
     for src in list_sources():
         snap = src.breaker.snapshot()
         for st in BreakerState:
-            lines.append(_line(
-                "ionshield_breaker_state",
-                {"source": src.name, "state": st.value},
-                1 if snap["state"] == st.value else 0,
-            ))
-        lines.append(_line(
-            "ionshield_breaker_failures_total",
-            {"source": src.name},
-            snap["total_failures"],
-        ))
-        lines.append(_line(
-            "ionshield_breaker_successes_total",
-            {"source": src.name},
-            snap["total_successes"],
-        ))
+            lines.append(
+                _line(
+                    "ionshield_breaker_state",
+                    {"source": src.name, "state": st.value},
+                    1 if snap["state"] == st.value else 0,
+                )
+            )
+        lines.append(
+            _line(
+                "ionshield_breaker_failures_total",
+                {"source": src.name},
+                snap["total_failures"],
+            )
+        )
+        lines.append(
+            _line(
+                "ionshield_breaker_successes_total",
+                {"source": src.name},
+                snap["total_successes"],
+            )
+        )
 
     return "\n".join(line for line in lines if line) + "\n"

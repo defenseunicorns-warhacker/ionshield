@@ -97,8 +97,7 @@ def _glotec_at(
 ) -> dict[str, float]:
     """Nearest-bucket lookup. Storm-aware climatology when no point is found."""
     if not index:
-        return {"tec": _climatology_tec(lat, kp), "anomaly": 0.0,
-                "hmf2": 300.0, "nmf2": 1.5e11}
+        return {"tec": _climatology_tec(lat, kp), "anomaly": 0.0, "hmf2": 300.0, "nmf2": 1.5e11}
     target = (int(round(lat / 5.0)), int(round(lon / 5.0)))
     # Spiral outward in 5° steps until we hit a bucket; bounded radius keeps
     # this cheap on sparse caches.
@@ -122,8 +121,7 @@ def _glotec_at(
                     "nmf2": float(props.get("NmF2", 1.5e11)),
                 }
     # Spiral exhausted — fall back to storm-aware climatology
-    return {"tec": _climatology_tec(lat, kp), "anomaly": 0.0,
-            "hmf2": 300.0, "nmf2": 1.5e11}
+    return {"tec": _climatology_tec(lat, kp), "anomaly": 0.0, "hmf2": 300.0, "nmf2": 1.5e11}
 
 
 # ── Public fusion API ────────────────────────────────────────────────────────
@@ -150,7 +148,7 @@ def fuse_snapshot(
     is a scalar broadcast. Returns one FusedObservation per region in `grid`
     (default: 10°×20° global grid, 162 cells).
     """
-    when = (when or datetime.now(timezone.utc))
+    when = when or datetime.now(timezone.utc)
     if when.tzinfo is None:
         when = when.replace(tzinfo=timezone.utc)
     grid = grid or global_grid()

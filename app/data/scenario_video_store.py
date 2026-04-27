@@ -14,7 +14,6 @@ so an operator can lock the catalog to known CDN hosts.
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -64,8 +63,7 @@ def validate_video_url(url: str) -> str:
         host = (parsed.hostname or "").lower()
         if host not in ("localhost", "127.0.0.1", "::1"):
             raise InvalidVideoURL(
-                "http:// is only allowed for localhost; use https for "
-                "external hosts",
+                "http:// is only allowed for localhost; use https for " "external hosts",
             )
     if not parsed.hostname:
         raise InvalidVideoURL("video_url is missing a host")
@@ -75,8 +73,7 @@ def validate_video_url(url: str) -> str:
         host = parsed.hostname.lower()
         if not any(host == d or host.endswith("." + d) for d in allowlist):
             raise InvalidVideoURL(
-                f"host {host!r} not in IONSHIELD_VIDEO_DOMAIN_ALLOWLIST "
-                f"({', '.join(allowlist)})",
+                f"host {host!r} not in IONSHIELD_VIDEO_DOMAIN_ALLOWLIST " f"({', '.join(allowlist)})",
             )
 
     return url.strip()
@@ -105,14 +102,16 @@ async def register(
                 scenario_videos.c.scenario_id == scenario_id,
             )
         )
-        await conn.execute(scenario_videos.insert().values(
-            scenario_id=scenario_id,
-            video_url=safe_url,
-            duration_seconds=duration_seconds,
-            rendered_at=rendered_at,
-            notes=notes,
-            created_at=datetime.now(timezone.utc),
-        ))
+        await conn.execute(
+            scenario_videos.insert().values(
+                scenario_id=scenario_id,
+                video_url=safe_url,
+                duration_seconds=duration_seconds,
+                rendered_at=rendered_at,
+                notes=notes,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
 
     return {
         "scenario_id": scenario_id,
@@ -126,11 +125,17 @@ async def register(
 async def lookup(scenario_id: str) -> dict | None:
     engine = get_engine()
     async with engine.begin() as conn:
-        row = (await conn.execute(
-            select(scenario_videos).where(
-                scenario_videos.c.scenario_id == scenario_id,
+        row = (
+            (
+                await conn.execute(
+                    select(scenario_videos).where(
+                        scenario_videos.c.scenario_id == scenario_id,
+                    )
+                )
             )
-        )).mappings().first()
+            .mappings()
+            .first()
+        )
     if row is None:
         return None
     return {
@@ -138,9 +143,7 @@ async def lookup(scenario_id: str) -> dict | None:
         "video_url": row["video_url"],
         "duration_seconds": row["duration_seconds"],
         "rendered_at": (
-            row["rendered_at"].isoformat()
-            if hasattr(row["rendered_at"], "isoformat")
-            else row["rendered_at"]
+            row["rendered_at"].isoformat() if hasattr(row["rendered_at"], "isoformat") else row["rendered_at"]
         ),
         "notes": row["notes"],
     }
@@ -158,9 +161,7 @@ async def lookup_all() -> dict[str, dict]:
             "video_url": r["video_url"],
             "duration_seconds": r["duration_seconds"],
             "rendered_at": (
-                r["rendered_at"].isoformat()
-                if hasattr(r["rendered_at"], "isoformat")
-                else r["rendered_at"]
+                r["rendered_at"].isoformat() if hasattr(r["rendered_at"], "isoformat") else r["rendered_at"]
             ),
             "notes": r["notes"],
         }

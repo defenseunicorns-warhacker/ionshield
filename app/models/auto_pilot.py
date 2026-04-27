@@ -54,16 +54,18 @@ async def auto_retrain_tick() -> dict[str, Any]:
 
     now = time.monotonic()
     if now - _last_retrain_at < settings.auto_retrain_cooldown_seconds:
-        return {"action": "skipped", "reason": "cooldown_active",
-                "seconds_until_eligible": round(
-                    settings.auto_retrain_cooldown_seconds - (now - _last_retrain_at),
-                )}
+        return {
+            "action": "skipped",
+            "reason": "cooldown_active",
+            "seconds_until_eligible": round(
+                settings.auto_retrain_cooldown_seconds - (now - _last_retrain_at),
+            ),
+        }
 
     if not await _drift_below_threshold():
         return {"action": "skipped", "reason": "drift_within_threshold"}
 
-    logger.info("Auto-retrain triggered by drift below %.2f",
-                settings.auto_retrain_drift_threshold)
+    logger.info("Auto-retrain triggered by drift below %.2f", settings.auto_retrain_drift_threshold)
     result = await retrain_module.retrain_and_maybe_swap(
         notes=f"auto-retrain: drift below {settings.auto_retrain_drift_threshold}",
     )
@@ -73,16 +75,18 @@ async def auto_retrain_tick() -> dict[str, Any]:
 
 async def auto_promote_tick() -> dict[str, Any]:
     """One pass of the challenger-promotion check."""
-    return {"action": "checked", "result": await retrain_module.maybe_auto_promote(
-        min_samples=settings.shadow_window_min_samples,
-        min_advantage=settings.shadow_promotion_min_advantage,
-    )}
+    return {
+        "action": "checked",
+        "result": await retrain_module.maybe_auto_promote(
+            min_samples=settings.shadow_window_min_samples,
+            min_advantage=settings.shadow_promotion_min_advantage,
+        ),
+    }
 
 
 async def archive_tick() -> dict[str, Any]:
     """One pass of the sample-archive job."""
-    return {"action": "archived",
-            "result": await sample_archive.archive_aged_samples()}
+    return {"action": "archived", "result": await sample_archive.archive_aged_samples()}
 
 
 async def run_loop() -> None:
@@ -98,8 +102,7 @@ async def run_loop() -> None:
     """
     archive_every = max(
         1,
-        int(settings.sample_archive_interval_seconds /
-            max(1, settings.auto_retrain_check_interval_seconds)),
+        int(settings.sample_archive_interval_seconds / max(1, settings.auto_retrain_check_interval_seconds)),
     )
     counter = 0
     while True:

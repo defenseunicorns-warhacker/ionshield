@@ -144,9 +144,7 @@ def test_submissions_pagination():
 
 
 def test_submissions_honeypot_rows_marked_spam():
-    client.post(
-        "/api/v2/contact", json={**VALID, "org": "SpamBot", "website": "http://x.com"}
-    )
+    client.post("/api/v2/contact", json={**VALID, "org": "SpamBot", "website": "http://x.com"})
     r = client.get("/api/v2/submissions")
     rows = r.json()["submissions"]
     spam_rows = [row for row in rows if row["org"] == "SpamBot"]

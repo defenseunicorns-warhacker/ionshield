@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.data.fusion import _glotec_at, _index_glotec, fuse_snapshot, fused_grid_payload
-from app.models.ontology import Region
 
 
 def _fc(points: list[tuple[float, float, float, float]]) -> dict:
@@ -17,8 +16,11 @@ def _fc(points: list[tuple[float, float, float, float]]) -> dict:
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [lon, lat]},
                 "properties": {
-                    "tec": tec, "anomaly": anom, "hmF2": 300.0,
-                    "NmF2": 1.5e11, "quality_flag": 0,
+                    "tec": tec,
+                    "anomaly": anom,
+                    "hmF2": 300.0,
+                    "NmF2": 1.5e11,
+                    "quality_flag": 0,
                 },
             }
             for (lat, lon, tec, anom) in points
@@ -78,15 +80,21 @@ def test_glotec_skips_bad_quality():
 
 
 def test_fuse_snapshot_full_grid_with_real_shape():
-    fc = _fc([
-        (30, 150, 22.0, 5.0),
-        (-30, -90, 9.0, -1.0),
-        (60, 0, 18.0, 3.0),
-    ])
+    fc = _fc(
+        [
+            (30, 150, 22.0, 5.0),
+            (-30, -90, 9.0, -1.0),
+            (60, 0, 18.0, 3.0),
+        ]
+    )
     fused = fuse_snapshot(
         when=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp=4.0, bz_nt=-3.0, wind_speed_km_s=480.0,
-        xray_flux_wm2=2e-6, proton_flux_10mev_pfu=0.5, f107_sfu=120.0,
+        kp=4.0,
+        bz_nt=-3.0,
+        wind_speed_km_s=480.0,
+        xray_flux_wm2=2e-6,
+        proton_flux_10mev_pfu=0.5,
+        f107_sfu=120.0,
         glotec_fc=fc,
         feed_quality={"kp": "ok"},
         data_age_seconds=60,
@@ -108,8 +116,12 @@ def test_fuse_snapshot_falls_back_when_glotec_missing():
     """Without GloTEC, fall back to lat-bucketed quiet climatology at low Kp."""
     fused = fuse_snapshot(
         when=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp=2.0, bz_nt=0.0, wind_speed_km_s=400.0,
-        xray_flux_wm2=1e-7, proton_flux_10mev_pfu=0.1, f107_sfu=70.0,
+        kp=2.0,
+        bz_nt=0.0,
+        wind_speed_km_s=400.0,
+        xray_flux_wm2=1e-7,
+        proton_flux_10mev_pfu=0.1,
+        f107_sfu=70.0,
         glotec_fc=None,
     )
     assert len(fused) == 324
@@ -128,8 +140,12 @@ def test_fuse_snapshot_storm_enhances_climatology_tec():
     """At Kp=7 without GloTEC, climatology TEC scales by (1 + 0.40·(Kp-4))."""
     fused = fuse_snapshot(
         when=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp=7.0, bz_nt=-10.0, wind_speed_km_s=600.0,
-        xray_flux_wm2=1e-6, proton_flux_10mev_pfu=1.0, f107_sfu=120.0,
+        kp=7.0,
+        bz_nt=-10.0,
+        wind_speed_km_s=600.0,
+        xray_flux_wm2=1e-6,
+        proton_flux_10mev_pfu=1.0,
+        f107_sfu=120.0,
         glotec_fc=None,
     )
     storm_mult = 1.0 + 0.40 * (7.0 - 4.0)  # = 2.2
@@ -143,8 +159,12 @@ def test_fuse_snapshot_quiet_kp_no_storm_enhancement():
     """Kp ≤ 4 must not enhance the climatology baseline."""
     fused = fuse_snapshot(
         when=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp=3.5, bz_nt=0.0, wind_speed_km_s=400.0,
-        xray_flux_wm2=1e-7, proton_flux_10mev_pfu=0.1, f107_sfu=70.0,
+        kp=3.5,
+        bz_nt=0.0,
+        wind_speed_km_s=400.0,
+        xray_flux_wm2=1e-7,
+        proton_flux_10mev_pfu=0.1,
+        f107_sfu=70.0,
         glotec_fc=None,
     )
     midlat = next(o for o in fused if 20 < abs(o.region.lat_deg) < 55)
@@ -154,8 +174,12 @@ def test_fuse_snapshot_quiet_kp_no_storm_enhancement():
 def test_fused_grid_payload_shape():
     fused = fuse_snapshot(
         when=None,
-        kp=2.0, bz_nt=0.0, wind_speed_km_s=400.0,
-        xray_flux_wm2=1e-7, proton_flux_10mev_pfu=0.1, f107_sfu=70.0,
+        kp=2.0,
+        bz_nt=0.0,
+        wind_speed_km_s=400.0,
+        xray_flux_wm2=1e-7,
+        proton_flux_10mev_pfu=0.1,
+        f107_sfu=70.0,
         glotec_fc=None,
     )
     payload = fused_grid_payload(fused)

@@ -31,15 +31,16 @@ class EventType(str, Enum):
     Mirrors NOAA scales where applicable (G, S, R) plus phase-resolved
     geomagnetic storm states for replay/analytics.
     """
-    BACKGROUND = "BACKGROUND"            # quiet conditions
-    GEOMAG_INITIAL = "GEOMAG_INITIAL"    # storm sudden commencement
-    GEOMAG_MAIN = "GEOMAG_MAIN"          # main phase, Dst dropping
+
+    BACKGROUND = "BACKGROUND"  # quiet conditions
+    GEOMAG_INITIAL = "GEOMAG_INITIAL"  # storm sudden commencement
+    GEOMAG_MAIN = "GEOMAG_MAIN"  # main phase, Dst dropping
     GEOMAG_RECOVERY = "GEOMAG_RECOVERY"  # recovery phase
-    SUBSTORM = "SUBSTORM"                # auroral substorm
-    SEP_EVENT = "SEP_EVENT"              # solar energetic particle event (S-scale)
-    FLARE_M = "FLARE_M"                  # M-class X-ray flare (R1–R2)
-    FLARE_X = "FLARE_X"                  # X-class X-ray flare (R3+)
-    PCA = "PCA"                          # polar cap absorption
+    SUBSTORM = "SUBSTORM"  # auroral substorm
+    SEP_EVENT = "SEP_EVENT"  # solar energetic particle event (S-scale)
+    FLARE_M = "FLARE_M"  # M-class X-ray flare (R1–R2)
+    FLARE_X = "FLARE_X"  # X-class X-ray flare (R3+)
+    PCA = "PCA"  # polar cap absorption
 
 
 class SystemType(str, Enum):
@@ -47,16 +48,17 @@ class SystemType(str, Enum):
 
     The set is closed; new systems require an entry in VULNERABILITY_MATRIX.
     """
-    GPS_L1 = "GPS_L1"            # single-frequency L1 C/A
-    GPS_L1L2 = "GPS_L1L2"        # dual-frequency, ionospheric correction
-    GPS_L1L5 = "GPS_L1L5"        # modernized dual-frequency
-    GPS_INS = "GPS_INS"          # INS-aided GPS (degraded gracefully)
-    SBAS = "SBAS"                # WAAS/EGNOS-corrected
-    HF_RADIO = "HF_RADIO"        # 3–30 MHz skywave
-    SATCOM_L = "SATCOM_L"        # L-band satellite (1–2 GHz, scintillation-prone)
-    SATCOM_KU = "SATCOM_KU"      # Ku-band satellite (12–18 GHz, less affected)
-    RADAR_HF = "RADAR_HF"        # OTH HF radar
-    RADAR_VHF = "RADAR_VHF"      # VHF surveillance radar
+
+    GPS_L1 = "GPS_L1"  # single-frequency L1 C/A
+    GPS_L1L2 = "GPS_L1L2"  # dual-frequency, ionospheric correction
+    GPS_L1L5 = "GPS_L1L5"  # modernized dual-frequency
+    GPS_INS = "GPS_INS"  # INS-aided GPS (degraded gracefully)
+    SBAS = "SBAS"  # WAAS/EGNOS-corrected
+    HF_RADIO = "HF_RADIO"  # 3–30 MHz skywave
+    SATCOM_L = "SATCOM_L"  # L-band satellite (1–2 GHz, scintillation-prone)
+    SATCOM_KU = "SATCOM_KU"  # Ku-band satellite (12–18 GHz, less affected)
+    RADAR_HF = "RADAR_HF"  # OTH HF radar
+    RADAR_VHF = "RADAR_VHF"  # VHF surveillance radar
 
 
 class OperationalState(str, Enum):
@@ -65,6 +67,7 @@ class OperationalState(str, Enum):
     Ordered from best to worst: comparisons via `value` ordering are not safe
     in Python Enums by default — use `OPERATIONAL_STATE_ORDER` for ranking.
     """
+
     NOMINAL = "NOMINAL"
     ELEVATED = "ELEVATED"
     DEGRADED = "DEGRADED"
@@ -91,12 +94,13 @@ class Region:
     `"R+30+150"` for a 10°×20° cell centered at (30°N, 150°E). The id is
     stable across runs so it can be used as a primary key in Foundry.
     """
+
     region_id: str
-    lat_deg: float           # cell center
-    lon_deg: float           # cell center
-    lat_size_deg: float      # cell height
-    lon_size_deg: float      # cell width
-    geomag_lat_deg: float    # geomagnetic latitude (centered dipole approx)
+    lat_deg: float  # cell center
+    lon_deg: float  # cell center
+    lat_size_deg: float  # cell height
+    lon_size_deg: float  # cell width
+    geomag_lat_deg: float  # geomagnetic latitude (centered dipole approx)
 
     @classmethod
     def from_center(
@@ -149,10 +153,7 @@ def geomagnetic_latitude(lat_deg: float, lon_deg: float) -> float:
     pole_lon = math.radians(287.32)
     lat = math.radians(lat_deg)
     lon = math.radians(lon_deg)
-    sin_mag = (
-        math.sin(pole_lat) * math.sin(lat)
-        + math.cos(pole_lat) * math.cos(lat) * math.cos(lon - pole_lon)
-    )
+    sin_mag = math.sin(pole_lat) * math.sin(lat) + math.cos(pole_lat) * math.cos(lat) * math.cos(lon - pole_lon)
     sin_mag = max(-1.0, min(1.0, sin_mag))
     return math.degrees(math.asin(sin_mag))
 
@@ -182,6 +183,7 @@ class TimeWindow:
     10-minute updates) so consumers know how dense the underlying samples
     are inside the window.
     """
+
     start: datetime
     end: datetime
     cadence_seconds: int = 0
@@ -194,6 +196,7 @@ class TimeWindow:
     def at(cls, t: datetime, cadence_seconds: int = 0) -> "TimeWindow":
         """An instantaneous window of width 1µs at t (handy for snapshots)."""
         from datetime import timedelta
+
         return cls(t, t + timedelta(microseconds=1), cadence_seconds)
 
 
@@ -206,6 +209,7 @@ class FusedObservation:
     from NOAA), local ionospheric state (from GloTEC), geomagnetic indices,
     plus the data-quality bookkeeping needed for confidence scoring.
     """
+
     region: Region
     when: datetime
 
@@ -255,6 +259,7 @@ class FusedObservation:
 
 class Driver(str, Enum):
     """Environmental drivers a SystemType can be vulnerable to."""
+
     KP = "KP"
     BZ = "BZ"
     WIND_SPEED = "WIND_SPEED"
@@ -277,11 +282,12 @@ class OperationalThreshold:
     `region_filter` (optional) restricts the rule to a region predicate
     (e.g. "polar" → fires only when region.is_polar). None = global.
     """
+
     driver: Driver
-    comparator: str          # ">=" | ">" | "<=" | "<"
+    comparator: str  # ">=" | ">" | "<=" | "<"
     value: float
     state: OperationalState
-    region_filter: str | None = None   # None | "polar" | "auroral" | "equatorial"
+    region_filter: str | None = None  # None | "polar" | "auroral" | "equatorial"
     rationale: str = ""
 
     def fires(self, env_value: float, region: Region) -> bool:
@@ -310,5 +316,6 @@ class Vulnerability:
     Rules are evaluated independently; the resulting state is the worst that
     fires. Use `evaluate(...)` to score a FusedObservation.
     """
+
     system: SystemType
     thresholds: tuple[OperationalThreshold, ...]

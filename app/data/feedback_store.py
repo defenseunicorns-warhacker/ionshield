@@ -98,11 +98,7 @@ async def attach_feedback(sample_id: int, user_feedback: str) -> bool:
 async def list_samples(limit: int = 100, only_with_feedback: bool = False) -> list[dict]:
     engine = get_engine()
     async with engine.begin() as conn:
-        stmt = (
-            select(training_samples)
-            .order_by(desc(training_samples.c.created_at))
-            .limit(limit)
-        )
+        stmt = select(training_samples).order_by(desc(training_samples.c.created_at)).limit(limit)
         if only_with_feedback:
             stmt = stmt.where(training_samples.c.user_feedback != "")
         rows = (await conn.execute(stmt)).mappings().all()
@@ -127,13 +123,15 @@ async def fetch_for_training(limit: int = 5000) -> list[dict]:
     rows = await list_samples(limit=limit, only_with_feedback=False)
     out: list[dict] = []
     for r in rows:
-        out.append({
-            "features": json.loads(r["features_json"]),
-            "label": r["user_feedback"] if r["user_feedback"] else r["rule_label"],
-            "is_user_corrected": bool(r["user_feedback"]),
-            "ml_label": r["ml_label"],
-            "ml_confidence": r["ml_confidence"],
-        })
+        out.append(
+            {
+                "features": json.loads(r["features_json"]),
+                "label": r["user_feedback"] if r["user_feedback"] else r["rule_label"],
+                "is_user_corrected": bool(r["user_feedback"]),
+                "ml_label": r["ml_label"],
+                "ml_confidence": r["ml_confidence"],
+            }
+        )
     return out
 
 
@@ -152,7 +150,10 @@ async def drift_metrics(window: int = 500) -> dict[str, Any]:
     rows = await list_samples(limit=window)
     if not rows:
         return {
-            "n": 0, "agreement": None, "mean_confidence": None, "by_class": {},
+            "n": 0,
+            "agreement": None,
+            "mean_confidence": None,
+            "by_class": {},
         }
     matches = 0
     confs: list[float] = []
@@ -213,9 +214,11 @@ async def record_outcome(
 async def list_outcomes(limit: int = 100) -> list[dict]:
     engine = get_engine()
     async with engine.begin() as conn:
-        rows = (await conn.execute(
-            select(outcomes_table).order_by(desc(outcomes_table.c.observed_at)).limit(limit)
-        )).mappings().all()
+        rows = (
+            (await conn.execute(select(outcomes_table).order_by(desc(outcomes_table.c.observed_at)).limit(limit)))
+            .mappings()
+            .all()
+        )
         return [dict(r) for r in rows]
 
 
@@ -247,17 +250,9 @@ async def register_model_version(
     try:
         async with engine.begin() as conn:
             if activate:
-                await conn.execute(
-                    update(model_versions).values(active=0).where(
-                        model_versions.c.active == 1
-                    )
-                )
+                await conn.execute(update(model_versions).values(active=0).where(model_versions.c.active == 1))
             if challenger:
-                await conn.execute(
-                    update(model_versions).values(challenger=0).where(
-                        model_versions.c.challenger == 1
-                    )
-                )
+                await conn.execute(update(model_versions).values(challenger=0).where(model_versions.c.challenger == 1))
             r = await conn.execute(
                 insert(model_versions).values(
                     version=version,
@@ -280,9 +275,11 @@ async def register_model_version(
 async def challenger_model_version() -> dict | None:
     engine = get_engine()
     async with engine.begin() as conn:
-        r = (await conn.execute(
-            select(model_versions).where(model_versions.c.challenger == 1).limit(1)
-        )).mappings().first()
+        r = (
+            (await conn.execute(select(model_versions).where(model_versions.c.challenger == 1).limit(1)))
+            .mappings()
+            .first()
+        )
         return dict(r) if r else None
 
 
@@ -292,15 +289,9 @@ async def promote_challenger(version: str) -> bool:
     try:
         async with engine.begin() as conn:
             # Clear any prior champion + clear challenger flag for promoted row
-            await conn.execute(
-                update(model_versions).values(active=0).where(
-                    model_versions.c.active == 1
-                )
-            )
+            await conn.execute(update(model_versions).values(active=0).where(model_versions.c.active == 1))
             r = await conn.execute(
-                update(model_versions)
-                .values(active=1, challenger=0)
-                .where(model_versions.c.version == version)
+                update(model_versions).values(active=1, challenger=0).where(model_versions.c.version == version)
             )
         return (r.rowcount or 0) > 0
     except Exception as exc:
@@ -313,11 +304,7 @@ async def retire_challenger() -> bool:
     engine = get_engine()
     try:
         async with engine.begin() as conn:
-            r = await conn.execute(
-                update(model_versions).values(challenger=0).where(
-                    model_versions.c.challenger == 1
-                )
-            )
+            r = await conn.execute(update(model_versions).values(challenger=0).where(model_versions.c.challenger == 1))
         return (r.rowcount or 0) > 0
     except Exception as exc:
         logger.warning("retire_challenger failed: %s", exc)
@@ -331,17 +318,22 @@ async def shadow_metrics(window: int = 200) -> dict:
     """
     engine = get_engine()
     async with engine.begin() as conn:
-        rows = (await conn.execute(
-            select(training_samples)
-            .where(training_samples.c.challenger_label.is_not(None))
-            .order_by(desc(training_samples.c.created_at))
-            .limit(window)
-        )).mappings().all()
+        rows = (
+            (
+                await conn.execute(
+                    select(training_samples)
+                    .where(training_samples.c.challenger_label.is_not(None))
+                    .order_by(desc(training_samples.c.created_at))
+                    .limit(window)
+                )
+            )
+            .mappings()
+            .all()
+        )
 
     n = len(rows)
     if n == 0:
-        return {"n": 0, "champion_agreement": None,
-                "challenger_agreement": None, "advantage": None}
+        return {"n": 0, "champion_agreement": None, "challenger_agreement": None, "advantage": None}
 
     champ_match = sum(1 for r in rows if r["ml_label"] == r["rule_label"])
     chal_match = sum(1 for r in rows if r["challenger_label"] == r["rule_label"])
@@ -358,16 +350,16 @@ async def shadow_metrics(window: int = 200) -> dict:
 async def list_model_versions(limit: int = 20) -> list[dict]:
     engine = get_engine()
     async with engine.begin() as conn:
-        rows = (await conn.execute(
-            select(model_versions).order_by(desc(model_versions.c.trained_at)).limit(limit)
-        )).mappings().all()
+        rows = (
+            (await conn.execute(select(model_versions).order_by(desc(model_versions.c.trained_at)).limit(limit)))
+            .mappings()
+            .all()
+        )
         return [dict(r) for r in rows]
 
 
 async def active_model_version() -> dict | None:
     engine = get_engine()
     async with engine.begin() as conn:
-        r = (await conn.execute(
-            select(model_versions).where(model_versions.c.active == 1).limit(1)
-        )).mappings().first()
+        r = (await conn.execute(select(model_versions).where(model_versions.c.active == 1).limit(1))).mappings().first()
         return dict(r) if r else None

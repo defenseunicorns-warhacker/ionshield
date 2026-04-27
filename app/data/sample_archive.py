@@ -36,8 +36,7 @@ def _row_to_archive_dict(row: dict) -> dict:
     return {
         "id": row["id"],
         "created_at": (
-            row["created_at"].isoformat()
-            if hasattr(row["created_at"], "isoformat") else str(row["created_at"])
+            row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else str(row["created_at"])
         ),
         "region_id": row["region_id"],
         "features_json": row["features_json"],
@@ -82,16 +81,15 @@ async def archive_aged_samples(
         and settings.foundry_token.get_secret_value()
         and rid
     ):
-        return {"archived": 0, "deleted": 0,
-                "skipped_reason": "foundry_archive_not_configured"}
+        return {"archived": 0, "deleted": 0, "skipped_reason": "foundry_archive_not_configured"}
 
     engine = get_engine()
     async with engine.begin() as conn:
-        rows = (await conn.execute(
-            select(training_samples)
-            .where(training_samples.c.created_at < cutoff)
-            .limit(batch)
-        )).mappings().all()
+        rows = (
+            (await conn.execute(select(training_samples).where(training_samples.c.created_at < cutoff).limit(batch)))
+            .mappings()
+            .all()
+        )
 
     if not rows:
         return {"archived": 0, "deleted": 0, "skipped_reason": "no_aged_rows"}
@@ -104,21 +102,15 @@ async def archive_aged_samples(
         token=settings.foundry_token.get_secret_value(),
     )
     if not ok:
-        return {"archived": 0, "deleted": 0,
-                "skipped_reason": "foundry_sync_failed"}
+        return {"archived": 0, "deleted": 0, "skipped_reason": "foundry_sync_failed"}
 
     ids = [r["id"] for r in rows]
     try:
         async with engine.begin() as conn:
-            await conn.execute(
-                delete(training_samples)
-                .where(training_samples.c.id.in_(ids))
-            )
+            await conn.execute(delete(training_samples).where(training_samples.c.id.in_(ids)))
     except Exception as exc:
         logger.warning("Sample-archive delete failed: %s", exc)
-        return {"archived": len(rows), "deleted": 0,
-                "skipped_reason": f"db_delete_error:{exc}"}
+        return {"archived": len(rows), "deleted": 0, "skipped_reason": f"db_delete_error:{exc}"}
 
-    logger.info("Archived %d training samples to Foundry; deleted from DB",
-                len(rows))
+    logger.info("Archived %d training samples to Foundry; deleted from DB", len(rows))
     return {"archived": len(rows), "deleted": len(rows), "skipped_reason": None}

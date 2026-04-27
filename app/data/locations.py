@@ -76,9 +76,7 @@ def load_locations(path_str: str, default_threshold: str = "ELEVATED") -> None:
                     "lat": float(entry["lat"]),
                     "lon": float(entry["lon"]),
                     "asset_type": str(entry.get("asset_type", "GPS_L1")),
-                    "alert_threshold": str(
-                        entry.get("alert_threshold", default_threshold)
-                    ).upper(),
+                    "alert_threshold": str(entry.get("alert_threshold", default_threshold)).upper(),
                 }
             )
 
@@ -99,9 +97,7 @@ def assess_all(kp: float) -> None:
 
     for loc in _locations:
         try:
-            risk = compute_risk(
-                loc["lat"], loc["lon"], kp, asset_type=loc["asset_type"]
-            )
+            risk = compute_risk(loc["lat"], loc["lon"], kp, asset_type=loc["asset_type"])
             _assessments[loc["id"]] = risk
             _tick_alert(loc, risk["assessment"]["risk_level"])
         except Exception as exc:

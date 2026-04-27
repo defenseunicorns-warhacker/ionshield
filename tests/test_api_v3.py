@@ -33,9 +33,17 @@ def test_v3_risk_map_returns_global_grid():
     assert body["n_regions"] == 324
     assert len(body["regions"]) == 324
     sample = body["regions"][0]
-    assert {"region_id", "lat_deg", "lon_deg", "geomag_lat_deg",
-            "tec_tecu", "gps_l1_error_m", "hf_absorption_db",
-            "satcom_l_fade_db", "radar_l_range_bias_m"}.issubset(sample)
+    assert {
+        "region_id",
+        "lat_deg",
+        "lon_deg",
+        "geomag_lat_deg",
+        "tec_tecu",
+        "gps_l1_error_m",
+        "hf_absorption_db",
+        "satcom_l_fade_db",
+        "radar_l_range_bias_m",
+    }.issubset(sample)
     assert "drivers" in body
     assert "kp_index" in body["drivers"]
 

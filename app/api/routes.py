@@ -182,8 +182,7 @@ async def risk_route(request: Request, req: RouteRequest, _: None = _auth):
 
     if worst_score >= 60:
         route_rec = (
-            f"NO-GO — Waypoint {worst_idx} ({w_name}) at {w_level}. "
-            f"GPS error {w_err} m. Postpone or re-route."
+            f"NO-GO — Waypoint {worst_idx} ({w_name}) at {w_level}. " f"GPS error {w_err} m. Postpone or re-route."
         )
     elif worst_score >= 40:
         route_rec = (
@@ -192,8 +191,7 @@ async def risk_route(request: Request, req: RouteRequest, _: None = _auth):
         )
     elif worst_score >= 20:
         route_rec = (
-            f"ADVISORY — Elevated risk at waypoint {worst_idx} ({w_name}). "
-            f"GPS error {w_err} m. Monitor conditions."
+            f"ADVISORY — Elevated risk at waypoint {worst_idx} ({w_name}). " f"GPS error {w_err} m. Monitor conditions."
         )
     else:
         route_rec = "GO — All waypoints nominal. Standard operations."
@@ -255,12 +253,8 @@ async def api_forecast(request: Request, _: None = _auth):
 @limiter.limit(settings.rate_limit)
 async def hf_link(
     request: Request,
-    lat: float = Query(
-        ..., ge=-90, le=90, description="Observer latitude (decimal degrees)"
-    ),
-    lon: float = Query(
-        ..., ge=-180, le=180, description="Observer longitude (decimal degrees)"
-    ),
+    lat: float = Query(..., ge=-90, le=90, description="Observer latitude (decimal degrees)"),
+    lon: float = Query(..., ge=-180, le=180, description="Observer longitude (decimal degrees)"),
     dest_lat: float | None = Query(
         default=None,
         ge=-90,

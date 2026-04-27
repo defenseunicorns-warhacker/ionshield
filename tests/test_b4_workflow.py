@@ -83,6 +83,7 @@ def test_recipe_endpoint_404_for_live_scenario():
 def isolate_video_sidecars(tmp_path, monkeypatch):
     """Redirect video sidecar writes into a tmp dir so tests don't litter."""
     from app.data import scenario_precompute as sp
+
     monkeypatch.setattr(sp, "OUTPUT_ROOT", tmp_path / "out")
     yield tmp_path
 
@@ -91,9 +92,7 @@ def test_register_video_writes_sidecar(isolate_video_sidecars):
     with TestClient(app) as client:
         r = client.post(
             "/api/v3/scenarios/may-2024-g5/video",
-            json={"video_url": "https://cdn.example.com/may.mp4",
-                  "duration_seconds": 30,
-                  "notes": "test render"},
+            json={"video_url": "https://cdn.example.com/may.mp4", "duration_seconds": 30, "notes": "test render"},
         )
         assert r.status_code == 200
         body = r.json()
@@ -147,8 +146,7 @@ def test_catalog_merges_video_sidecar(isolate_video_sidecars):
         # Register
         client.post(
             "/api/v3/scenarios/may-2024-g5/video",
-            json={"video_url": "https://cdn.example.com/may.mp4",
-                  "duration_seconds": 30, "notes": "demo render"},
+            json={"video_url": "https://cdn.example.com/may.mp4", "duration_seconds": 30, "notes": "demo render"},
         )
 
         # After-state: catalog merges sidecar over the catalog field
@@ -163,7 +161,7 @@ def test_catalog_merges_video_sidecar(isolate_video_sidecars):
 
 
 def test_runbook_exists_and_documents_workflow():
-    runbook = (Path(__file__).parent.parent / "docs" / "earth-studio-workflow.md")
+    runbook = Path(__file__).parent.parent / "docs" / "earth-studio-workflow.md"
     assert runbook.exists()
     text = runbook.read_text()
     # Spot-check the core workflow steps
@@ -176,7 +174,7 @@ def test_runbook_exists_and_documents_workflow():
 
 
 def test_prepare_script_references_recipe_endpoint():
-    script = (Path(__file__).parent.parent / "scripts" / "prepare_scenario.sh")
+    script = Path(__file__).parent.parent / "scripts" / "prepare_scenario.sh"
     assert script.exists()
     text = script.read_text()
     assert "/api/v3/scenarios" in text
@@ -184,7 +182,7 @@ def test_prepare_script_references_recipe_endpoint():
 
 
 def test_publish_script_calls_video_endpoint():
-    script = (Path(__file__).parent.parent / "scripts" / "publish_scenario_video.sh")
+    script = Path(__file__).parent.parent / "scripts" / "publish_scenario_video.sh"
     assert script.exists()
     text = script.read_text()
     assert "/api/v3/scenarios/" in text

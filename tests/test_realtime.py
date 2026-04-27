@@ -59,9 +59,13 @@ def test_breaker_resets_failure_count_on_success():
 
 
 def test_breaker_half_open_after_cooldown():
-    cb = CircuitBreaker(BreakerConfig(
-        failure_threshold=2, cooldown_seconds=0.01, name="t",
-    ))
+    cb = CircuitBreaker(
+        BreakerConfig(
+            failure_threshold=2,
+            cooldown_seconds=0.01,
+            name="t",
+        )
+    )
 
     async def go():
         await cb.record_failure()
@@ -75,9 +79,13 @@ def test_breaker_half_open_after_cooldown():
 
 
 def test_breaker_half_open_success_closes():
-    cb = CircuitBreaker(BreakerConfig(
-        failure_threshold=2, cooldown_seconds=0.01, name="t",
-    ))
+    cb = CircuitBreaker(
+        BreakerConfig(
+            failure_threshold=2,
+            cooldown_seconds=0.01,
+            name="t",
+        )
+    )
 
     async def go():
         await cb.record_failure()
@@ -91,15 +99,19 @@ def test_breaker_half_open_success_closes():
 
 
 def test_breaker_half_open_failure_reopens():
-    cb = CircuitBreaker(BreakerConfig(
-        failure_threshold=2, cooldown_seconds=0.01, name="t",
-    ))
+    cb = CircuitBreaker(
+        BreakerConfig(
+            failure_threshold=2,
+            cooldown_seconds=0.01,
+            name="t",
+        )
+    )
 
     async def go():
         await cb.record_failure()
         await cb.record_failure()
         await asyncio.sleep(0.05)
-        await cb.allow()           # → HALF_OPEN
+        await cb.allow()  # → HALF_OPEN
         await cb.record_failure()  # probe failed
 
     asyncio.run(go())
@@ -176,12 +188,14 @@ def test_run_all_skips_when_breaker_open():
     async def fetch_bad(timeout):
         raise RuntimeError("boom")
 
-    register(DataSource(
-        name="bad",
-        cadence_seconds=60,
-        fetch_async=fetch_bad,
-        breaker_config=BreakerConfig(failure_threshold=2, cooldown_seconds=60),
-    ))
+    register(
+        DataSource(
+            name="bad",
+            cadence_seconds=60,
+            fetch_async=fetch_bad,
+            breaker_config=BreakerConfig(failure_threshold=2, cooldown_seconds=60),
+        )
+    )
 
     asyncio.run(run_all())
     asyncio.run(run_all())  # 2 failures → OPEN
@@ -193,10 +207,14 @@ def test_run_all_respects_per_source_timeout():
     async def fetch_slow(timeout):
         await asyncio.sleep(2.0)
 
-    register(DataSource(
-        name="slow", cadence_seconds=60, fetch_async=fetch_slow,
-        timeout_seconds=0.05,
-    ))
+    register(
+        DataSource(
+            name="slow",
+            cadence_seconds=60,
+            fetch_async=fetch_slow,
+            timeout_seconds=0.05,
+        )
+    )
     results = asyncio.run(run_all())
     assert results["slow"] == "timeout"
 
@@ -205,12 +223,14 @@ def test_health_snapshot_shape():
     async def fetch_ok(timeout):
         return None
 
-    register(DataSource(
-        name="src",
-        cadence_seconds=300,
-        fetch_async=fetch_ok,
-        status_async=lambda: {"x": 1},
-    ))
+    register(
+        DataSource(
+            name="src",
+            cadence_seconds=300,
+            fetch_async=fetch_ok,
+            status_async=lambda: {"x": 1},
+        )
+    )
     snap = registry.health_snapshot()
     assert "src" in snap
     assert snap["src"]["cadence_seconds"] == 300

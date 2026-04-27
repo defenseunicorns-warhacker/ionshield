@@ -352,9 +352,7 @@ def test_cot_argb_values():
     from app.outputs.cot import _RISK_ARGB
 
     for level, argb in _RISK_ARGB.items():
-        assert (
-            -(2**31) <= argb < 0
-        ), f"{level} ARGB should be negative signed int32, got {argb}"
+        assert -(2**31) <= argb < 0, f"{level} ARGB should be negative signed int32, got {argb}"
 
 
 # ── Security headers ──────────────────────────────────────────────────────────

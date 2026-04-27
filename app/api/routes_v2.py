@@ -91,18 +91,14 @@ class PlatformRequest(BaseModel):
 
 
 class RouteDecisionRequest(BaseModel):
-    waypoints: list[WaypointRequest] = Field(
-        ..., min_length=1, description="Ordered list of route waypoints"
-    )
+    waypoints: list[WaypointRequest] = Field(..., min_length=1, description="Ordered list of route waypoints")
     platform: PlatformRequest = Field(default_factory=PlatformRequest)
 
 
 class RouteReplayRequest(BaseModel):
     """Body for POST /api/v2/replay/route — same as RouteDecisionRequest + snapshot locator."""
 
-    waypoints: list[WaypointRequest] = Field(
-        ..., min_length=1, description="Ordered list of route waypoints"
-    )
+    waypoints: list[WaypointRequest] = Field(..., min_length=1, description="Ordered list of route waypoints")
     platform: PlatformRequest = Field(default_factory=PlatformRequest)
     snapshot_id: int | None = Field(
         default=None,
@@ -149,12 +145,8 @@ def _build_env() -> EnvironmentSnapshot:
         ObservationInput("NOAA_SWPC", "kp_index", kp_val, "index", now_iso, age),
         ObservationInput("NOAA_SWPC", "bz_gsm_nt", bz_val, "nT", now_iso, age),
         ObservationInput("NOAA_SWPC", "xray_flux_wm2", xray_val, "W/m²", now_iso, age),
-        ObservationInput(
-            "NOAA_SWPC", "proton_flux_10mev_pfu", proton_val, "pfu", now_iso, age
-        ),
-        ObservationInput(
-            "NOAA_SWPC", "solar_wind_km_s", wind_val, "km/s", now_iso, age
-        ),
+        ObservationInput("NOAA_SWPC", "proton_flux_10mev_pfu", proton_val, "pfu", now_iso, age),
+        ObservationInput("NOAA_SWPC", "solar_wind_km_s", wind_val, "km/s", now_iso, age),
     ]
 
     # Extract 24-hour peak Kp from the forecast feed (conservative: take the max
@@ -236,18 +228,10 @@ def _platform_from_request(req: PlatformRequest) -> PlatformInput:
 @_limiter.limit(settings.rate_limit)
 async def comms_decision(
     request: Request,
-    lat: float = Query(
-        ..., ge=-90, le=90, description="Observer latitude (decimal degrees)"
-    ),
-    lon: float = Query(
-        ..., ge=-180, le=180, description="Observer longitude (decimal degrees)"
-    ),
-    dest_lat: float | None = Query(
-        default=None, ge=-90, le=90, description="Link destination latitude"
-    ),
-    dest_lon: float | None = Query(
-        default=None, ge=-180, le=180, description="Link destination longitude"
-    ),
+    lat: float = Query(..., ge=-90, le=90, description="Observer latitude (decimal degrees)"),
+    lon: float = Query(..., ge=-180, le=180, description="Observer longitude (decimal degrees)"),
+    dest_lat: float | None = Query(default=None, ge=-90, le=90, description="Link destination latitude"),
+    dest_lon: float | None = Query(default=None, ge=-180, le=180, description="Link destination longitude"),
     _: None = _auth,
 ):
     """
@@ -406,9 +390,7 @@ async def snapshot_detail(
     return {
         "id": row["id"],
         "fetched_at": (
-            row["fetched_at"].isoformat()
-            if hasattr(row["fetched_at"], "isoformat")
-            else str(row["fetched_at"])
+            row["fetched_at"].isoformat() if hasattr(row["fetched_at"], "isoformat") else str(row["fetched_at"])
         ),
         "fetch_source": row["fetch_source"],
         "kp": row["kp"],
@@ -471,9 +453,7 @@ async def _locate_snapshot(snapshot_id: int | None, at: str | None):
 def _replay_meta(row) -> dict:
     """Build the replay metadata block included in replay responses."""
     fetched_at = row["fetched_at"]
-    fetched_at_iso = (
-        fetched_at.isoformat() if hasattr(fetched_at, "isoformat") else str(fetched_at)
-    )
+    fetched_at_iso = fetched_at.isoformat() if hasattr(fetched_at, "isoformat") else str(fetched_at)
     return {
         "snapshot_id": row["id"],
         "fetched_at": fetched_at_iso,
@@ -495,21 +475,11 @@ def _replay_meta(row) -> dict:
 @_limiter.limit(settings.rate_limit)
 async def replay_comms(
     request: Request,
-    lat: float = Query(
-        ..., ge=-90, le=90, description="Observer latitude (decimal degrees)"
-    ),
-    lon: float = Query(
-        ..., ge=-180, le=180, description="Observer longitude (decimal degrees)"
-    ),
-    dest_lat: float | None = Query(
-        default=None, ge=-90, le=90, description="Link destination latitude"
-    ),
-    dest_lon: float | None = Query(
-        default=None, ge=-180, le=180, description="Link destination longitude"
-    ),
-    snapshot_id: int | None = Query(
-        default=None, description="Replay from this snapshot ID"
-    ),
+    lat: float = Query(..., ge=-90, le=90, description="Observer latitude (decimal degrees)"),
+    lon: float = Query(..., ge=-180, le=180, description="Observer longitude (decimal degrees)"),
+    dest_lat: float | None = Query(default=None, ge=-90, le=90, description="Link destination latitude"),
+    dest_lon: float | None = Query(default=None, ge=-180, le=180, description="Link destination longitude"),
+    snapshot_id: int | None = Query(default=None, description="Replay from this snapshot ID"),
     at: str | None = Query(
         default=None,
         description=(
@@ -644,18 +614,10 @@ async def replay_route(
 
 
 class PilotInquiryRequest(BaseModel):
-    org: str = Field(
-        ..., min_length=1, max_length=500, description="Organization or agency name"
-    )
-    email: str = Field(
-        ..., min_length=5, max_length=254, description="Work email address"
-    )
-    sector: str = Field(
-        default="Other", max_length=100, description="Primary operating sector"
-    )
-    interest: str = Field(
-        default="", max_length=4000, description="Mission profile / use case"
-    )
+    org: str = Field(..., min_length=1, max_length=500, description="Organization or agency name")
+    email: str = Field(..., min_length=5, max_length=254, description="Work email address")
+    sector: str = Field(default="Other", max_length=100, description="Primary operating sector")
+    interest: str = Field(default="", max_length=4000, description="Mission profile / use case")
     # Honeypot: real users never see or fill this field (hidden via CSS).
     # If it's non-empty a bot filled the form — silently accept, mark spam, skip email.
     website: str = Field(default="", max_length=200, description="Leave blank")
@@ -703,9 +665,7 @@ async def submit_contact(
             client_ip=client_ip,
             status="spam" if is_spam else "new",
         )
-        logger.info(
-            "pilot inquiry saved: id=%s org=%r spam=%s", row_id, req.org[:40], is_spam
-        )
+        logger.info("pilot inquiry saved: id=%s org=%r spam=%s", row_id, req.org[:40], is_spam)
 
         if not is_spam:
             sent = await send_inquiry_email(

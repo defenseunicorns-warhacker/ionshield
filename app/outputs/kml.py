@@ -91,10 +91,7 @@ def generate_kml() -> str:
             f"<i>{a['recommendation']}</i><br/><br/>"
             f"Updated: {now} | Source: NOAA SWPC + IonShield"
         )
-        coords = (
-            f"-180,{lat_min},0 -180,{lat_max},0 "
-            f"180,{lat_max},0 180,{lat_min},0 -180,{lat_min},0"
-        )
+        coords = f"-180,{lat_min},0 -180,{lat_max},0 " f"180,{lat_max},0 180,{lat_min},0 -180,{lat_min},0"
         zones_kml += (
             f'    <Placemark>\n'
             f'      <name>{zr["name"]} — {a["risk_level"]}</name>\n'

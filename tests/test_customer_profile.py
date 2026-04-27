@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from starlette.testclient import TestClient
 
 from app.data import customer_profile as cp
@@ -28,8 +27,7 @@ def test_customers_catalog_has_three_default_profiles():
 
 def test_every_profile_has_required_fields():
     for c in cp.list_profiles():
-        for k in ("id", "title", "tagline", "summary", "region_filter",
-                  "layer_default", "branding"):
+        for k in ("id", "title", "tagline", "summary", "region_filter", "layer_default", "branding"):
             assert k in c, f"profile {c.get('id')} missing {k}"
         assert c["branding"].get("accent_color")
 
@@ -51,7 +49,8 @@ def test_apply_profile_overrides_layer_and_region_filter():
     base = {
         "id": "may-2024-g5",
         "title": "May 2024",
-        "tagline": "x", "start": "2024-05-10T00:00:00Z",
+        "tagline": "x",
+        "start": "2024-05-10T00:00:00Z",
         "end": "2024-05-12T00:00:00Z",
         "precomputed": {
             "geojson_url": "/static/scenarios/may-2024-g5/scenario.geojson",
@@ -74,7 +73,7 @@ def test_apply_profile_does_not_mutate_input():
     profile = cp.get_profile("commercial-grid")
     base = {"id": "x", "title": "X", "start": "2024-05-10T00:00:00Z"}
     cp.apply_profile(base, profile)
-    assert "layer" not in base               # base unchanged
+    assert "layer" not in base  # base unchanged
     assert "customer_id" not in base
 
 
@@ -91,10 +90,13 @@ def test_derive_scenarios_skips_live_windows():
 
 
 def test_derive_scenarios_unknown_customer_returns_empty():
-    assert cp.derive_scenarios(
-        [{"id": "x", "start": "2024-05-10T00:00:00Z"}],
-        "garbage",
-    ) == []
+    assert (
+        cp.derive_scenarios(
+            [{"id": "x", "start": "2024-05-10T00:00:00Z"}],
+            "garbage",
+        )
+        == []
+    )
 
 
 # ── HTTP endpoints ──────────────────────────────────────────────────────────

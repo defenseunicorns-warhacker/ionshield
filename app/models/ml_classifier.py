@@ -102,11 +102,11 @@ class TrainedClassifier:
         classes: list[str],
         feature_names: list[str],
     ) -> None:
-        self.coef = coef                 # K × F
-        self.intercept = intercept       # K
-        self.mean = mean                 # F
-        self.std = std                   # F (with epsilon for zeros)
-        self.classes = classes           # K class names (str)
+        self.coef = coef  # K × F
+        self.intercept = intercept  # K
+        self.mean = mean  # F
+        self.std = std  # F (with epsilon for zeros)
+        self.classes = classes  # K class names (str)
         self.feature_names = feature_names
 
     @classmethod
@@ -129,7 +129,8 @@ class TrainedClassifier:
         return dict(zip(self.classes, probs))
 
     def classify(
-        self, window: list[FusedObservation],
+        self,
+        window: list[FusedObservation],
     ) -> tuple[EventType, float] | None:
         if not window:
             return None
@@ -225,8 +226,14 @@ def _normalize(rows: list[list[float]]) -> tuple[list[list[float]], list[float],
 
 
 def _train_softmax(
-    X: list[list[float]], y: list[int], num_classes: int,
-    *, epochs: int = 800, lr: float = 0.5, l2: float = 1e-3, seed: int = 7,
+    X: list[list[float]],
+    y: list[int],
+    num_classes: int,
+    *,
+    epochs: int = 800,
+    lr: float = 0.5,
+    l2: float = 1e-3,
+    seed: int = 7,
 ) -> tuple[list[list[float]], list[float]]:
     """Multinomial softmax regression via gradient descent.
 
@@ -243,10 +250,7 @@ def _train_softmax(
         grads_b = [0.0] * num_classes
 
         for xi, yi in zip(X, y):
-            logits = [
-                sum(coef[k][j] * xi[j] for j in range(f)) + intercept[k]
-                for k in range(num_classes)
-            ]
+            logits = [sum(coef[k][j] * xi[j] for j in range(f)) + intercept[k] for k in range(num_classes)]
             probs = _softmax(logits)
             for k in range(num_classes):
                 d = probs[k] - (1.0 if k == yi else 0.0)
@@ -293,11 +297,17 @@ async def train_and_save(
             xray_max = 10 ** rng.uniform(-7.5, -6)
             proton = 10 ** rng.uniform(-2, 0)
             bz = rng.gauss(0, 2)
-            real_anchor.append([
-                kp, max(kp, kp + rng.uniform(0, 0.5)),
-                math.log10(xray), math.log10(xray_max),
-                math.log10(max(proton, 1e-3)), wind, bz,
-            ])
+            real_anchor.append(
+                [
+                    kp,
+                    max(kp, kp + rng.uniform(0, 0.5)),
+                    math.log10(xray),
+                    math.log10(xray_max),
+                    math.log10(max(proton, 1e-3)),
+                    wind,
+                    bz,
+                ]
+            )
 
     X: list[list[float]] = []
     y: list[int] = []
@@ -314,6 +324,7 @@ async def train_and_save(
     coef, intercept = _train_softmax(norm, y, len(CLASSES))
 
     from datetime import datetime, timezone
+
     artifact = {
         "model": "logreg-v1",
         "trained_at": datetime.now(timezone.utc).isoformat(),
@@ -415,8 +426,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     if len(sys.argv) > 1 and sys.argv[1] == "train":
         result = asyncio.run(train_and_save())
-        print(f"Wrote {ARTIFACT_PATH}: n={result['n_train']} "
-              f"real_anchor={result['n_real_anchor']} "
-              f"acc={result.get('train_accuracy', float('nan')):.3f}")
+        print(
+            f"Wrote {ARTIFACT_PATH}: n={result['n_train']} "
+            f"real_anchor={result['n_real_anchor']} "
+            f"acc={result.get('train_accuracy', float('nan')):.3f}"
+        )
     else:
         print("Usage: python -m app.models.ml_classifier train")

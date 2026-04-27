@@ -83,9 +83,9 @@ def solar_zenith_angle(lat: float, lon: float) -> float:
     decl = 23.45 * math.sin(math.radians(360.0 / 365.0 * (doy - 81)))
     lst = local_solar_time(lon)
     ha = (lst - 12.0) * 15.0  # hour angle in degrees
-    cos_sza = math.sin(math.radians(lat)) * math.sin(math.radians(decl)) + math.cos(
-        math.radians(lat)
-    ) * math.cos(math.radians(decl)) * math.cos(math.radians(ha))
+    cos_sza = math.sin(math.radians(lat)) * math.sin(math.radians(decl)) + math.cos(math.radians(lat)) * math.cos(
+        math.radians(decl)
+    ) * math.cos(math.radians(ha))
     # Clamp to valid range before acos
     return math.degrees(math.acos(max(-1.0, min(1.0, cos_sza))))
 
@@ -179,9 +179,7 @@ def compute_s4(lat: float, lon: float, kp: float) -> float:
 # ── GPS error model ──────────────────────────────────────────────────────────
 
 
-def compute_gps_error(
-    lat: float, s4: float, kp: float, asset_type: str = DEFAULT_ASSET
-) -> dict:
+def compute_gps_error(lat: float, s4: float, kp: float, asset_type: str = DEFAULT_ASSET) -> dict:
     """
     Estimate GPS positioning error in metres.
 
@@ -529,21 +527,16 @@ def compute_hf_link(
         best_freq_mhz = best["freq_mhz"]
         best_rel = best["reliability_pct"]
         recommendation = (
-            f"HF marginal. Best: {best_freq_mhz} MHz ({best_rel}% reliable). "
-            "Verify link before relying on it."
+            f"HF marginal. Best: {best_freq_mhz} MHz ({best_rel}% reliable). " "Verify link before relying on it."
         )
     else:
         best = viable_bands[0]
         best_freq_mhz = best["freq_mhz"]
         best_rel = best["reliability_pct"]
         if bad_freq_str:
-            recommendation = (
-                f"Use {best_freq_mhz} MHz ({best_rel}% reliable). Avoid {bad_freq_str}."
-            )
+            recommendation = f"Use {best_freq_mhz} MHz ({best_rel}% reliable). Avoid {bad_freq_str}."
         else:
-            recommendation = (
-                f"Use {best_freq_mhz} MHz ({best_rel}% reliable). All bands viable."
-            )
+            recommendation = f"Use {best_freq_mhz} MHz ({best_rel}% reliable). All bands viable."
 
     return {
         "link_summary": {
@@ -628,8 +621,7 @@ def compute_risk(
     elif score < 40:
         level = "ELEVATED"
         rec = (
-            "GPS accuracy degraded. Monitor for escalation. "
-            "Consider backup navigation for precision-dependent ops."
+            "GPS accuracy degraded. Monitor for escalation. " "Consider backup navigation for precision-dependent ops."
         )
     elif score < 60:
         level = "DEGRADED"
@@ -648,10 +640,7 @@ def compute_risk(
     # Conditional operational watch notes
     watch_notes: list[str] = []
     if bz < -10.0:
-        watch_notes.append(
-            f"IMF Bz = {bz:.0f} nT (strongly southward) — "
-            "active storm or onset likely within 1–2 h"
-        )
+        watch_notes.append(f"IMF Bz = {bz:.0f} nT (strongly southward) — " "active storm or onset likely within 1–2 h")
     if kp >= 8:
         g_level = min(5, int(kp) - 4)
         watch_notes.append(f"G{g_level} geomagnetic storm in progress (Kp = {kp:.0f})")
@@ -665,8 +654,7 @@ def compute_risk(
         )
     if hf["pca_active"]:
         watch_notes.append(
-            "Polar Cap Absorption active at this location — "
-            "HF communications severely degraded poleward of ~65°"
+            "Polar Cap Absorption active at this location — " "HF communications severely degraded poleward of ~65°"
         )
 
     return {

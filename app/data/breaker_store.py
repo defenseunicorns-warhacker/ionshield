@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy import select
 
 from app.data.db import breaker_state, get_engine
@@ -42,5 +41,6 @@ async def persist(name: str, snapshot: dict) -> None:
         # Portable upsert via DELETE+INSERT in one transaction. SQLAlchemy's
         # dialect-specific upsert isn't worth the branching for a single row.
         from sqlalchemy import delete
+
         await conn.execute(delete(breaker_state).where(breaker_state.c.name == name))
         await conn.execute(breaker_state.insert().values(name=name, **snapshot))

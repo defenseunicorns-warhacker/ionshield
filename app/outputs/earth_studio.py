@@ -46,18 +46,18 @@ logger = logging.getLogger(__name__)
 # HF absorption (dB) buckets
 HF_STYLES = (
     # (threshold, KML color, friendly id)
-    (40, "cc0000aa", "hf-severe"),   # red, alpha 80%
-    (25, "cc00a5ff", "hf-degraded"), # orange-amber
-    (10, "cc00ffff", "hf-elevated"), # yellow
-    (0,  "cc00cc00", "hf-nominal"),  # green
+    (40, "cc0000aa", "hf-severe"),  # red, alpha 80%
+    (25, "cc00a5ff", "hf-degraded"),  # orange-amber
+    (10, "cc00ffff", "hf-elevated"),  # yellow
+    (0, "cc00cc00", "hf-nominal"),  # green
 )
 
 # GPS L1 error (m) buckets
 GPS_STYLES = (
     (10, "cc0000aa", "gps-severe"),
-    (6,  "cc00a5ff", "gps-degraded"),
-    (3,  "cc00ffff", "gps-elevated"),
-    (0,  "cc00cc00", "gps-nominal"),
+    (6, "cc00a5ff", "gps-degraded"),
+    (3, "cc00ffff", "gps-elevated"),
+    (0, "cc00cc00", "gps-nominal"),
 )
 
 # SATCOM L fade (dB) buckets
@@ -83,7 +83,9 @@ def _kml_styles() -> str:
     """Emit a <Style> block for every bucket, plus a base PolyStyle."""
     lines: list[str] = []
     for table, fill_only in (
-        (HF_STYLES, False), (GPS_STYLES, False), (SAT_STYLES, False),
+        (HF_STYLES, False),
+        (GPS_STYLES, False),
+        (SAT_STYLES, False),
     ):
         for _thresh, color, sid in table:
             lines.append(f"""    <Style id="{sid}">
@@ -126,9 +128,13 @@ def _z_iso(s: str | datetime) -> str:
 
 
 def _kml_placemark(
-    *, name: str, style_id: str,
-    time_begin: str, time_end: str | None,
-    coords: str, properties: dict,
+    *,
+    name: str,
+    style_id: str,
+    time_begin: str,
+    time_end: str | None,
+    coords: str,
+    properties: dict,
     geom_type: str = "Polygon",
 ) -> str:
     """
@@ -143,10 +149,7 @@ def _kml_placemark(
     which KML 2.2 interprets as "open-ended into the future" — visible
     after the begin time. That keeps the last frame visible at end-of-replay.
     """
-    desc_rows = [
-        f"<b>{escape(k)}</b>: {escape(str(v))}"
-        for k, v in properties.items() if v is not None
-    ]
+    desc_rows = [f"<b>{escape(k)}</b>: {escape(str(v))}" for k, v in properties.items() if v is not None]
     desc = "<![CDATA[" + "<br/>".join(desc_rows) + "]]>"
     end_xml = f"<end>{escape(_z_iso(time_end))}</end>" if time_end else ""
     if geom_type == "Point":
@@ -188,9 +191,7 @@ def _next_time_by_region(
     for rid, times in by_region.items():
         sorted_times = sorted(times)
         for i, t in enumerate(sorted_times):
-            out[(rid, t)] = (
-                sorted_times[i + 1] if i + 1 < len(sorted_times) else None
-            )
+            out[(rid, t)] = sorted_times[i + 1] if i + 1 < len(sorted_times) else None
     return out
 
 
@@ -207,7 +208,8 @@ _LEGEND_OVERLAY_XML = """    <ScreenOverlay>
 
 
 def geojson_to_kml(
-    fc: dict, *,
+    fc: dict,
+    *,
     layer_by: str = "hf",
     document_name: str = "IonShield Scenario",
     include_legend_overlay: bool = False,
@@ -226,7 +228,7 @@ def geojson_to_kml(
     """
     table = {"hf": HF_STYLES, "gps": GPS_STYLES, "sat": SAT_STYLES}[layer_by]
     metric_field = {
-        "hf":  "hf_absorption_db",
+        "hf": "hf_absorption_db",
         "gps": "gps_l1_error_m",
         "sat": "satcom_l_fade_db",
     }[layer_by]
@@ -248,17 +250,19 @@ def geojson_to_kml(
             coords = f"{lon},{lat},0"
         else:
             coords = _coords_string(geom["coordinates"])
-        name = (
-            f"{props.get('region_id', '')} · "
-            f"{metric_field.split('_')[0].upper()} {value:.1f}"
-        )
+        name = f"{props.get('region_id', '')} · " f"{metric_field.split('_')[0].upper()} {value:.1f}"
         rid = props.get("region_id", "")
-        placemarks.append(_kml_placemark(
-            name=name, style_id=style_id,
-            time_begin=time_tag,
-            time_end=next_by_region.get((rid, time_tag)),
-            coords=coords, properties=props, geom_type=gtype,
-        ))
+        placemarks.append(
+            _kml_placemark(
+                name=name,
+                style_id=style_id,
+                time_begin=time_tag,
+                time_end=next_by_region.get((rid, time_tag)),
+                coords=coords,
+                properties=props,
+                geom_type=gtype,
+            )
+        )
 
     overlay = _LEGEND_OVERLAY_XML if include_legend_overlay else ""
 
@@ -279,7 +283,9 @@ def geojson_to_kml(
 
 
 def geojson_to_layered_kml(
-    fc: dict, *, document_name: str = "IonShield Scenario — All Layers",
+    fc: dict,
+    *,
+    document_name: str = "IonShield Scenario — All Layers",
     include_legend_overlay: bool = False,
 ) -> str:
     """
@@ -310,14 +316,17 @@ def geojson_to_layered_kml(
             else:
                 coords = _coords_string(geom["coordinates"])
             rid = props.get("region_id", "")
-            marks.append(_kml_placemark(
-                name=f"{rid} · {layer} {value:.1f}",
-                style_id=style_id,
-                time_begin=time_tag,
-                time_end=next_by_region.get((rid, time_tag)),
-                coords=coords,
-                properties=props, geom_type=gtype,
-            ))
+            marks.append(
+                _kml_placemark(
+                    name=f"{rid} · {layer} {value:.1f}",
+                    style_id=style_id,
+                    time_begin=time_tag,
+                    time_end=next_by_region.get((rid, time_tag)),
+                    coords=coords,
+                    properties=props,
+                    geom_type=gtype,
+                )
+            )
         folders.append(f"""    <Folder>
       <name>{layer} Risk</name>
 {chr(10).join(marks)}
@@ -343,10 +352,10 @@ def geojson_to_layered_kml(
 
 _LEGEND_HEX_TO_RGB = {
     # Decoded from the aabbggrr KML colors — alpha stripped
-    "cc0000aa": (170, 0, 0),     # severe — red
-    "cc00a5ff": (255, 165, 0),   # degraded — orange
-    "cc00ffff": (255, 255, 0),   # elevated — yellow
-    "cc00cc00": (0, 204, 0),     # nominal — green
+    "cc0000aa": (170, 0, 0),  # severe — red
+    "cc00a5ff": (255, 165, 0),  # degraded — orange
+    "cc00ffff": (255, 255, 0),  # elevated — yellow
+    "cc00cc00": (0, 204, 0),  # nominal — green
 }
 
 
@@ -360,7 +369,7 @@ def _build_legend_png() -> bytes:
     """
     W, H = 240, 280
     pixels = bytearray(W * H * 4)
-    fill_rect(pixels, W, 0, 0, W, H, (15, 23, 42, 235))      # IonShield navy bg
+    fill_rect(pixels, W, 0, 0, W, H, (15, 23, 42, 235))  # IonShield navy bg
 
     draw_text(pixels, W, 12, 8, "IONSHIELD LEGEND", (56, 189, 248))
     draw_text(pixels, W, 12, 22, "BY HF DB", (148, 163, 184))
@@ -371,9 +380,9 @@ def _build_legend_png() -> bytes:
 
     # HF column (left)
     draw_text(pixels, W, 12, 38, "HF DB", (148, 163, 184))
-    render_band(48,  _LEGEND_HEX_TO_RGB["cc0000aa"], "GE 40")
-    render_band(66,  _LEGEND_HEX_TO_RGB["cc00a5ff"], "GE 25")
-    render_band(84,  _LEGEND_HEX_TO_RGB["cc00ffff"], "GE 10")
+    render_band(48, _LEGEND_HEX_TO_RGB["cc0000aa"], "GE 40")
+    render_band(66, _LEGEND_HEX_TO_RGB["cc00a5ff"], "GE 25")
+    render_band(84, _LEGEND_HEX_TO_RGB["cc00ffff"], "GE 10")
     render_band(102, _LEGEND_HEX_TO_RGB["cc00cc00"], "0 TO 10")
 
     # GPS column (middle band)
@@ -402,7 +411,8 @@ def geojson_to_kmz(fc: dict, *, document_name: str | None = None) -> bytes:
     without having to recreate one inside Earth Studio).
     """
     kml = geojson_to_layered_kml(
-        fc, document_name=document_name or "IonShield Scenario",
+        fc,
+        document_name=document_name or "IonShield Scenario",
         include_legend_overlay=True,
     )
     legend_bytes = _build_legend_png()
@@ -421,15 +431,23 @@ def geojson_to_kmz(fc: dict, *, document_name: str | None = None) -> bytes:
 # per row); time isn't enforced inside the file but is documented in the
 # header comment so the user can match it to project frame rate.
 KEYFRAME_FIELDS = (
-    "time_tag", "region_id", "lat_deg", "lon_deg",
-    "kp", "tec_tecu",
-    "gps_l1_error_m", "hf_absorption_db",
-    "hf_blackout_probability", "satcom_l_fade_db",
+    "time_tag",
+    "region_id",
+    "lat_deg",
+    "lon_deg",
+    "kp",
+    "tec_tecu",
+    "gps_l1_error_m",
+    "hf_absorption_db",
+    "hf_blackout_probability",
+    "satcom_l_fade_db",
 )
 
 
 def geojson_to_keyframes_csv(
-    fc: dict, *, region_id: str | None = None,
+    fc: dict,
+    *,
+    region_id: str | None = None,
 ) -> str:
     """
     Emit a CSV that Earth Studio's Tracks tool reads as keyframe data.

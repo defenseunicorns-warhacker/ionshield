@@ -33,7 +33,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import httpx
 from sqlalchemy import insert, select
@@ -53,7 +53,7 @@ OMNI_BZ_FILL = 999.9
 OMNI_V_FILL = 9999.0
 OMNI_N_FILL = 999.9
 OMNI_PROTON_FILL = 99999.99
-OMNI_KP_FILL = 99    # KP*10 fill
+OMNI_KP_FILL = 99  # KP*10 fill
 
 
 @dataclass
@@ -72,9 +72,10 @@ class FlareEvent:
     Veronig & Battaglia 2014. The total flare contribution at any instant
     is `max(over all flares)` plus a quiescent C1 background.
     """
+
     peak_time: datetime
-    class_letter: str        # "M" or "X"
-    class_value: float       # e.g. 8.7 for X8.7
+    class_letter: str  # "M" or "X"
+    class_value: float  # e.g. 8.7 for X8.7
     rise_minutes: float = 10.0
     decay_minutes: float = 30.0
 
@@ -82,7 +83,8 @@ class FlareEvent:
     def peak_flux_wm2(self) -> float:
         """NOAA classification: M = 1e-5 × value, X = 1e-4 × value."""
         scale = {"M": 1e-5, "X": 1e-4, "C": 1e-6, "B": 1e-7}.get(
-            self.class_letter.upper(), 1e-6,
+            self.class_letter.upper(),
+            1e-6,
         )
         return scale * self.class_value
 
@@ -90,6 +92,7 @@ class FlareEvent:
 @dataclass
 class StormProfile:
     """Per-event flare timeline used for time-resolved X-ray reconstruction."""
+
     id: str
     flares: list[FlareEvent] = field(default_factory=list)
     notes: str = ""
@@ -106,10 +109,10 @@ STORM_PROFILES: dict[str, StormProfile] = {
         flares=[
             # AR3664 flare cascade — 5 documented X-class flares
             FlareEvent(datetime(2024, 5, 8, 21, 41, tzinfo=timezone.utc), "X", 1.0),
-            FlareEvent(datetime(2024, 5, 9, 9, 13, tzinfo=timezone.utc),  "X", 2.2),
+            FlareEvent(datetime(2024, 5, 9, 9, 13, tzinfo=timezone.utc), "X", 2.2),
             FlareEvent(datetime(2024, 5, 10, 6, 54, tzinfo=timezone.utc), "X", 3.98),
             FlareEvent(datetime(2024, 5, 11, 1, 23, tzinfo=timezone.utc), "X", 5.8),
-            FlareEvent(datetime(2024, 5, 14, 16, 51, tzinfo=timezone.utc),"X", 8.7),
+            FlareEvent(datetime(2024, 5, 14, 16, 51, tzinfo=timezone.utc), "X", 8.7),
         ],
         notes="Gannon Storm — AR3664 produced 5 X-class flares in 6 days",
     ),
@@ -117,12 +120,10 @@ STORM_PROFILES: dict[str, StormProfile] = {
         id="halloween-2003",
         flares=[
             # AR10486 series — sources: NOAA SWPC, Brodrick et al. 2005
-            FlareEvent(datetime(2003, 10, 28, 11, 10, tzinfo=timezone.utc),"X", 17.2,
-                       decay_minutes=45.0),
-            FlareEvent(datetime(2003, 10, 29, 20, 49, tzinfo=timezone.utc),"X", 10.0),
+            FlareEvent(datetime(2003, 10, 28, 11, 10, tzinfo=timezone.utc), "X", 17.2, decay_minutes=45.0),
+            FlareEvent(datetime(2003, 10, 29, 20, 49, tzinfo=timezone.utc), "X", 10.0),
             FlareEvent(datetime(2003, 11, 2, 17, 25, tzinfo=timezone.utc), "X", 8.3),
-            FlareEvent(datetime(2003, 11, 4, 19, 53, tzinfo=timezone.utc), "X", 28.0,
-                       decay_minutes=60.0),
+            FlareEvent(datetime(2003, 11, 4, 19, 53, tzinfo=timezone.utc), "X", 28.0, decay_minutes=60.0),
         ],
         notes="Halloween storms — XRS saturated at X17/X28 (Brodrick 2005)",
     ),
@@ -131,14 +132,14 @@ STORM_PROFILES: dict[str, StormProfile] = {
         flares=[
             FlareEvent(datetime(2015, 3, 11, 16, 22, tzinfo=timezone.utc), "X", 2.2),
             # Storm itself was CME-driven from preceding M-class activity
-            FlareEvent(datetime(2015, 3, 17, 7, 52, tzinfo=timezone.utc),  "M", 1.5),
+            FlareEvent(datetime(2015, 3, 17, 7, 52, tzinfo=timezone.utc), "M", 1.5),
         ],
         notes="St Patrick's Day G4 — CME-driven, modest flare backdrop",
     ),
 }
 
 
-XRAY_QUIESCENT_WM2: float = 1e-7   # NOAA C1 background floor
+XRAY_QUIESCENT_WM2: float = 1e-7  # NOAA C1 background floor
 
 
 # ── OMNI fetcher ────────────────────────────────────────────────────────────
@@ -179,21 +180,26 @@ def _parse_omni_csv(text: str) -> list[OmniRow]:
         if abs(bz) >= OMNI_BZ_FILL:
             bz = 0.0
         if v >= OMNI_V_FILL:
-            v = 400.0    # solar-min mean; conservative
+            v = 400.0  # solar-min mean; conservative
 
-        out.append(OmniRow(
-            when=when,
-            kp=kp10 / 10.0,   # OMNI stores Kp*10 as integer
-            bz_nt=bz,
-            wind_km_s=v,
-            density_cm3=(None if n >= OMNI_N_FILL else n),
-            proton_flux_pfu=(None if proton >= OMNI_PROTON_FILL else proton),
-        ))
+        out.append(
+            OmniRow(
+                when=when,
+                kp=kp10 / 10.0,  # OMNI stores Kp*10 as integer
+                bz_nt=bz,
+                wind_km_s=v,
+                density_cm3=(None if n >= OMNI_N_FILL else n),
+                proton_flux_pfu=(None if proton >= OMNI_PROTON_FILL else proton),
+            )
+        )
     return out
 
 
 async def fetch_omni_hourly(
-    start: datetime, end: datetime, *, timeout: float = 30.0,
+    start: datetime,
+    end: datetime,
+    *,
+    timeout: float = 30.0,
 ) -> list[OmniRow]:
     """Pull hourly OMNI archive for [start, end] via NASA HAPI."""
     params = {
@@ -234,7 +240,7 @@ def _xray_at(when: datetime, profile: StormProfile) -> float:
         if dt_s < 0:
             # Pre-peak: gaussian rise
             sigma = fl.rise_minutes * 60.0
-            contrib = fl.peak_flux_wm2 * math.exp(-(dt_s / sigma) ** 2)
+            contrib = fl.peak_flux_wm2 * math.exp(-((dt_s / sigma) ** 2))
         else:
             # Post-peak: exponential decay
             tau = fl.decay_minutes * 60.0
@@ -246,8 +252,7 @@ def _xray_at(when: datetime, profile: StormProfile) -> float:
 
 def _row_from_omni(omni: OmniRow, profile: StormProfile) -> dict:
     """Build a noaa_snapshots row from real OMNI + flare-timeline X-ray."""
-    feeds_available: list[str] = ["kp_omni", "bz_omni", "wind_omni",
-                                  "xray_flare_timeline"]
+    feeds_available: list[str] = ["kp_omni", "bz_omni", "wind_omni", "xray_flare_timeline"]
     feeds_unavailable: list[str] = []
     if omni.proton_flux_pfu is not None:
         feeds_available.append("proton_omni")
@@ -283,16 +288,19 @@ def _to_naive_utc(t: datetime) -> datetime:
 
 
 async def _existing_backfill_times(
-    start: datetime, end: datetime,
+    start: datetime,
+    end: datetime,
 ) -> set[datetime]:
     engine = get_engine()
     async with engine.begin() as conn:
-        rows = (await conn.execute(
-            select(noaa_snapshots.c.fetched_at)
-            .where(noaa_snapshots.c.fetch_source == BACKFILL_TAG)
-            .where(noaa_snapshots.c.fetched_at >= start)
-            .where(noaa_snapshots.c.fetched_at <= end)
-        )).all()
+        rows = (
+            await conn.execute(
+                select(noaa_snapshots.c.fetched_at)
+                .where(noaa_snapshots.c.fetch_source == BACKFILL_TAG)
+                .where(noaa_snapshots.c.fetched_at >= start)
+                .where(noaa_snapshots.c.fetched_at <= end)
+            )
+        ).all()
     return {_to_naive_utc(r[0]) for r in rows if r[0] is not None}
 
 
@@ -310,25 +318,17 @@ async def backfill_storm(
     """
     profile = STORM_PROFILES.get(profile_id)
     if profile is None:
-        return {"profile_id": profile_id, "inserted": 0,
-                "reason": "unknown profile"}
+        return {"profile_id": profile_id, "inserted": 0, "reason": "unknown profile"}
 
     fetch = fetch_omni or fetch_omni_hourly
     omni_rows = await fetch(start, end)
     if not omni_rows:
-        return {"profile_id": profile_id, "inserted": 0,
-                "reason": "no_omni_data_returned"}
+        return {"profile_id": profile_id, "inserted": 0, "reason": "no_omni_data_returned"}
 
     existing = await _existing_backfill_times(start, end)
-    rows = [
-        _row_from_omni(o, profile)
-        for o in omni_rows
-        if _to_naive_utc(o.when) not in existing
-    ]
+    rows = [_row_from_omni(o, profile) for o in omni_rows if _to_naive_utc(o.when) not in existing]
     if not rows:
-        return {"profile_id": profile_id, "inserted": 0,
-                "reason": "already_backfilled",
-                "found": len(omni_rows)}
+        return {"profile_id": profile_id, "inserted": 0, "reason": "already_backfilled", "found": len(omni_rows)}
 
     engine = get_engine()
     async with engine.begin() as conn:
@@ -343,8 +343,7 @@ async def backfill_storm(
         "peak_wind_km_s": max(o.wind_km_s for o in omni_rows),
         "min_bz_nt": min(o.bz_nt for o in omni_rows),
         "peak_proton_pfu": max(
-            (o.proton_flux_pfu for o in omni_rows
-             if o.proton_flux_pfu is not None),
+            (o.proton_flux_pfu for o in omni_rows if o.proton_flux_pfu is not None),
             default=None,
         ),
     }
@@ -353,16 +352,14 @@ async def backfill_storm(
 async def backfill_all_predefined() -> list[dict]:
     """Backfill every concrete-window scenario in app/static/scenarios.json."""
     from pathlib import Path
-    catalog = json.loads(
-        (Path(__file__).parent.parent / "static" / "scenarios.json").read_text()
-    )
+
+    catalog = json.loads((Path(__file__).parent.parent / "static" / "scenarios.json").read_text())
     results: list[dict] = []
     for sc in catalog.get("scenarios", []):
         sid = sc.get("id")
         start = sc.get("start")
         end = sc.get("end")
-        if not (sid in STORM_PROFILES and isinstance(start, str)
-                and isinstance(end, str) and "live-" not in start):
+        if not (sid in STORM_PROFILES and isinstance(start, str) and isinstance(end, str) and "live-" not in start):
             continue
         try:
             t0 = datetime.fromisoformat(start.replace("Z", "+00:00"))
@@ -371,6 +368,5 @@ async def backfill_all_predefined() -> list[dict]:
             results.append(r)
         except Exception as exc:
             logger.warning("Backfill %s failed: %s", sid, exc)
-            results.append({"profile_id": sid, "inserted": 0,
-                            "reason": f"error:{exc}"})
+            results.append({"profile_id": sid, "inserted": 0, "reason": f"error:{exc}"})
     return results

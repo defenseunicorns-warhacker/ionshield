@@ -8,7 +8,6 @@ Tests for the three A6 caveat fixes:
 from __future__ import annotations
 
 import asyncio
-import time
 
 import pytest
 import pytest_asyncio
@@ -179,6 +178,7 @@ def test_metrics_includes_source_latency_after_fetch():
 
     async def go():
         from app.data.registry import run_all
+
         await run_all()
 
     asyncio.run(go())

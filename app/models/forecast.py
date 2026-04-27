@@ -169,9 +169,7 @@ def compute_kp_trend_1h() -> Optional[float]:
 # ── Window builder ────────────────────────────────────────────────────────────
 
 
-def _window_kp(
-    entries: list[dict], t_start: datetime, t_end: datetime
-) -> Optional[float]:
+def _window_kp(entries: list[dict], t_start: datetime, t_end: datetime) -> Optional[float]:
     """Mean Kp for entries whose timestamps fall in [t_start, t_end)."""
     window = [e["kp"] for e in entries if t_start <= e["time"] < t_end]
     if window:
@@ -265,9 +263,7 @@ def build_forecast() -> dict:
     all_entries = parse_kp_forecast(raw) if raw else []
 
     # Split observed (past) and forecast (future) by type label, then by time
-    forecast_entries = [
-        e for e in all_entries if e["type"] == "forecast" or e["time"] > now
-    ]
+    forecast_entries = [e for e in all_entries if e["type"] == "forecast" or e["time"] > now]
     if not forecast_entries:
         forecast_entries = [e for e in all_entries if e["time"] > now]
 
@@ -317,9 +313,7 @@ def build_forecast() -> dict:
 
     peak_entry = max(future_72h, key=lambda e: e["kp"], default=None)
     peak_time = peak_entry["time"] if peak_entry else None
-    hours_to_peak = (
-        round((peak_time - now).total_seconds() / 3600, 1) if peak_time else None
-    )
+    hours_to_peak = round((peak_time - now).total_seconds() / 3600, 1) if peak_time else None
 
     storm_watch = max_kp_72h >= 5.0
     storm_warning = max_kp_72h >= 7.0
@@ -360,9 +354,7 @@ def build_forecast() -> dict:
         "current_kp": round(current_kp, 1),
         "kp_trend_1h": kp_1h,
         "kp_trend_1h_risk": kp_1h_risk,
-        "forecast_source": noaa_source
-        if has_noaa
-        else "fallback (NOAA forecast unavailable)",
+        "forecast_source": noaa_source if has_noaa else "fallback (NOAA forecast unavailable)",
         "data_age_seconds": data_age_seconds(),
         "summary": {
             "max_kp_24h": max_kp_24h,
@@ -375,9 +367,7 @@ def build_forecast() -> dict:
             "storm_watch": storm_watch,
             "storm_warning": storm_warning,
             "storm_level": storm_level,
-            "outlook_text": _outlook_text(
-                current_kp, max_kp_24h, max_kp_72h, peak_time, now
-            ),
+            "outlook_text": _outlook_text(current_kp, max_kp_24h, max_kp_72h, peak_time, now),
         },
         "windows": windows,
         "timeline": timeline,

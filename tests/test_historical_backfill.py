@@ -6,13 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.testclient import TestClient
 
 from app.data import db as db_module
 from app.data import historical_backfill as hb
-from app.data.db import noaa_snapshots
 from app.main import app
 
 
@@ -29,8 +27,12 @@ async def memory_db():
 
 def _omni(when: datetime, *, kp, bz, wind, proton=None) -> hb.OmniRow:
     return hb.OmniRow(
-        when=when, kp=kp, bz_nt=bz, wind_km_s=wind,
-        density_cm3=5.0, proton_flux_pfu=proton,
+        when=when,
+        kp=kp,
+        bz_nt=bz,
+        wind_km_s=wind,
+        density_cm3=5.0,
+        proton_flux_pfu=proton,
     )
 
 
@@ -41,11 +43,11 @@ def test_parse_omni_csv_drops_only_when_kp_is_fill():
     """Fill Bz/wind/proton are coerced to defaults, not dropped — but a
     missing Kp removes the row entirely (no canonical severity)."""
     csv_text = (
-        "2024-05-10T00:30:00.000Z,-3.0,5.4,410,99999.99,27\n"      # all valid
-        "2024-05-10T01:30:00.000Z,999.9,5.4,410,99999.99,27\n"     # Bz fill → 0.0
-        "2024-05-10T02:30:00.000Z,-2.0,5.4,9999.0,99999.99,27\n"   # V fill → 400
-        "2024-05-10T03:30:00.000Z,-2.0,5.4,410,99999.99,99\n"      # Kp fill → DROP
-        "2024-05-10T04:30:00.000Z,-2.0,5.4,410,1220.00,87\n"       # real proton
+        "2024-05-10T00:30:00.000Z,-3.0,5.4,410,99999.99,27\n"  # all valid
+        "2024-05-10T01:30:00.000Z,999.9,5.4,410,99999.99,27\n"  # Bz fill → 0.0
+        "2024-05-10T02:30:00.000Z,-2.0,5.4,9999.0,99999.99,27\n"  # V fill → 400
+        "2024-05-10T03:30:00.000Z,-2.0,5.4,410,99999.99,99\n"  # Kp fill → DROP
+        "2024-05-10T04:30:00.000Z,-2.0,5.4,410,1220.00,87\n"  # real proton
     )
     out = hb._parse_omni_csv(csv_text)
     assert len(out) == 4  # everything kept except Kp-fill row
@@ -83,8 +85,8 @@ def test_xray_at_peak_returns_class_value():
 
 def test_xray_at_decays_exponentially_after_peak():
     profile = hb.STORM_PROFILES["may-2024-g5"]
-    fl = profile.flares[-1]                             # X8.7 flare
-    t30 = fl.peak_time + timedelta(minutes=30)          # 1× decay constant
+    fl = profile.flares[-1]  # X8.7 flare
+    t30 = fl.peak_time + timedelta(minutes=30)  # 1× decay constant
     flux30 = hb._xray_at(t30, profile)
     # exp(-1) ≈ 0.368
     assert 0.30 * fl.peak_flux_wm2 < flux30 < 0.40 * fl.peak_flux_wm2
@@ -95,7 +97,7 @@ def test_xray_at_picks_nearest_flare_when_overlapping():
     # 1 minute after the X28 — should be ~X28 not the older X10
     t = datetime(2003, 11, 4, 19, 54, tzinfo=timezone.utc)
     x = hb._xray_at(t, profile)
-    assert x > 1e-3   # X-class
+    assert x > 1e-3  # X-class
     assert x < 4e-3
 
 
@@ -114,8 +116,7 @@ def test_flare_class_values_match_noaa_scale():
 def test_row_from_omni_uses_real_drivers():
     profile = hb.STORM_PROFILES["may-2024-g5"]
     # Time chosen 67 minutes after the documented X5.8 flare peak
-    o = _omni(datetime(2024, 5, 11, 2, 30, tzinfo=timezone.utc),
-              kp=9.0, bz=-20.5, wind=738, proton=1220.0)
+    o = _omni(datetime(2024, 5, 11, 2, 30, tzinfo=timezone.utc), kp=9.0, bz=-20.5, wind=738, proton=1220.0)
     row = hb._row_from_omni(o, profile)
     assert row["kp"] == 9.0
     assert row["bz_nt"] == -20.5
@@ -133,8 +134,7 @@ def test_row_from_omni_uses_real_drivers():
 
 def test_row_from_omni_handles_missing_proton():
     profile = hb.STORM_PROFILES["may-2024-g5"]
-    o = _omni(datetime(2024, 5, 10, 0, 30, tzinfo=timezone.utc),
-              kp=2.7, bz=-3.0, wind=410, proton=None)
+    o = _omni(datetime(2024, 5, 10, 0, 30, tzinfo=timezone.utc), kp=2.7, bz=-3.0, wind=410, proton=None)
     row = hb._row_from_omni(o, profile)
     assert row["proton_flux_10mev"] == 0.1  # quiet baseline fallback
     assert "proton_omni" in row["feeds_unavailable"]
@@ -146,13 +146,11 @@ def test_row_from_omni_handles_missing_proton():
 @pytest.mark.asyncio
 async def test_backfill_storm_inserts_real_omni(memory_db):
     fake_data = [
-        _omni(datetime(2024, 5, 10, 0, 30, tzinfo=timezone.utc),
-              kp=2.7, bz=-3.0, wind=410),
-        _omni(datetime(2024, 5, 10, 20, 30, tzinfo=timezone.utc),
-              kp=7.7, bz=-30.0, wind=700, proton=50.0),
-        _omni(datetime(2024, 5, 11, 2, 30, tzinfo=timezone.utc),
-              kp=9.0, bz=-50.0, wind=900, proton=200.0),
+        _omni(datetime(2024, 5, 10, 0, 30, tzinfo=timezone.utc), kp=2.7, bz=-3.0, wind=410),
+        _omni(datetime(2024, 5, 10, 20, 30, tzinfo=timezone.utc), kp=7.7, bz=-30.0, wind=700, proton=50.0),
+        _omni(datetime(2024, 5, 11, 2, 30, tzinfo=timezone.utc), kp=9.0, bz=-50.0, wind=900, proton=200.0),
     ]
+
     async def fake_fetch(start, end):
         return fake_data
 
@@ -171,9 +169,11 @@ async def test_backfill_storm_inserts_real_omni(memory_db):
 
 @pytest.mark.asyncio
 async def test_backfill_idempotent(memory_db):
-    fake_data = [_omni(datetime(2024, 5, 10, 0, 30, tzinfo=timezone.utc),
-                       kp=5.0, bz=-10.0, wind=500)]
-    async def fake_fetch(s, e): return fake_data
+    fake_data = [_omni(datetime(2024, 5, 10, 0, 30, tzinfo=timezone.utc), kp=5.0, bz=-10.0, wind=500)]
+
+    async def fake_fetch(s, e):
+        return fake_data
+
     r1 = await hb.backfill_storm(
         "may-2024-g5",
         datetime(2024, 5, 10, tzinfo=timezone.utc),
@@ -193,7 +193,9 @@ async def test_backfill_idempotent(memory_db):
 
 @pytest.mark.asyncio
 async def test_backfill_unknown_profile(memory_db):
-    async def empty(s, e): return []
+    async def empty(s, e):
+        return []
+
     r = await hb.backfill_storm(
         "not-a-profile",
         datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -206,7 +208,9 @@ async def test_backfill_unknown_profile(memory_db):
 
 @pytest.mark.asyncio
 async def test_backfill_no_omni_data(memory_db):
-    async def empty(s, e): return []
+    async def empty(s, e):
+        return []
+
     r = await hb.backfill_storm(
         "may-2024-g5",
         datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -222,8 +226,7 @@ async def test_backfill_no_omni_data(memory_db):
 
 def test_backfill_endpoint_unknown_profile_400():
     with TestClient(app) as client:
-        r = client.post("/api/v3/scenarios/backfill",
-                        params={"profile_id": "garbage"})
+        r = client.post("/api/v3/scenarios/backfill", params={"profile_id": "garbage"})
         assert r.status_code == 400
 
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from app.models.events import (
     Event,
@@ -22,15 +21,29 @@ from app.models.ontology import Driver, EventType, FusedObservation, Region
 
 def _obs(
     when: datetime | None = None,
-    *, kp=2.0, bz=0.0, wind=400.0, xray=1e-7,
-    proton=0.1, f107=70.0, tec=15.0, anomaly=0.0,
+    *,
+    kp=2.0,
+    bz=0.0,
+    wind=400.0,
+    xray=1e-7,
+    proton=0.1,
+    f107=70.0,
+    tec=15.0,
+    anomaly=0.0,
 ) -> FusedObservation:
     return FusedObservation(
         region=Region.from_center(0, 0),
         when=when or datetime(2026, 4, 26, tzinfo=timezone.utc),
-        kp_index=kp, bz_nt=bz, wind_speed_km_s=wind,
-        xray_flux_wm2=xray, proton_flux_10mev_pfu=proton, f107_sfu=f107,
-        tec_tecu=tec, tec_anomaly_tecu=anomaly, hmf2_km=300.0, nmf2=1.5e11,
+        kp_index=kp,
+        bz_nt=bz,
+        wind_speed_km_s=wind,
+        xray_flux_wm2=xray,
+        proton_flux_10mev_pfu=proton,
+        f107_sfu=f107,
+        tec_tecu=tec,
+        tec_anomaly_tecu=anomaly,
+        hmf2_km=300.0,
+        nmf2=1.5e11,
     )
 
 
@@ -113,10 +126,17 @@ def test_x_class_flare_distinct_from_m_class():
 def test_ended_event_can_reopen_on_new_crossing():
     geomag = next(r for r in RULES if r.event_type == EventType.GEOMAG_MAIN)
     closed = Event(
-        event_type=EventType.GEOMAG_MAIN, state=EventState.ENDED, severity="G1",
-        region_id="GLOBAL", t_onset=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        t_peak=None, t_end=datetime(2026, 1, 2, tzinfo=timezone.utc),
-        driver=Driver.KP, peak_value=5.5, trigger_value=5.5, threshold_value=5.0,
+        event_type=EventType.GEOMAG_MAIN,
+        state=EventState.ENDED,
+        severity="G1",
+        region_id="GLOBAL",
+        t_onset=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        t_peak=None,
+        t_end=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        driver=Driver.KP,
+        peak_value=5.5,
+        trigger_value=5.5,
+        threshold_value=5.0,
     )
     res = evaluate_rule(geomag, _obs(kp=5.5), open_event=closed)
     assert res.fired and res.new_event is not None and res.new_event.state == EventState.ONSET
@@ -124,7 +144,7 @@ def test_ended_event_can_reopen_on_new_crossing():
 
 def test_shock_detection_window():
     base = datetime(2026, 4, 26, tzinfo=timezone.utc)
-    quiet = [_obs(when=base + timedelta(minutes=i*5), wind=400) for i in range(6)]
+    quiet = [_obs(when=base + timedelta(minutes=i * 5), wind=400) for i in range(6)]
     assert not detect_shock(quiet)
 
     shock = quiet[:-1] + [_obs(when=base + timedelta(minutes=30), wind=550)]
@@ -141,10 +161,17 @@ def test_ml_stub_returns_classification():
 
 def test_event_to_dict_round_trips_iso_times():
     ev = Event(
-        event_type=EventType.GEOMAG_MAIN, state=EventState.ONSET, severity="G2",
-        region_id="GLOBAL", t_onset=datetime(2026, 4, 26, tzinfo=timezone.utc),
-        t_peak=None, t_end=None,
-        driver=Driver.KP, peak_value=6.0, trigger_value=6.0, threshold_value=5.0,
+        event_type=EventType.GEOMAG_MAIN,
+        state=EventState.ONSET,
+        severity="G2",
+        region_id="GLOBAL",
+        t_onset=datetime(2026, 4, 26, tzinfo=timezone.utc),
+        t_peak=None,
+        t_end=None,
+        driver=Driver.KP,
+        peak_value=6.0,
+        trigger_value=6.0,
+        threshold_value=5.0,
     )
     d = ev.to_dict()
     assert d["event_type"] == "GEOMAG_MAIN"

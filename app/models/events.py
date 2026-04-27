@@ -26,7 +26,7 @@ marker so the contract can be exercised end-to-end.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -79,30 +79,45 @@ class Event:
 
 
 def kp_severity(kp: float) -> str:
-    if kp >= 9: return "G5"
-    if kp >= 8: return "G4"
-    if kp >= 7: return "G3"
-    if kp >= 6: return "G2"
-    if kp >= 5: return "G1"
+    if kp >= 9:
+        return "G5"
+    if kp >= 8:
+        return "G4"
+    if kp >= 7:
+        return "G3"
+    if kp >= 6:
+        return "G2"
+    if kp >= 5:
+        return "G1"
     return "NA"
 
 
 def proton_severity(pfu: float) -> str:
-    if pfu >= 100_000: return "S5"
-    if pfu >= 10_000: return "S4"
-    if pfu >= 1_000: return "S3"
-    if pfu >= 100: return "S2"
-    if pfu >= 10: return "S1"
+    if pfu >= 100_000:
+        return "S5"
+    if pfu >= 10_000:
+        return "S4"
+    if pfu >= 1_000:
+        return "S3"
+    if pfu >= 100:
+        return "S2"
+    if pfu >= 10:
+        return "S1"
     return "NA"
 
 
 def xray_severity(flux: float) -> str:
     """NOAA R-scale derived from peak X-ray flux."""
-    if flux >= 2e-3: return "R5"
-    if flux >= 1e-3: return "R4"
-    if flux >= 1e-4: return "R3"
-    if flux >= 5e-5: return "R2"
-    if flux >= 1e-5: return "R1"
+    if flux >= 2e-3:
+        return "R5"
+    if flux >= 1e-3:
+        return "R4"
+    if flux >= 1e-4:
+        return "R3"
+    if flux >= 5e-5:
+        return "R2"
+    if flux >= 1e-5:
+        return "R1"
     return "NA"
 
 
@@ -112,10 +127,11 @@ def xray_severity(flux: float) -> str:
 @dataclass
 class Rule:
     """A single rule mapping a driver crossing → event."""
+
     event_type: EventType
     driver: Driver
-    on_threshold: float           # crosses this → ONSET
-    off_threshold: float          # falls below this → ENDED (hysteresis)
+    on_threshold: float  # crosses this → ONSET
+    off_threshold: float  # falls below this → ENDED (hysteresis)
     severity_fn: callable
     rationale: str = ""
 
@@ -202,11 +218,12 @@ def detect_shock(window: list[FusedObservation]) -> bool:
 @dataclass
 class DetectionResult:
     """What the detector decided for one rule on one observation."""
+
     rule: Rule
     fired: bool
     transition: EventState | None  # None = stay in current state, else move to this
     new_event: Event | None
-    update_existing: dict | None    # diff to apply to the existing open Event
+    update_existing: dict | None  # diff to apply to the existing open Event
 
 
 def evaluate_rule(
@@ -267,12 +284,15 @@ def evaluate_rule(
     # Open and not ended: extend or end it
     if below_off:
         return DetectionResult(
-            rule, True, EventState.ENDED, None,
+            rule,
+            True,
+            EventState.ENDED,
+            None,
             {"state": EventState.ENDED.value, "t_end": obs.when},
         )
 
     # Still active — track new peak if applicable
-    new_peak = (open_event.peak_value or v)
+    new_peak = open_event.peak_value or v
     update: dict = {"state": EventState.PEAK.value}
     if v > new_peak:
         update["peak_value"] = v
@@ -299,7 +319,8 @@ class MLClassifierStub:
     name = "ml-stub"
 
     def classify(
-        self, window: list[FusedObservation],
+        self,
+        window: list[FusedObservation],
     ) -> tuple[EventType, float] | None:
         if not window:
             return None

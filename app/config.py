@@ -103,7 +103,7 @@ class Settings(BaseSettings):
     # Sample-archive policy: rows older than this many days are uploaded to
     # the Foundry training-archive dataset and deleted from the local DB.
     sample_archive_max_age_days: int = 30
-    sample_archive_interval_seconds: int = 3600   # check every hour
+    sample_archive_interval_seconds: int = 3600  # check every hour
     sample_archive_batch_size: int = 1000
 
     # B4 caveat fix: optional comma-separated allowlist of hostnames (or
@@ -115,15 +115,15 @@ class Settings(BaseSettings):
     # for `auto_retrain_min_samples` consecutive evaluations, trigger a
     # retrain automatically. 0 disables.
     auto_retrain_enabled: bool = True
-    auto_retrain_check_interval_seconds: int = 1800   # 30 min
+    auto_retrain_check_interval_seconds: int = 1800  # 30 min
     auto_retrain_drift_threshold: float = 0.85
     auto_retrain_min_samples: int = 200
-    auto_retrain_cooldown_seconds: int = 6 * 3600     # don't retrain more than every 6h
+    auto_retrain_cooldown_seconds: int = 6 * 3600  # don't retrain more than every 6h
 
     # Champion/challenger A/B policy: a freshly trained model becomes the
     # challenger for this many ticks before being eligible for promotion.
     shadow_window_min_samples: int = 100
-    shadow_promotion_min_advantage: float = 0.0   # challenger must equal or beat champion
+    shadow_promotion_min_advantage: float = 0.0  # challenger must equal or beat champion
 
     @property
     def foundry_sync_configured(self) -> bool:
