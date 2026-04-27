@@ -328,15 +328,20 @@ def test_catalog_endpoint_omits_cache_bust_when_no_manifest(tmp_path, monkeypatc
 # ── Caveat 4: download buttons ──────────────────────────────────────────────
 
 
-def test_simulation_html_has_download_buttons():
+def test_simulation_html_has_export_menu():
+    """B3 caveat 4 (refreshed): the export dropdown collapses three formats
+    behind one button so casual viewers aren't confronted with KMZ /
+    Keyframes CSV / GeoJSON jargon."""
     html = (Path(__file__).parent.parent / "app" / "pages" / "simulation.html").read_text()
-    assert 'id="dl-kmz"' in html
-    assert 'id="dl-csv"' in html
-    assert 'id="dl-gj"' in html
-    assert "download" in html  # download attribute
+    assert 'id="export-wrap"' in html
+    assert 'id="export-menu"' in html
+    assert "Export for analysts" in html
 
 
-def test_simulation_js_wires_download_buttons():
+def test_simulation_js_wires_export_menu():
     js = (Path(__file__).parent.parent / "app" / "static" / "simulation.js").read_text()
-    assert "dl-kmz" in js and "dl-csv" in js and "dl-gj" in js
+    # Each format is referenced from the export menu builder.
     assert "pc.kmz_url" in js
+    assert "pc.keyframes_url" in js
+    assert "pc.geojson_url" in js
+    assert "export-menu" in js

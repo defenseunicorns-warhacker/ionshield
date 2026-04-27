@@ -10,12 +10,13 @@ Foundry's Dataset API v2 is transactional:
   3. POST /api/v2/datasets/{rid}/transactions/{tx}/commit
                                                        → {status:COMMITTED}
 
-Endpoints verified end-to-end against ionshield.usw-16.palantirfoundry.com on
-2026-04-26 — a real test row was successfully written to space_weather_raw.
+Files are written as **Parquet** so the dataset is immediately queryable in
+Foundry's preview / SQL console / Analyze data — Parquet carries an embedded
+schema, so the user never has to click "Apply Schema" in the UI.
 
-We append a single newline-delimited JSON file per snapshot. Foundry's
-schema-on-read auto-detects new fields, so adding columns later doesn't
-break existing rows.
+The first push per process per dataset uses a SNAPSHOT transaction to clear
+any legacy mixed-format files (e.g. old JSONL); subsequent pushes APPEND.
+This makes the format migration self-healing on deploy.
 
 Failures are non-fatal — sync errors are logged and swallowed so a Foundry
 outage never takes down the API. Set FOUNDRY_SYNC_ENABLED=false to disable.
@@ -23,12 +24,15 @@ outage never takes down the API. Set FOUNDRY_SYNC_ENABLED=false to disable.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import time
 from typing import Any
 
 import httpx
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,52 @@ class FoundrySyncError(RuntimeError):
 # run. Schema in Foundry is durable across transactions so we only need to do
 # this once per dataset per deploy. Reset when the process restarts.
 _SCHEMA_APPLIED: set[str] = set()
+
+# Per-process memo: which datasets have had their first SNAPSHOT (legacy
+# JSONL clean-out) this run. After the first SNAPSHOT, subsequent pushes
+# APPEND so historical data is preserved.
+_SNAPSHOTTED: set[str] = set()
+
+
+def _rows_to_parquet(rows: list[dict[str, Any]]) -> bytes:
+    """
+    Encode a list of flat dicts as a Parquet byte string.
+
+    All values are coerced to the union of types observed across rows;
+    Nones become nulls. Strings are kept as Arrow strings; numbers as
+    DOUBLE; booleans as BOOL. Datetimes come pre-stringified upstream.
+    """
+    if not rows:
+        return b""
+    # Normalise types per column so PyArrow doesn't choke on mixed dtypes.
+    columns: dict[str, list[Any]] = {}
+    for row in rows:
+        for k, v in row.items():
+            columns.setdefault(k, []).append(v)
+    # Pad short columns with None so all are equal length.
+    n = len(rows)
+    for k, vals in columns.items():
+        if len(vals) < n:
+            vals.extend([None] * (n - len(vals)))
+    arrays: dict[str, pa.Array] = {}
+    for k, vals in columns.items():
+        # If any value is a number, coerce all to float (nullable). Else string.
+        if any(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals if v is not None):
+            arrays[k] = pa.array(
+                [None if v is None else float(v) for v in vals],
+                type=pa.float64(),
+            )
+        elif any(isinstance(v, bool) for v in vals if v is not None):
+            arrays[k] = pa.array(vals, type=pa.bool_())
+        else:
+            arrays[k] = pa.array(
+                [None if v is None else str(v) for v in vals],
+                type=pa.string(),
+            )
+    table = pa.table(arrays)
+    buf = io.BytesIO()
+    pq.write_table(table, buf, compression="snappy")
+    return buf.getvalue()
 
 
 async def _start_transaction(
@@ -214,19 +264,21 @@ async def sync_rows(
         logger.debug("Foundry sync_rows skipped: empty rows")
         return False
 
-    body = ("\n".join(json.dumps(r, default=str) for r in rows) + "\n").encode("utf-8")
-    filename = f"fused-{int(time.time() * 1000)}.jsonl"
+    # Coerce all rows to flat string-stringifiable shape so Parquet can encode.
+    rows_clean = [{k: _flatten(v) for k, v in r.items()} for r in rows]
+    body = _rows_to_parquet(rows_clean)
+    filename = f"fused-{int(time.time() * 1000)}.parquet"
+    txn_type = "SNAPSHOT" if dataset_rid not in _SNAPSHOTTED else "APPEND"
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            tx = await _start_transaction(client, stack_url, dataset_rid, token, "APPEND")
+            tx = await _start_transaction(client, stack_url, dataset_rid, token, txn_type)
             await _put_file(client, stack_url, dataset_rid, tx, token, filename, body)
             await _commit_transaction(client, stack_url, dataset_rid, tx, token)
-            if dataset_rid not in _SCHEMA_APPLIED:
-                if await _apply_schema(client, stack_url, dataset_rid, token, rows[0]):
-                    _SCHEMA_APPLIED.add(dataset_rid)
+        _SNAPSHOTTED.add(dataset_rid)
         logger.info(
-            "Foundry sync_rows OK: dataset=%s file=%s rows=%d bytes=%d",
+            "Foundry sync_rows OK (%s): dataset=%s file=%s rows=%d bytes=%d",
+            txn_type,
             dataset_rid,
             filename,
             len(rows),
@@ -239,6 +291,13 @@ async def sync_rows(
     except Exception as exc:
         logger.warning("Foundry sync_rows error: %s", exc)
         return False
+
+
+def _flatten(v: Any) -> Any:
+    """Coerce nested dicts/lists/datetimes to JSON-string for Parquet encoding."""
+    if v is None or isinstance(v, (bool, int, float, str)):
+        return v
+    return json.dumps(v, default=str)
 
 
 async def sync_snapshot(
@@ -260,19 +319,20 @@ async def sync_snapshot(
         logger.debug("Foundry sync skipped: missing config")
         return False
 
-    body = (json.dumps(snapshot, default=str) + "\n").encode("utf-8")
-    filename = f"snapshot-{int(time.time() * 1000)}.jsonl"
+    snapshot_clean = {k: _flatten(v) for k, v in snapshot.items()}
+    body = _rows_to_parquet([snapshot_clean])
+    filename = f"snapshot-{int(time.time() * 1000)}.parquet"
+    txn_type = "SNAPSHOT" if dataset_rid not in _SNAPSHOTTED else "APPEND"
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            tx = await _start_transaction(client, stack_url, dataset_rid, token, "APPEND")
+            tx = await _start_transaction(client, stack_url, dataset_rid, token, txn_type)
             await _put_file(client, stack_url, dataset_rid, tx, token, filename, body)
             await _commit_transaction(client, stack_url, dataset_rid, tx, token)
-            if dataset_rid not in _SCHEMA_APPLIED:
-                if await _apply_schema(client, stack_url, dataset_rid, token, snapshot):
-                    _SCHEMA_APPLIED.add(dataset_rid)
+        _SNAPSHOTTED.add(dataset_rid)
         logger.info(
-            "Foundry sync OK: dataset=%s file=%s bytes=%d",
+            "Foundry sync OK (%s): dataset=%s file=%s bytes=%d",
+            txn_type,
             dataset_rid,
             filename,
             len(body),

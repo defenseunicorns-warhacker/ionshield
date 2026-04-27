@@ -1414,6 +1414,27 @@ async def scenarios_for_customer(
 # ── Foundry admin: force schema (re)apply ────────────────────────────────────
 
 
+@router_v3.post("/foundry/reset")
+async def foundry_reset(request: Request) -> dict:
+    """
+    Force the next push to each Foundry dataset to be a SNAPSHOT instead of
+    APPEND. Used when migrating away from legacy JSONL files: clears the
+    `_SNAPSHOTTED` memo so the next sync_snapshot / sync_rows call wipes the
+    dataset and writes a single fresh Parquet file. Subsequent pushes append.
+
+    Useful one-shot after deploying the JSONL→Parquet switchover.
+    """
+    from app.data import foundry_sync
+
+    before = list(foundry_sync._SNAPSHOTTED)
+    foundry_sync._SNAPSHOTTED.clear()
+    return {
+        "ok": True,
+        "cleared": before,
+        "note": "Next push to each dataset will be a SNAPSHOT (replaces all files).",
+    }
+
+
 @router_v3.post("/foundry/apply-schema")
 async def foundry_apply_schema(request: Request) -> dict:
     """

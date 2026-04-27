@@ -10,3 +10,7 @@ sqlalchemy[asyncio]==2.0.36
 aiosqlite==0.20.0
 # Contact form email delivery (async SMTP — works with any provider: SES, SendGrid, Gmail)
 aiosmtplib==3.0.1
+# Foundry sync writes Parquet so the dataset is queryable without a manual
+# "Apply Schema" click in the Foundry UI. Adds ~50MB to the slug (Debian
+# slim wheel) and is worth it.
+pyarrow==18.0.0
