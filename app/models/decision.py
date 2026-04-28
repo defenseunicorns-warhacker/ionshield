@@ -580,7 +580,15 @@ class DecisionEngine:
         platform: PlatformInput,
     ) -> WaypointDecision:
         """Run the full risk engine for one waypoint against the frozen env."""
-        risk = compute_risk(wp.lat, wp.lon, kp=env.kp, asset_type=platform.asset_type)
+        risk = compute_risk(
+            wp.lat,
+            wp.lon,
+            kp=env.kp,
+            asset_type=platform.asset_type,
+            bz_nt=env.bz_nt,
+            proton_flux_10mev=env.proton_flux_10mev,
+            xray_flux=env.xray_flux,
+        )
         a = risk["assessment"]
 
         hf = compute_hf_link(

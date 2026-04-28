@@ -257,7 +257,13 @@ def compute_gps_error(lat: float, s4: float, kp: float, asset_type: str = DEFAUL
 # ── HF communications risk ───────────────────────────────────────────────────
 
 
-def compute_hf_risk(lat: float, lon: float, kp: float) -> dict:
+def compute_hf_risk(
+    lat: float,
+    lon: float,
+    kp: float,
+    xray_flux: float | None = None,
+    proton_flux: float | None = None,
+) -> dict:
     """
     Estimate HF communications degradation.
 
@@ -287,8 +293,8 @@ def compute_hf_risk(lat: float, lon: float, kp: float) -> dict:
     Frequency note: output normalised to ~10 MHz. Absorption scales as ~1/f²
     so 5 MHz circuits face ~4× this absorption; 20 MHz ~¼.
     """
-    xray_flux = get_xray_flux()
-    proton_flux = get_proton_flux_10mev()
+    xray_flux = xray_flux if xray_flux is not None else get_xray_flux()
+    proton_flux = proton_flux if proton_flux is not None else get_proton_flux_10mev()
     sza = solar_zenith_angle(lat, lon)
     a = abs(lat)
 
@@ -569,6 +575,9 @@ def compute_risk(
     lon: float,
     kp: float | None = None,
     asset_type: str = DEFAULT_ASSET,
+    bz_nt: float | None = None,
+    proton_flux_10mev: float | None = None,
+    xray_flux: float | None = None,
 ) -> dict:
     """
     Full operational risk assessment for a geographic point.
@@ -593,14 +602,14 @@ def compute_risk(
     if kp is None:
         kp = get_kp()
 
-    bz = get_bz()
+    bz = bz_nt if bz_nt is not None else get_bz()
     zone = lat_zone(lat)
     m = zone["multiplier"]
 
     # Sub-models
     s4 = compute_s4(lat, lon, kp)
     gps = compute_gps_error(lat, s4, kp, asset_type)
-    hf = compute_hf_risk(lat, lon, kp)
+    hf = compute_hf_risk(lat, lon, kp, xray_flux=xray_flux, proton_flux=proton_flux_10mev)
     satcom = compute_satcom_risk(s4)
     radar = compute_radar_impact(kp, s4, lat)
 
@@ -644,7 +653,7 @@ def compute_risk(
     if kp >= 8:
         g_level = min(5, int(kp) - 4)
         watch_notes.append(f"G{g_level} geomagnetic storm in progress (Kp = {kp:.0f})")
-    proton = get_proton_flux_10mev()
+    proton = proton_flux_10mev if proton_flux_10mev is not None else get_proton_flux_10mev()
     if proton >= 100.0:
         s_idx = min(5, int(math.log10(proton / 10.0)) + 1)
         watch_notes.append(
