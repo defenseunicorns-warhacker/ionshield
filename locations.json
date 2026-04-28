@@ -1,0 +1,58 @@
+[
+  {
+    "id":"schriever",
+    "name":"Schriever SFB (CO)",
+    "lat":38.8,
+    "lon":-104.5,
+    "asset_type":"GPS_L1L2",
+    "alert_threshold":"ELEVATED"
+  },
+  {
+    "id":"thule",
+    "name":"Thule AB (Pituffik, GL)",
+    "lat":76.5,
+    "lon":-68.7,
+    "asset_type":"HF",
+    "alert_threshold":"DEGRADED"
+  },
+  {
+    "id":"diego-garcia",
+    "name":"Diego Garcia (BIOT)",
+    "lat":-7.3,
+    "lon":72.4,
+    "asset_type":"SATCOM_L",
+    "alert_threshold":"ELEVATED"
+  },
+  {
+    "id":"yokota",
+    "name":"Yokota AB (JP)",
+    "lat":35.7,
+    "lon":139.3,
+    "asset_type":"GPS_L1L2",
+    "alert_threshold":"ELEVATED"
+  },
+  {
+    "id":"alaska-eielson",
+    "name":"Eielson AFB (AK)",
+    "lat":64.7,
+    "lon":-147.1,
+    "asset_type":"HF",
+    "alert_threshold":"DEGRADED"
+  },
+  {
+    "id":"north-slope-ag",
+    "name":"North Plains RTK reference (US)",
+    "lat":45.7,
+    "lon":-100.1,
+    "asset_type":"RTK_GPS",
+    "alert_threshold":"ELEVATED"
+  },
+  {
+    "id":"polar-route-ywg",
+    "name":"Polar route waypoint (CA)",
+    "lat":63.0,
+    "lon":-93.5,
+    "asset_type":"GNSS_AIRBORNE",
+    "alert_threshold":"DEGRADED"
+  }
+]
