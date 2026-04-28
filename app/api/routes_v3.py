@@ -1650,3 +1650,35 @@ async def retrain_kp_forecaster(request: Request) -> dict:
         "rmse_per_horizon": artifact["metrics"]["rmse_per_horizon"],
         "mae_per_horizon": artifact["metrics"]["mae_per_horizon"],
     }
+
+
+# ── Phase 3b: Foundry Workshop pack ─────────────────────────────────────────
+
+
+@router_v3.get("/foundry/pack")
+async def foundry_pack(request: Request) -> dict:
+    """
+    Returns the Foundry-readiness pack as JSON: ontology object types,
+    sample SQL queries, and a Workshop module layout. A Foundry admin
+    imports these via Ontology Manager + Workshop UI to stand up an
+    IonShield app inside their tenant.
+    """
+    from app.outputs import foundry_pack as fp
+
+    return fp.build_pack()
+
+
+@router_v3.get("/foundry/ontology")
+async def foundry_ontology(request: Request) -> dict:
+    """Just the ontology object definitions (subset of /foundry/pack)."""
+    from app.outputs import foundry_pack as fp
+
+    return {"objects": fp.ontology_objects()}
+
+
+@router_v3.get("/foundry/sql")
+async def foundry_sql_samples(request: Request) -> dict:
+    """Sample SQL queries to paste into Foundry's SQL console."""
+    from app.outputs import foundry_pack as fp
+
+    return {"queries": fp.sample_sql_queries()}

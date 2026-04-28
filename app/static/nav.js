@@ -15,6 +15,7 @@
     { href: '/demo',       label: 'Demo' },
     { href: '/use-cases',  label: 'Use Cases' },
     { href: '/atak',       label: 'ATAK' },
+    { href: '/foundry',    label: 'Foundry' },
     { href: '/docs',       label: 'Docs' },
     { href: '/pricing',    label: 'Pricing' },
     { href: '/compliance', label: 'Compliance' },

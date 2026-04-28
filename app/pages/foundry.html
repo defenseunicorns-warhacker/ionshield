@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IonShield — Palantir Foundry Integration</title>
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    body { background:#0a0e1a; color:#e2e8f0; margin:0;
+           font-family:'Inter',-apple-system,sans-serif; line-height:1.6; }
+    main { max-width: 880px; margin: 0 auto; padding: 100px 20px 80px; }
+    h1 { color:#38bdf8; font-size:32px; letter-spacing:-0.5px; margin:0 0 8px; }
+    h2 { color:#38bdf8; font-size:18px; letter-spacing:1px;
+         text-transform:uppercase; margin-top:48px; margin-bottom:16px; }
+    p { color:#94a3b8; margin: 8px 0 16px; }
+    code, pre { background:#0f172a; border:1px solid #1e293b; border-radius:6px;
+                padding: 1px 6px; color:#fbbf24; font-size:13px; }
+    pre { display:block; padding:14px 16px; overflow-x:auto; }
+    .lead { font-size:16px; color:#cbd5e1; }
+    .cta-row { display:flex; gap:12px; margin: 20px 0 32px; flex-wrap:wrap; }
+    .cta {
+      background:#38bdf8; color:#0a0e1a; padding:12px 18px;
+      border-radius:8px; text-decoration:none; font-weight:700; font-size:13px;
+      letter-spacing:0.3px; box-shadow:0 4px 14px rgba(56,189,248,0.25);
+    }
+    .cta-ghost {
+      background:transparent; color:#38bdf8; border:1px solid #38bdf8;
+      padding:12px 18px; border-radius:8px; text-decoration:none;
+      font-weight:700; font-size:13px;
+    }
+    ol li, ul li { margin: 4px 0; color:#cbd5e1; }
+    .pill {
+      display:inline-block; padding:2px 8px; border-radius:10px;
+      font-size:10px; font-weight:700; letter-spacing:1px;
+      background:rgba(56,189,248,0.15); color:#38bdf8;
+      text-transform:uppercase; margin-left:8px;
+    }
+    .pill.ok { background:rgba(34,197,94,0.15); color:#22c55e; }
+    table { width:100%; border-collapse:collapse; margin: 16px 0; }
+    td, th { padding: 8px 10px; border-bottom:1px solid #1e293b;
+             font-size:13px; text-align:left; vertical-align:top; }
+    th { color:#64748b; text-transform:uppercase; letter-spacing:1px; font-size:11px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin: 14px 0; }
+    .card {
+      background:#0f172a; border:1px solid #1e293b; border-radius:8px;
+      padding:14px;
+    }
+    .card h3 { margin:0 0 6px; font-size:13px; color:#e2e8f0; letter-spacing:0.3px; }
+    .card p  { margin:0; font-size:12px; color:#64748b; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Palantir Foundry Integration <span class="pill ok">Live</span></h1>
+    <p class="lead">
+      IonShield writes Parquet to four Foundry datasets every 5 minutes and
+      ships a ready-to-import ontology + Workshop layout so a Foundry-native
+      customer can stand up a tactical space-weather app in their tenant in
+      under an hour.
+    </p>
+
+    <div class="cta-row">
+      <a class="cta" href="/api/v3/foundry/pack">↓ Foundry Pack (JSON)</a>
+      <a class="cta-ghost" href="/api/v3/foundry/ontology">Ontology</a>
+      <a class="cta-ghost" href="/api/v3/foundry/sql">Sample SQL</a>
+    </div>
+
+    <h2>1. Datasets (Live)</h2>
+    <p>
+      Each dataset receives a Parquet append every 5 minutes. Schema is
+      embedded in the file — the Foundry preview, SQL console, and Analyze
+      Data view work without any &ldquo;Apply Schema&rdquo; click.
+    </p>
+    <div class="grid">
+      <div class="card"><h3>space_weather_raw</h3><p>5-min NOAA SWPC + GloTEC merged feed; ground truth.</p></div>
+      <div class="card"><h3>location_risk</h3><p>Per-region (324 cells × time) impact metrics.</p></div>
+      <div class="card"><h3>events</h3><p>Detected storm onsets, SSCs, X-flares; one row per state transition.</p></div>
+      <div class="card"><h3>impact</h3><p>Long-form (region × time × system × metric) for time-series analytics.</p></div>
+    </div>
+
+    <h2>2. Ontology Objects</h2>
+    <p>
+      Four Object Types map 1:1 to the datasets. Import them into Ontology
+      Manager via JSON; the relations (Region ← StormEvent, Region ← ImpactRow)
+      light up the Object Explorer and Workshop bindings.
+    </p>
+    <ol>
+      <li>GET <code>/api/v3/foundry/ontology</code> — copy the JSON.</li>
+      <li>In Foundry, open <em>Ontology Manager → Import Object Types</em>.</li>
+      <li>Paste; map each <code>backingDataset.envVar</code> to the actual dataset RID
+          in your tenant. (RIDs are listed in the Render dashboard's IonShield env vars.)</li>
+      <li>Save. Object Explorer now shows <code>IonShieldRegion</code> and friends.</li>
+    </ol>
+
+    <h2>3. Workshop App</h2>
+    <p>
+      The pack ships a layout descriptor for a three-tab Workshop module:
+      Live Globe, Storm History, Region Drill-in. Treat it as a spec — the
+      Workshop UI is the source of truth for actual configuration.
+    </p>
+    <ol>
+      <li>In Foundry, open <em>Workshop → New Module</em>.</li>
+      <li>Use the layout from <code>/api/v3/foundry/pack</code> (see <code>workshop_layout</code>) as the build spec.</li>
+      <li>Bind each widget's <code>objectType</code> to the matching Object Type imported above.</li>
+    </ol>
+
+    <h2>4. Sample SQL</h2>
+    <p>
+      Five queries ready to paste into Foundry's SQL console — last-hour Kp
+      envelope, top 10 worst-impacted regions, storm history, GPS L1 outages,
+      latest classifier version. GET <code>/api/v3/foundry/sql</code> for the full set.
+    </p>
+
+    <h2>5. Operational Notes</h2>
+    <ul>
+      <li><strong>SNAPSHOT-on-deploy:</strong> first push after each deploy uses Foundry's SNAPSHOT
+          transaction type to clean any legacy file format. Subsequent pushes APPEND.</li>
+      <li><strong>Idempotent:</strong> writes are tagged with a wall-clock-millis filename, so
+          replays don't double-count rows.</li>
+      <li><strong>Failure-safe:</strong> a Foundry outage can never take down IonShield — sync
+          errors are logged and swallowed.</li>
+      <li><strong>Reset:</strong> POST <code>/api/v3/foundry/reset</code> forces the next push to be a SNAPSHOT.</li>
+    </ul>
+  </main>
+  <script src="/static/nav.js"></script>
+</body>
+</html>
