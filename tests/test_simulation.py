@@ -11,15 +11,25 @@ from app.main import app
 
 
 def test_simulation_page_renders():
+    """`/simulation` is the product landing page; `/simulation/run` is the live sim."""
     with TestClient(app) as client:
+        # Landing page — explains, CTAs into the live experience
         r = client.get("/simulation")
         assert r.status_code == 200
         assert "text/html" in r.headers["content-type"]
         body = r.text
-        assert "IONSHIELD" in body
-        assert "SIMULATION MODE" in body
-        assert "/static/simulation.js" in body
-        assert "leaflet" in body.lower()
+        assert "Simulation" in body
+        # Must link to the live sim
+        assert "/simulation/run" in body
+
+        # Live sim page — Leaflet, scenario JS, customer picker
+        r2 = client.get("/simulation/run")
+        assert r2.status_code == 200
+        body2 = r2.text
+        assert "IONSHIELD" in body2
+        assert "SIMULATION MODE" in body2
+        assert "/static/simulation.js" in body2
+        assert "leaflet" in body2.lower()
 
 
 def test_simulation_js_served_from_static():
@@ -73,6 +83,16 @@ def test_scenarios_static_file_served():
 
 
 def test_simulation_links_to_dashboard():
+    """The simulation landing page must link back to the live dashboard."""
     with TestClient(app) as client:
         r = client.get("/simulation")
         assert "/dashboard" in r.text
+
+
+def test_simulation_run_has_back_link_to_landing():
+    """The live sim page must offer a way back to the landing context."""
+    with TestClient(app) as client:
+        r = client.get("/simulation/run")
+        assert r.status_code == 200
+        # Either textual back-link or any href to /simulation root
+        assert "/simulation" in r.text

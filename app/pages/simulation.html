@@ -3,241 +3,440 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IonShield · Simulation Mode</title>
+  <title>Simulation — IonShield</title>
+  <meta name="description" content="Stress-test plans against real historical space-weather storms. Pick a scenario, drop your AOI, see what would have happened." />
   <link rel="stylesheet" href="/static/marketing.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin="" />
   <style>
-    body { margin: 0; background: #0a0e1a; color: #e2e8f0;
-           font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; }
-    .sim-wrap { display: grid; grid-template-rows: auto auto 1fr auto;
-                height: 100vh; max-height: 100vh; }
-    header.sim {
-      padding: 14px 20px; background: #0f172a; border-bottom: 1px solid #1e293b;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    header.sim h1 {
-      margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 2px;
-      color: #38bdf8;
-    }
-    header.sim a {
-      color: #94a3b8; text-decoration: none; font-size: 13px; margin-left: 16px;
-    }
-    header.sim a:hover { color: #e2e8f0; }
-    .scenario-bar {
-      display: flex; gap: 10px; padding: 12px 20px; background: #0c1729;
-      border-bottom: 1px solid #1e293b; overflow-x: auto;
-    }
+    /* Scenario cards */
     .scenario-card {
-      flex: 0 0 auto; padding: 10px 14px; border-radius: 8px;
-      background: #0f172a; border: 1px solid #1e293b; cursor: pointer;
-      min-width: 240px; transition: border-color .2s;
+      background: var(--bg-2); border: 1px solid var(--line-1);
+      border-radius: var(--r-lg); padding: 18px; cursor: pointer;
+      display: flex; flex-direction: column; gap: 10px;
+      transition: border-color 0.2s var(--ease), background 0.2s, transform 0.2s;
+      text-decoration: none; color: inherit;
     }
-    .scenario-card:hover { border-color: #38bdf8; }
-    .scenario-card.active { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8 inset; }
-    .scenario-card .title { font-weight: 700; font-size: 13px; color: #e2e8f0; }
-    .scenario-card .tagline { font-size: 11px; color: #64748b; margin-top: 4px; }
-    .scenario-card .tags { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
-    .tag { padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700;
-           background: #1e293b; color: #94a3b8; text-transform: uppercase;
-           letter-spacing: .5px; }
-    .tag.live { background: #22c55e; color: #052e16; }
-    .tag.g5 { background: #ef4444; color: white; }
-    .tag.g4 { background: #f59e0b; color: #451a03; }
+    .scenario-card:hover { border-color: var(--accent); background: var(--bg-3);
+                            transform: translateY(-2px); color: inherit; }
+    .scenario-tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .scenario-title { font-size: 15px; font-weight: 700; color: var(--t-1); }
+    .scenario-tagline { font-size: 12px; color: var(--t-3); }
+    .scenario-summary { font-size: 12px; color: var(--t-2); line-height: 1.55; }
 
-    .sim-main { display: grid; grid-template-columns: 1fr 360px; min-height: 0; }
-    #map { height: 100%; }
-    aside.detail {
-      background: #0f172a; border-left: 1px solid #1e293b; padding: 16px;
-      overflow-y: auto;
+    /* Sandbox */
+    .sandbox {
+      background: var(--bg-2); border: 1px solid var(--line-1);
+      border-radius: var(--r-lg); padding: 24px;
     }
-    aside.detail h2 {
-      margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #38bdf8;
-      text-transform: uppercase; letter-spacing: 1.5px;
+    .sandbox-grid {
+      display: grid; gap: 18px;
+      grid-template-columns: 1fr;
     }
-    aside.detail .summary {
-      font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;
+    @media (min-width: 720px) {
+      .sandbox-grid { grid-template-columns: 1fr 1fr; }
     }
-    aside.detail .video-slot {
-      background: #0a0e1a; border: 1px dashed #1e293b; border-radius: 6px;
-      aspect-ratio: 16 / 9; display: flex; align-items: center;
-      justify-content: center; color: #64748b; font-size: 11px;
-      text-align: center; padding: 0 12px; margin-bottom: 14px;
+    .sandbox-form { display: grid; gap: 14px; }
+    .field { display: grid; gap: 5px; }
+    .field label { font-size: 10px; letter-spacing: 0.16em; color: var(--t-3);
+                    text-transform: uppercase; font-weight: 700; }
+    .field input, .field select {
+      background: var(--bg-1); color: var(--t-1); border: 1px solid var(--line-2);
+      border-radius: var(--r-sm); padding: 10px 12px; font-size: 13px;
+      font-family: var(--font);
     }
-    aside.detail video { width: 100%; border-radius: 6px; margin-bottom: 14px; }
-    .downloads { display: flex; }
-    .dl-btn {
-      flex: 1; min-width: 100px;
-      padding: 6px 10px; border-radius: 6px;
-      background: #1e293b; color: #38bdf8; text-decoration: none;
-      font-size: 11px; font-weight: 700; letter-spacing: .5px;
-      text-align: center; border: 1px solid #1e293b; transition: border-color .15s;
+    .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sandbox-output {
+      background: var(--bg-1); border: 1px solid var(--line-1);
+      border-radius: var(--r-md); padding: 18px;
+      display: flex; flex-direction: column; gap: 14px;
+      min-height: 100%;
     }
-    .dl-btn:hover { border-color: #38bdf8; background: #0f172a; }
-    .stat-row {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+    .out-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 8px 0; border-bottom: 1px dashed var(--line-1);
     }
-    .stat {
-      background: #0a0e1a; border: 1px solid #1e293b; border-radius: 6px;
-      padding: 8px 10px;
+    .out-row:last-child { border-bottom: 0; }
+    .out-label { font-size: 11px; letter-spacing: 0.14em; color: var(--t-3);
+                  text-transform: uppercase; }
+    .out-value { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--t-1); }
+    .out-value.ok    { color: var(--sev-nominal); }
+    .out-value.watch { color: var(--sev-watch); }
+    .out-value.warn  { color: var(--sev-warn); }
+    .out-value.bad   { color: var(--sev-danger); }
+    .verdict {
+      padding: 12px 14px; border-radius: var(--r-md);
+      font-size: 14px; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+      letter-spacing: 0.04em;
     }
-    .stat-label { font-size: 9px; color: #64748b; text-transform: uppercase;
-                  letter-spacing: 1px; }
-    .stat-val { font-size: 18px; font-weight: 700; color: #e2e8f0; margin-top: 3px; }
-    .v-green { color: #22c55e; } .v-amber { color: #f59e0b; } .v-red { color: #ef4444; }
-
-    footer.controls {
-      padding: 12px 20px; background: #0c1729; border-top: 1px solid #1e293b;
-      display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+    .verdict.go    { background: rgba(34,197,94,0.13);  color: var(--sev-nominal); }
+    .verdict.watch { background: rgba(251,191,36,0.13); color: var(--sev-watch); }
+    .verdict.warn  { background: rgba(245,158,11,0.13); color: var(--sev-warn); }
+    .verdict.bad   { background: rgba(239,68,68,0.13);  color: var(--sev-danger); }
+    .demo-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      background: rgba(56,189,248,0.13); color: var(--accent); font-weight: 700;
     }
-    footer button {
-      background: #38bdf8; color: #0a0e1a; border: 0; padding: 8px 14px;
-      border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px;
-    }
-    footer button:disabled { background: #1e293b; color: #475569; cursor: default; }
-    footer input[type=range] { width: 100%; }
-    footer .time-label {
-      font-family: ui-monospace, monospace; font-size: 12px; color: #94a3b8;
-      min-width: 220px; text-align: right;
-    }
-    .loader {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-      color: #94a3b8; font-size: 12px;
-    }
-
-    .leaflet-container { background: #0a0e1a; }
-    .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.95); }
-
-    /* ── Severity legend (map overlay) ─────────────────────────────────── */
-    .sim-legend {
-      background: rgba(15,23,42,0.92); border: 1px solid #1e293b;
-      border-radius: 6px; padding: 10px 12px; color: #e2e8f0;
-      font-size: 11px; line-height: 1.5; min-width: 170px;
-      backdrop-filter: blur(6px);
-    }
-    .sim-legend-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
-    .sim-legend-row span {
-      display: inline-block; width: 14px; height: 14px; border-radius: 3px;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-
-    /* ── Storm-phase pill (right panel) ────────────────────────────────── */
-    .phase-pill {
-      display: inline-block; padding: 4px 10px; border-radius: 14px;
-      font-size: 10px; font-weight: 800; letter-spacing: 1px;
-      margin-bottom: 12px;
-    }
-    .phase-pill.phase-initial  { background: rgba(56,189,248,0.15); color: #38bdf8; }
-    .phase-pill.phase-main     { background: rgba(239,68,68,0.18);  color: #ef4444; }
-    .phase-pill.phase-recovery { background: rgba(34,197,94,0.15);  color: #22c55e; }
-
-    /* ── Region drill-in card ──────────────────────────────────────────── */
-    #region-detail {
-      background: #0a0e1a; border: 1px solid #1e293b; border-radius: 8px;
-      padding: 12px; margin-bottom: 14px;
-    }
-
-    /* ── Export dropdown ───────────────────────────────────────────────── */
-    .export-wrap { position: relative; margin-bottom: 14px; }
-    .export-btn {
-      width: 100%; padding: 9px 12px; border-radius: 6px;
-      background: #0a0e1a; border: 1px solid #1e293b; color: #e2e8f0;
-      font-size: 12px; font-weight: 600; cursor: pointer; text-align: left;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .export-btn:hover { border-color: #38bdf8; }
-    .export-menu {
-      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-      background: #0f172a; border: 1px solid #1e293b; border-radius: 6px;
-      z-index: 50; overflow: hidden;
-    }
-    .export-wrap.open .export-menu { display: block; }
-    .export-item {
-      display: block; padding: 9px 12px; color: #e2e8f0;
-      text-decoration: none; border-bottom: 1px solid #1e293b; font-size: 12px;
-    }
-    .export-item:last-child { border-bottom: 0; }
-    .export-item:hover { background: #1e293b; }
-    .export-item div { font-size: 10px; color: #64748b; margin-top: 2px; font-weight: 400; }
   </style>
 </head>
 <body>
-  <div class="sim-wrap">
-    <header class="sim">
-      <h1 id="sim-title">⚡ IONSHIELD · SIMULATION MODE</h1>
-      <nav style="display:flex;align-items:center;gap:14px;">
-        <select id="customer-picker" title="Switch audience profile"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #1e293b;
-                       padding:6px 10px; border-radius:6px; font-size:12px;">
-          <option value="">All audiences (default)</option>
-        </select>
-        <a href="/dashboard"
-           style="background:#38bdf8;color:#0a0e1a;padding:6px 12px;border-radius:6px;
-                  text-decoration:none;font-weight:700;font-size:12px;">
-          ← Live Dashboard
-        </a>
-        <a href="/docs" style="color:#94a3b8;text-decoration:none;font-size:13px;">Docs</a>
-      </nav>
-    </header>
 
-    <section class="scenario-bar" id="scenario-bar">
-      <span style="color:#64748b; font-size:11px; align-self:center;">Loading scenarios…</span>
-    </section>
+<!-- ── Page header ───────────────────────────────────────────────── -->
+<section class="block tight">
+  <div class="container">
+    <div class="eyebrow">Simulation</div>
+    <h1 class="sec-title">Stress-test plans against<br>real space-weather history</h1>
+    <p class="lead">
+      Replay any of three real G4–G5 geomagnetic storms — backfilled with NASA OMNI
+      archive data — and watch how IonShield would have classified your AOI hour by hour.
+      Pick a scenario, drop a region, see what would have happened.
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px">
+      <a href="/simulation/run" class="btn btn-primary">Open Live Simulation →</a>
+      <a href="#sandbox"        class="btn btn-ghost">Try the Sandbox</a>
+      <a href="/dashboard"      class="btn btn-quiet">Live Dashboard</a>
+    </div>
+  </div>
+</section>
 
-    <section class="sim-main">
-      <div id="map"></div>
-      <aside class="detail">
-        <h2 id="detail-title">Loading scenario…</h2>
-        <span class="phase-pill phase-initial" id="storm-phase">—</span>
-        <p class="summary" id="detail-summary"></p>
-        <div class="video-slot" id="video-slot" style="display:none;"></div>
+<!-- ── Why simulate ─────────────────────────────────────────────── -->
+<section class="block alt">
+  <div class="container">
+    <div class="eyebrow">Why operators run simulations</div>
+    <h2 class="sec-title">The cost of finding out the hard way</h2>
+    <p class="sec-sub">
+      Space-weather degradation is rare enough that few operators have a personal
+      reference for what a Gannon-class storm does to their fleet. Simulation closes
+      that gap before it becomes a real outage.
+    </p>
 
-        <!-- Region drill-in: populated when a user clicks a region on the map -->
-        <div id="region-detail">
-          <div style="font-size:11px;color:#64748b;">
-            Click any region on the map to pin it and see per-system impact.
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a)">🛩️</div>
+        <div class="card-title">Route stress-testing</div>
+        <div class="card-body">UAV / BVLOS / aviation operators replay the storm against a planned mission to surface degradation windows and divert points before launch.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)">🌾</div>
+        <div class="card-title">RTK exposure analysis</div>
+        <div class="card-body">Precision-ag teams quantify how many hours of autosteer they'd lose during a Gannon-class storm — and what that costs at peak season.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6)">🪖</div>
+        <div class="card-title">Operator training</div>
+        <div class="card-body">Run a unit through a real historical storm in the simulator: practice fallback comms, route diversion, INS handoff before the real event.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">⛴️</div>
+        <div class="card-title">Comms contingency planning</div>
+        <div class="card-body">Maritime, SAR, and polar dispatch test which HF / SATCOM bands actually survive different storm classes for their operating area.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">📊</div>
+        <div class="card-title">Insurance / risk modelling</div>
+        <div class="card-body">Quantify the expected outage cost of a once-per-decade storm against a portfolio of routes, fields, or assets — for risk-pricing or board sign-off.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9)">🛰️</div>
+        <div class="card-title">Customer pitches / TTX</div>
+        <div class="card-body">Show prospects exactly what would have happened during May 2024 — over their fleet, on their routes — instead of generic NOAA charts.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ──────────────────────────────────────────────── -->
+<section class="block">
+  <div class="container">
+    <div class="eyebrow">Workflow</div>
+    <h2 class="sec-title">Three steps to a real answer</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01 · Pick</div>
+        <div class="step-title">Choose a scenario</div>
+        <div class="step-body">Three real historical storms (May 2024 G5, Halloween 2003, St. Patrick's 2015) plus four showcase scenarios for comms, GPS, polar, and SATCOM degradation.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02 · Drop</div>
+        <div class="step-title">Add your AOI / route</div>
+        <div class="step-body">Drop waypoints, draw a region of interest, or pick a customer profile (defense, aerospace, commercial-grid) for a pre-tuned regional view.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03 · Scrub</div>
+        <div class="step-title">See what would have happened</div>
+        <div class="step-body">Hour-by-hour replay with translated outputs — meters of GPS error, minutes of HF blackout, severity per region. Export KMZ / CSV / GeoJSON.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Real scenarios ────────────────────────────────────────────── -->
+<section class="block alt">
+  <div class="container">
+    <div class="eyebrow">Real archive scenarios</div>
+    <h2 class="sec-title">Three storms backfilled<br>with real NASA OMNI data</h2>
+    <p class="sec-sub">
+      No synthetic events. Each scenario uses the actual hour-cadence Bz, solar wind,
+      Kp, and proton flux from the archive, plus reconstructed flare timelines.
+    </p>
+
+    <div class="grid grid-3" id="scenario-grid">
+      <a class="scenario-card" href="/simulation/run#may-2024-g5">
+        <div class="scenario-tag-row">
+          <span class="pill pill-bad">G5</span>
+          <span class="pill pill-watch">X-CLASS</span>
+          <span class="pill pill-info">REAL</span>
+        </div>
+        <div class="scenario-title">May 2024 — Gannon Storm</div>
+        <div class="scenario-tagline">Largest geomagnetic storm in 20 years</div>
+        <div class="scenario-summary">
+          Five X-class flares from AR3664 produced a G5 (Kp 9) storm on 10–11 May 2024.
+          Aurora visible to mid-latitudes, widespread GPS surveying outages, Starlink reentry anomalies.
+        </div>
+      </a>
+      <a class="scenario-card" href="/simulation/run#halloween-2003">
+        <div class="scenario-tag-row">
+          <span class="pill pill-bad">G5</span>
+          <span class="pill pill-watch">X17</span>
+          <span class="pill pill-info">REAL</span>
+        </div>
+        <div class="scenario-title">Halloween 2003</div>
+        <div class="scenario-tagline">Multi-day extreme event sequence</div>
+        <div class="scenario-summary">
+          Late October 2003 — back-to-back X17 + X10 flares, polar cap absorption,
+          satellite anomalies, transformer damage in Sweden.
+        </div>
+      </a>
+      <a class="scenario-card" href="/simulation/run#st-patrick-2015">
+        <div class="scenario-tag-row">
+          <span class="pill pill-warn">G4</span>
+          <span class="pill pill-watch">CME</span>
+          <span class="pill pill-info">REAL</span>
+        </div>
+        <div class="scenario-title">St. Patrick's Day 2015</div>
+        <div class="scenario-tagline">Largest storm of Solar Cycle 24</div>
+        <div class="scenario-summary">
+          17 March 2015 — full-halo CME impact, sustained Kp ≥ 8 for 14+ hours,
+          GPS outages reported across North America and Europe.
+        </div>
+      </a>
+    </div>
+
+    <div style="margin-top:30px;text-align:center">
+      <a href="/simulation/run" class="btn btn-primary">Open Live Simulation →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Sandbox ───────────────────────────────────────────────────── -->
+<section class="block" id="sandbox">
+  <div class="container">
+    <div class="eyebrow">Customer sandbox <span class="demo-tag">Demo</span></div>
+    <h2 class="sec-title">Run your own quick simulation</h2>
+    <p class="sec-sub">
+      Lightweight version of the full workflow. Pick a region, time window, and
+      mission type — get a translated impact preview. The full multi-region replay,
+      uploaded routes, and customer-tuned scenarios live behind a paid engagement.
+    </p>
+
+    <div class="sandbox">
+      <div class="sandbox-grid">
+        <!-- LEFT: form -->
+        <form class="sandbox-form" id="sandbox-form" onsubmit="event.preventDefault(); runSandbox();">
+          <div class="field">
+            <label for="sb-scenario">Scenario</label>
+            <select id="sb-scenario">
+              <option value="may-2024-g5">May 2024 — Gannon (G5)</option>
+              <option value="halloween-2003">Halloween 2003 (G5)</option>
+              <option value="st-patrick-2015">St. Patrick's 2015 (G4)</option>
+              <option value="quiet">Quiet baseline (Kp ≈ 2)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sb-mission">Mission type</label>
+            <select id="sb-mission">
+              <option value="uav">UAV / BVLOS flight</option>
+              <option value="ag">Precision-ag (RTK autosteer)</option>
+              <option value="atak">Forward / ATAK ground ops</option>
+              <option value="aviation">Polar / aviation dispatch</option>
+              <option value="maritime">Maritime / HF comms</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="sb-lat">Latitude (°)</label>
+              <input id="sb-lat" type="number" step="0.1" value="38.8" />
+            </div>
+            <div class="field">
+              <label for="sb-lon">Longitude (°)</label>
+              <input id="sb-lon" type="number" step="0.1" value="-104.5" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="sb-window">Time window</label>
+            <select id="sb-window">
+              <option value="peak">Storm peak (worst 6 h)</option>
+              <option value="onset">Onset phase (first 6 h)</option>
+              <option value="recovery">Recovery phase (last 6 h)</option>
+              <option value="full">Full storm</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary" type="submit" style="justify-content:center">
+            Run Sandbox →
+          </button>
+
+          <div style="font-size:11px;color:var(--t-3);margin-top:6px;line-height:1.5">
+            Sandbox uses cached scenario data and approximate per-region modelling.
+            Full simulator runs the live impact engine against any AOI, route, or
+            customer profile.
+          </div>
+        </form>
+
+        <!-- RIGHT: output -->
+        <div class="sandbox-output" id="sandbox-out">
+          <div class="empty" style="padding:30px;border:none;background:transparent">
+            <div class="empty-icon">🛰️</div>
+            <div class="empty-title">Sandbox preview</div>
+            <div class="empty-sub">
+              Pick a scenario, mission, and AOI on the left, then run the simulation
+              to see the translated operator output.
+            </div>
           </div>
         </div>
-
-        <!-- Whole-frame max stats (the "what's the worst it gets" snapshot) -->
-        <div class="stat-row">
-          <div class="stat"><div class="stat-label">Kp</div>
-            <div class="stat-val" id="stat-kp">—</div></div>
-          <div class="stat"><div class="stat-label">GPS L1 max (m)</div>
-            <div class="stat-val" id="stat-gps">—</div></div>
-          <div class="stat"><div class="stat-label">HF max (dB)</div>
-            <div class="stat-val" id="stat-hf">—</div></div>
-          <div class="stat"><div class="stat-label">SATCOM L peak (dB)</div>
-            <div class="stat-val" id="stat-sat">—</div></div>
-        </div>
-
-        <!-- Export dropdown: collapses KMZ / CSV / GeoJSON behind one menu -->
-        <div class="export-wrap" id="export-wrap" style="display:none;">
-          <button class="export-btn" id="export-btn"
-                  onclick="this.parentElement.classList.toggle('open')">
-            <span>↓ Export for analysts</span>
-            <span style="font-size:10px;color:#64748b;">▾</span>
-          </button>
-          <div class="export-menu" id="export-menu"></div>
-        </div>
-
-        <div id="highlights"></div>
-      </aside>
-    </section>
-
-    <footer class="controls">
-      <button id="play-btn" disabled>▶ Play</button>
-      <input type="range" id="time-slider" min="0" max="0" value="0" disabled />
-      <span class="time-label" id="time-label">—</span>
-    </footer>
+      </div>
+    </div>
   </div>
+</section>
 
-  <div class="loader" id="loader" style="display:none">Loading scenario data…</div>
+<!-- ── CTA ───────────────────────────────────────────────────────── -->
+<section class="block alt">
+  <div class="container" style="text-align:center;max-width:680px">
+    <h2 class="sec-title">Ready for the full thing?</h2>
+    <p class="sec-sub" style="margin:0 auto 28px">
+      The live simulator includes route uploads, multi-region scrubbing, customer
+      branding, full export pipeline, and real-time scenario backfill.
+    </p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <a href="/simulation/run" class="btn btn-primary">Open Live Simulation →</a>
+      <a href="/pricing"        class="btn btn-ghost">Talk to us about a pilot</a>
+    </div>
+  </div>
+</section>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-          crossorigin=""></script>
-  <script src="/static/simulation.js"></script>
+<script src="/static/nav.js"></script>
+<script>
+// Lightweight sandbox — uses /api/risk/location for live impact at a single
+// point + per-mission framing. Output is labelled DEMO so users understand the
+// full version exists in /simulation/run.
+const MISSIONS = {
+  uav:      { name: 'UAV / BVLOS flight',     gps_thresh: 1.5,  hf_thresh: 5,   driver: 'GPS error'  },
+  ag:       { name: 'RTK autosteer',          gps_thresh: 0.05, hf_thresh: 999, driver: 'RTK error'  },
+  atak:     { name: 'ATAK ground ops',        gps_thresh: 5,    hf_thresh: 10,  driver: 'HF / GPS'   },
+  aviation: { name: 'Polar / aviation',       gps_thresh: 8,    hf_thresh: 15,  driver: 'GPS / HF'   },
+  maritime: { name: 'Maritime / HF',          gps_thresh: 15,   hf_thresh: 5,   driver: 'HF blackout'},
+};
+const SCENARIOS = {
+  'may-2024-g5':    { kp: 9.0, label: 'May 2024 G5', mult: 1.0  },
+  'halloween-2003': { kp: 9.0, label: 'Halloween 2003', mult: 1.05 },
+  'st-patrick-2015':{ kp: 8.0, label: "St. Patrick's 2015", mult: 0.85 },
+  quiet:            { kp: 2.0, label: 'Quiet baseline', mult: 0.1 },
+};
+const WINDOWS = { peak: 1.0, onset: 0.7, recovery: 0.5, full: 0.85 };
+
+async function runSandbox() {
+  const out = document.getElementById('sandbox-out');
+  const scenarioId = document.getElementById('sb-scenario').value;
+  const missionId  = document.getElementById('sb-mission').value;
+  const lat = parseFloat(document.getElementById('sb-lat').value || '0');
+  const lon = parseFloat(document.getElementById('sb-lon').value || '0');
+  const win = document.getElementById('sb-window').value;
+
+  out.innerHTML = '<div class="loading-bar"></div><div class="muted" style="text-align:center;font-size:12px;margin-top:14px">Running sandbox simulation…</div>';
+
+  const sc = SCENARIOS[scenarioId];
+  const ms = MISSIONS[missionId];
+  const winMult = WINDOWS[win];
+
+  // Compose a synthetic-but-grounded reading: scale the live /api/risk/location
+  // result by the scenario's Kp and time-window multiplier so the sandbox
+  // feels real without hitting the full impact engine.
+  let live;
+  try {
+    const r = await fetch(`/api/risk/location?lat=${lat}&lon=${lon}`);
+    live = await r.json();
+  } catch (e) {
+    out.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>
+      <div class="empty-title">Sandbox unreachable</div>
+      <div class="empty-sub">Couldn't reach /api/risk/location — try the Live Simulation instead.</div></div>`;
+    return;
+  }
+
+  const scaleK = (sc.kp / 4.0) * sc.mult * winMult;
+  const gpsErr = Math.max(1.0, (live.gps_error_m || 1.5) * (1 + scaleK * 6));
+  const hfBlackoutMin = Math.round(scaleK * 60);
+  const hfAbs = Math.min(35, (live.hf_absorption_db || 1) * (1 + scaleK * 5));
+  const peakKp = sc.kp * winMult;
+
+  const verdictCls =
+    peakKp >= 8 ? 'bad' : peakKp >= 6 ? 'warn' : peakKp >= 5 ? 'watch' : 'go';
+  const verdictText =
+    peakKp >= 8 ? 'NO-GO · operations affected' :
+    peakKp >= 6 ? 'CAUTION · backup nav recommended' :
+    peakKp >= 5 ? 'ADVISORY · monitor degradation' :
+                  'GO · standard operations';
+
+  const gpsCls = gpsErr > ms.gps_thresh * 3 ? 'bad' :
+                  gpsErr > ms.gps_thresh ? 'warn' : 'ok';
+  const hfCls  = hfBlackoutMin > ms.hf_thresh * 3 ? 'bad' :
+                  hfBlackoutMin > ms.hf_thresh ? 'warn' : 'ok';
+
+  out.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="font-size:13px;color:var(--t-2)">
+        <b style="color:var(--t-1)">${ms.name}</b><br>
+        <span style="font-size:11px;color:var(--t-3)">${sc.label} · ${win} · ${lat.toFixed(1)}°, ${lon.toFixed(1)}°</span>
+      </div>
+      <span class="demo-tag">Demo Output</span>
+    </div>
+    <div class="verdict ${verdictCls}">${verdictText}</div>
+    <div>
+      <div class="out-row">
+        <span class="out-label">Peak Kp (window)</span>
+        <span class="out-value ${verdictCls === 'go' ? 'ok' : verdictCls}">${peakKp.toFixed(1)}</span>
+      </div>
+      <div class="out-row">
+        <span class="out-label">GPS L1 error</span>
+        <span class="out-value ${gpsCls}">${gpsErr.toFixed(1)} m</span>
+      </div>
+      <div class="out-row">
+        <span class="out-label">HF blackout (high-lat path)</span>
+        <span class="out-value ${hfCls}">${hfBlackoutMin} min</span>
+      </div>
+      <div class="out-row">
+        <span class="out-label">HF absorption peak</span>
+        <span class="out-value ${hfAbs >= 20 ? 'bad' : hfAbs >= 10 ? 'warn' : 'ok'}">${hfAbs.toFixed(1)} dB</span>
+      </div>
+      <div class="out-row">
+        <span class="out-label">Driver to watch</span>
+        <span class="out-value">${ms.driver}</span>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--t-3);line-height:1.55;margin-top:auto">
+      Sandbox output is a demo approximation derived from the live point-risk
+      endpoint scaled by the chosen scenario. The full simulator runs the per-region
+      impact engine against any uploaded route or AOI.
+    </div>
+    <a href="/simulation/run" class="btn btn-ghost" style="justify-content:center">
+      Open in Live Simulator →
+    </a>
+  `;
+}
+</script>
 </body>
 </html>

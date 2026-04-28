@@ -123,8 +123,10 @@ describe('DecisionResult', () => {
 
   it('shows waypoint risk table', () => {
     render(<DecisionResult decision={ROUTE_DECISION} />);
-    expect(screen.getByText('WP01')).toBeInTheDocument();
-    expect(screen.getByText('WP02')).toBeInTheDocument();
+    // WP labels appear both in the new TranslationSummary "legs affected"
+    // chips and in the per-waypoint table, so we use getAllByText.
+    expect(screen.getAllByText('WP01').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('WP02').length).toBeGreaterThan(0);
   });
 });
 

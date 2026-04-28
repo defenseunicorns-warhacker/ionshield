@@ -14,7 +14,7 @@
     { href: '/integrations', label: 'Integrations' },
     { href: '/simulation',   label: 'Simulation' },
     { href: '/use-cases',    label: 'Use Cases' },
-    { href: '/docs',         label: 'Docs' },
+    { href: '/ml',           label: 'ML' },
     { href: '/pricing',      label: 'Pricing' },
   ];
 
@@ -79,16 +79,16 @@
         </div>
         <div class="mkt-footer-col">
           <h4>Resources</h4>
-          <a href="/docs">Documentation</a>
-          <a href="/docs#api">API Reference</a>
-          <a href="/docs#faq">FAQ</a>
+          <a href="/ml">Machine Learning</a>
+          <a href="/integrations">Integrations</a>
+          <a href="/api-console">API Console</a>
           <a href="/use-cases">Use Cases</a>
         </div>
         <div class="mkt-footer-col">
           <h4>Company</h4>
           <a href="/compliance">Security & Compliance</a>
           <a href="/api/status" target="_blank" rel="noopener">Live Status JSON</a>
-          <a href="/docs" target="_blank" rel="noopener">API Docs (Swagger)</a>
+          <a href="/openapi.json" target="_blank" rel="noopener">OpenAPI Spec</a>
         </div>
       </div>
       <div class="mkt-footer-bottom">

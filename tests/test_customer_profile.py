@@ -155,7 +155,9 @@ def test_customer_endpoints_in_openapi():
 
 
 def test_simulation_page_has_customer_picker():
-    html = (Path(__file__).parent.parent / "app" / "pages" / "simulation.html").read_text()
+    # Customer picker now lives on the live sim page (/simulation/run);
+    # /simulation is the marketing landing.
+    html = (Path(__file__).parent.parent / "app" / "pages" / "simulation_run.html").read_text()
     assert 'id="customer-picker"' in html
     assert "All audiences" in html
 
