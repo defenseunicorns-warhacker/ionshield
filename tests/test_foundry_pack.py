@@ -148,7 +148,11 @@ def test_foundry_install_page_renders():
     assert "Ontology" in body
 
 
-def test_foundry_link_in_nav():
-    js = (Path(__file__).parent.parent / "app" / "static" / "nav.js").read_text()
-    assert "/foundry" in js
-    assert "Foundry" in js
+def test_foundry_reachable_from_integrations_hub():
+    """Foundry is now accessed via the consolidated /integrations hub, not
+    the top nav. Verify the hub still surfaces every Foundry entry point."""
+    with TestClient(app) as client:
+        body = client.get("/integrations").text
+    assert "/foundry" in body
+    assert "/api/v3/foundry/pack" in body
+    assert "/api/v3/foundry/ontology" in body

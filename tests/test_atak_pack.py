@@ -124,7 +124,15 @@ def test_plugin_manifest_declares_atak_metadata():
 # ── Marketing nav wiring ────────────────────────────────────────────────────
 
 
-def test_atak_link_in_nav():
-    js = (Path(__file__).parent.parent / "app" / "static" / "nav.js").read_text()
-    assert "/atak" in js
-    assert "ATAK" in js
+def test_atak_reachable_from_integrations_hub():
+    """ATAK is now accessed via the consolidated /integrations hub, not the
+    top nav. Verify the hub still surfaces every ATAK entry point."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        body = client.get("/integrations").text
+    assert "/atak" in body
+    assert "/atak/network-link.kml" in body
+    assert "/atak/offline-pack.kmz" in body

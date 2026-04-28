@@ -9,16 +9,13 @@
   'use strict';
 
   const LINKS = [
-    { href: '/',           label: 'Home' },
-    { href: '/features',   label: 'Features' },
-    { href: '/simulation', label: 'Simulation' },
-    { href: '/demo',       label: 'Demo' },
-    { href: '/use-cases',  label: 'Use Cases' },
-    { href: '/atak',       label: 'ATAK' },
-    { href: '/foundry',    label: 'Foundry' },
-    { href: '/docs',       label: 'Docs' },
-    { href: '/pricing',    label: 'Pricing' },
-    { href: '/compliance', label: 'Compliance' },
+    { href: '/',             label: 'Home' },
+    { href: '/features',     label: 'Features' },
+    { href: '/integrations', label: 'Integrations' },
+    { href: '/simulation',   label: 'Simulation' },
+    { href: '/use-cases',    label: 'Use Cases' },
+    { href: '/docs',         label: 'Docs' },
+    { href: '/pricing',      label: 'Pricing' },
   ];
 
   const path = window.location.pathname.replace(/\/$/, '') || '/';

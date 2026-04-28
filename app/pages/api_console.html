@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IonShield — API Console</title>
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    body { background:#0a0e1a; color:#e2e8f0; margin:0;
+           font-family:'Inter',-apple-system,sans-serif; line-height:1.5; }
+    main { max-width: 1100px; margin: 0 auto; padding: 90px 24px 80px; }
+
+    h1 { color:#38bdf8; font-size:30px; letter-spacing:-0.5px; margin: 0 0 6px; }
+    .lead { color:#94a3b8; font-size:14px; max-width: 640px; margin: 0 0 28px; }
+
+    .row { display:grid; grid-template-columns: 1fr; gap: 18px; }
+    @media (min-width: 900px) { .row { grid-template-columns: 360px 1fr; } }
+
+    .panel {
+      background:#0f172a; border:1px solid #1e293b; border-radius:12px;
+      padding:18px;
+    }
+    .panel h2 {
+      font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
+      color: #94a3b8; margin: 0 0 14px;
+    }
+
+    label { display:block; font-size:11px; color:#94a3b8;
+            text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; }
+
+    input, select, textarea {
+      width: 100%; box-sizing: border-box;
+      background:#0a0e1a; color:#e2e8f0; border:1px solid #1e293b;
+      border-radius:7px; padding:9px 11px; font-size:13px;
+      font-family: ui-monospace, monospace;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color:#38bdf8;
+    }
+    .field { margin-bottom: 14px; }
+
+    .endpoint-pick {
+      display:grid; gap:6px; margin: 4px 0 14px;
+    }
+    .endpoint-btn {
+      text-align:left; padding:9px 12px; border-radius:7px;
+      background:#0a0e1a; color:#e2e8f0; border:1px solid #1e293b;
+      cursor:pointer; font-family:ui-monospace,monospace; font-size:12px;
+      display:flex; gap:10px; align-items:center;
+    }
+    .endpoint-btn:hover { border-color:#38bdf8; }
+    .endpoint-btn.active { border-color:#38bdf8; background: rgba(56,189,248,0.06); }
+    .verb {
+      display:inline-block; padding: 1px 7px; border-radius:4px;
+      font-size:10px; font-weight:700;
+    }
+    .verb.GET    { background:rgba(34,197,94,0.18); color:#22c55e; }
+    .verb.POST   { background:rgba(56,189,248,0.18); color:#38bdf8; }
+    .verb.DELETE { background:rgba(239,68,68,0.18);  color:#ef4444; }
+
+    .send-row { display:flex; gap:8px; align-items:center; }
+    button.send {
+      flex-shrink:0; background:#38bdf8; color:#0a0e1a; border:0;
+      padding:10px 18px; border-radius:7px; font-weight:700; cursor:pointer;
+      font-size:13px;
+    }
+    button.send:hover { background:#0ea5e9; }
+    button.send:disabled { background:#1e293b; color:#475569; cursor:default; }
+    .req-line {
+      flex:1;
+      background:#0a0e1a; padding:9px 11px; border-radius:7px;
+      border:1px solid #1e293b;
+      font-family:ui-monospace,monospace; font-size:12px; color:#94a3b8;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+
+    .status-line {
+      display:flex; gap:12px; align-items:center;
+      font-size:12px; color:#94a3b8; margin: 6px 0 12px;
+      font-family: ui-monospace, monospace;
+    }
+    .status-pill {
+      padding: 2px 8px; border-radius:10px; font-weight:700; font-size:10px;
+    }
+    .status-pill.ok    { background:rgba(34,197,94,0.18); color:#22c55e; }
+    .status-pill.warn  { background:rgba(245,158,11,0.18); color:#f59e0b; }
+    .status-pill.bad   { background:rgba(239,68,68,0.18);  color:#ef4444; }
+
+    pre.response {
+      background:#0a0e1a; border:1px solid #1e293b; border-radius:8px;
+      padding: 14px; max-height: 540px; overflow:auto;
+      font-family: ui-monospace, monospace; font-size: 12px;
+      line-height: 1.5; color:#e2e8f0; white-space: pre-wrap; word-break: break-word;
+    }
+    .json-key   { color:#38bdf8; }
+    .json-str   { color:#22c55e; }
+    .json-num   { color:#fbbf24; }
+    .json-bool  { color:#ec4899; }
+    .json-null  { color:#64748b; }
+
+    .hint { font-size:11px; color:#64748b; margin-top:6px; }
+    code  { background:#0a0e1a; border:1px solid #1e293b; border-radius:4px;
+            padding:1px 5px; color:#fbbf24; font-size:12px; }
+
+    .quick-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top: 8px; }
+    .quick-actions a {
+      font-size: 11px; color:#38bdf8; text-decoration:none;
+      padding: 4px 9px; border-radius:5px; border:1px solid #1e293b;
+    }
+    .quick-actions a:hover { border-color:#38bdf8; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>API Console</h1>
+    <p class="lead">
+      Hit any IonShield endpoint right from the browser. Your Bearer token
+      stays in this tab — we never send it anywhere except the endpoint
+      you're calling. Use this to verify auth, explore responses, or copy
+      a working request into your codebase.
+    </p>
+
+    <div class="row">
+      <!-- Left: endpoint picker + token -->
+      <div class="panel">
+        <h2>1 · Endpoint</h2>
+        <div class="endpoint-pick" id="endpoint-pick">
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/health">
+            <span class="verb GET">GET</span> /api/v3/health
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/risk-map">
+            <span class="verb GET">GET</span> /api/v3/risk-map
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/forecast/kp">
+            <span class="verb GET">GET</span> /api/v3/forecast/kp
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/events/active">
+            <span class="verb GET">GET</span> /api/v3/events/active
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/scenarios">
+            <span class="verb GET">GET</span> /api/v3/scenarios
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/customers">
+            <span class="verb GET">GET</span> /api/v3/customers
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/foundry/pack">
+            <span class="verb GET">GET</span> /api/v3/foundry/pack
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/training/models">
+            <span class="verb GET">GET</span> /api/v3/training/models
+          </button>
+          <button class="endpoint-btn" data-method="GET" data-path="/api/v3/training/drift">
+            <span class="verb GET">GET</span> /api/v3/training/drift
+          </button>
+        </div>
+
+        <div class="field">
+          <label for="custom-path">Or custom path</label>
+          <input id="custom-path" type="text" placeholder="/api/v3/regions/R+035-110" />
+          <div class="hint">Pick from the list above or type any path.</div>
+        </div>
+
+        <h2 style="margin-top: 22px;">2 · Auth</h2>
+        <div class="field">
+          <label for="token">Bearer token (optional)</label>
+          <input id="token" type="password" placeholder="iks_…" autocomplete="off" />
+          <div class="hint">
+            Paste a key minted via <code>POST /api/v3/admin/keys</code>. Open-demo
+            endpoints work without one.
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <a href="/api/v3/admin/keys" target="_blank">Mint key →</a>
+          <a href="/openapi.json" target="_blank">OpenAPI spec</a>
+          <a href="/integrations">All integrations</a>
+        </div>
+      </div>
+
+      <!-- Right: send + response -->
+      <div class="panel">
+        <h2>3 · Request</h2>
+        <div class="send-row">
+          <span class="req-line" id="req-line">GET /api/v3/health</span>
+          <button class="send" id="send-btn">Send →</button>
+        </div>
+
+        <div class="status-line" id="status-line" style="display:none;">
+          <span class="status-pill" id="status-pill">—</span>
+          <span id="status-text">—</span>
+          <span id="status-time"></span>
+        </div>
+
+        <h2 style="margin-top: 18px;">4 · Response</h2>
+        <pre class="response" id="response">// Response JSON appears here. Pick an endpoint and click Send.</pre>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script>
+    (() => {
+      const btns = document.querySelectorAll('.endpoint-btn');
+      const customPath = document.getElementById('custom-path');
+      const reqLine = document.getElementById('req-line');
+      const tokenEl = document.getElementById('token');
+      const sendBtn = document.getElementById('send-btn');
+      const statusLine = document.getElementById('status-line');
+      const statusPill = document.getElementById('status-pill');
+      const statusText = document.getElementById('status-text');
+      const statusTime = document.getElementById('status-time');
+      const responseEl = document.getElementById('response');
+
+      let currentMethod = 'GET';
+      let currentPath = '/api/v3/health';
+
+      const persistedToken = (() => { try { return localStorage.getItem('ionshield_token') || ''; } catch { return ''; } })();
+      tokenEl.value = persistedToken;
+      tokenEl.addEventListener('input', () => {
+        try { localStorage.setItem('ionshield_token', tokenEl.value); } catch {}
+      });
+
+      function pickEndpoint(method, path) {
+        currentMethod = method;
+        currentPath = path;
+        reqLine.textContent = `${method} ${path}`;
+        btns.forEach(b => b.classList.toggle('active',
+          b.dataset.method === method && b.dataset.path === path));
+        customPath.value = '';
+      }
+      pickEndpoint('GET', '/api/v3/health');
+
+      btns.forEach(b => {
+        b.addEventListener('click', () => pickEndpoint(b.dataset.method, b.dataset.path));
+      });
+
+      customPath.addEventListener('input', () => {
+        const v = customPath.value.trim();
+        if (v) {
+          currentMethod = 'GET';
+          currentPath = v.startsWith('/') ? v : '/' + v;
+          reqLine.textContent = `GET ${currentPath}`;
+          btns.forEach(b => b.classList.remove('active'));
+        }
+      });
+
+      function syntaxHighlight(json) {
+        const safe = json
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return safe.replace(
+          /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+          (match) => {
+            let cls = 'json-num';
+            if (/^"/.test(match)) {
+              cls = /:$/.test(match) ? 'json-key' : 'json-str';
+            } else if (/true|false/.test(match)) cls = 'json-bool';
+            else if (/null/.test(match)) cls = 'json-null';
+            return `<span class="${cls}">${match}</span>`;
+          },
+        );
+      }
+
+      sendBtn.addEventListener('click', async () => {
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending…';
+        statusLine.style.display = 'flex';
+        statusPill.className = 'status-pill';
+        statusPill.textContent = '…';
+        statusText.textContent = currentPath;
+        statusTime.textContent = '';
+        responseEl.textContent = '// loading…';
+
+        const headers = { 'Accept': 'application/json' };
+        const tk = tokenEl.value.trim();
+        if (tk) headers['Authorization'] = `Bearer ${tk}`;
+
+        const t0 = performance.now();
+        try {
+          const r = await fetch(currentPath, { method: currentMethod, headers });
+          const dt = Math.round(performance.now() - t0);
+          const ct = r.headers.get('content-type') || '';
+          const cls = r.ok ? 'ok' : (r.status >= 500 ? 'bad' : 'warn');
+          statusPill.className = `status-pill ${cls}`;
+          statusPill.textContent = String(r.status);
+          statusText.textContent = `${r.statusText || ''} · ${ct}`;
+          statusTime.textContent = `${dt} ms`;
+          let body;
+          if (ct.includes('application/json')) {
+            const j = await r.json();
+            body = JSON.stringify(j, null, 2);
+            responseEl.innerHTML = syntaxHighlight(body);
+          } else {
+            body = await r.text();
+            responseEl.textContent = body.slice(0, 8000) +
+              (body.length > 8000 ? '\n\n// (truncated)' : '');
+          }
+        } catch (e) {
+          const dt = Math.round(performance.now() - t0);
+          statusPill.className = 'status-pill bad';
+          statusPill.textContent = 'ERR';
+          statusText.textContent = String(e);
+          statusTime.textContent = `${dt} ms`;
+          responseEl.textContent = `// network error: ${e}`;
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send →';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

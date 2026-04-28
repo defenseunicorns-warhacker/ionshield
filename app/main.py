@@ -512,6 +512,14 @@ def create_app() -> FastAPI:
     async def mkt_foundry():
         return _page("foundry.html")
 
+    @app.get("/integrations", include_in_schema=False)
+    async def mkt_integrations():
+        return _page("integrations.html")
+
+    @app.get("/api-console", include_in_schema=False)
+    async def mkt_api_console():
+        return _page("api_console.html")
+
     # ── 3D Dashboard ──────────────────────────────────────────────────────────
     @app.get("/dashboard", include_in_schema=False)
     async def dashboard():

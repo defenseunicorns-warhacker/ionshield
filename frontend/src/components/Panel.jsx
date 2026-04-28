@@ -24,6 +24,28 @@ function LayerToggles({ layers, onToggle }) {
 
   return (
     <div className="panel-section">
+      {/* Integrations Hub — central landing for ATAK, Foundry, API, etc. */}
+      <a
+        href="/integrations"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: '#0a0e1a',
+          color: '#e2e8f0',
+          padding: '10px 12px',
+          borderRadius: 7,
+          border: '1px solid #1e293b',
+          textDecoration: 'none',
+          marginBottom: 10,
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+        title="ATAK · Foundry · API · CoT · Scenarios"
+      >
+        <span>⊞ Integrations Hub</span>
+        <span style={{ fontSize: 10, color: '#64748b', letterSpacing: 1 }}>ATAK · FOUNDRY · API</span>
+      </a>
       {/* Prominent route into Simulation Mode — historical storm replay */}
       <a
         href="/simulation"
