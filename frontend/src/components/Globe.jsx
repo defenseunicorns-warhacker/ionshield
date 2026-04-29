@@ -47,22 +47,49 @@ const Globe = forwardRef(function Globe(
   const layerDSRef     = useRef(null);  // CustomDataSource for layer entities
 
   // ── Imperative API ──────────────────────────────────────────────────────────
+  // Camera-safety rule: never land at a depth where the surface fills the
+  // viewport with no geographic context. We always end at an oblique aerial
+  // view *above* the target so the user keeps spatial awareness — the
+  // "land above the waypoint, not in it" rule.
+  //
+  // MIN_RANGE_M  — minimum camera-to-target distance (~1,800 km). Below this,
+  //                a single waypoint pinches the view down to a blank ocean
+  //                (the source of the original "lost in a blank background"
+  //                complaint — for a 1-WP route, BoundingSphere.radius is 0
+  //                and the legacy offset of `radius * 3.8` collapsed to 0).
+  // SAFE_PITCH   — −35° gives an aerial-oblique look; straight-down (-90°) is
+  //                disorienting on a globe and was a frequent complaint.
+  const MIN_RANGE_M = 1_800_000;
+  const SAFE_PITCH  = -Cesium.Math.toRadians(35);
+
   useImperativeHandle(ref, () => ({
-    /** Fly the camera to a lon/lat position. */
-    flyTo(lat, lon, altM = 4_000_000) {
-      viewerRef.current?.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(lon, lat, altM),
-        duration: 1.5,
+    /** Fly the camera to a lon/lat position with an oblique aerial view. */
+    flyTo(lat, lon, altM = 2_500_000) {
+      const v = viewerRef.current;
+      if (!v) return;
+      // Use flyToBoundingSphere (with a degenerate sphere centred on the
+      // target) so we get a consistent oblique pitch instead of a
+      // straight-down look-at.
+      const target = Cesium.Cartesian3.fromDegrees(lon, lat);
+      const bs = new Cesium.BoundingSphere(target, 1);
+      v.camera.flyToBoundingSphere(bs, {
+        duration: 1.4,
+        offset: new Cesium.HeadingPitchRange(0, SAFE_PITCH, Math.max(altM, MIN_RANGE_M)),
       });
     },
     /** Fit the camera to the bounding sphere of an array of waypoints. */
     flyToRoute(wps) {
-      if (!wps.length || !viewerRef.current) return;
+      const v = viewerRef.current;
+      if (!wps.length || !v) return;
       const pts = wps.map(wp => Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat));
       const bs  = Cesium.BoundingSphere.fromPoints(pts);
-      viewerRef.current.camera.flyToBoundingSphere(bs, {
-        duration: 1.5,
-        offset: new Cesium.HeadingPitchRange(0, -Cesium.Math.toRadians(38), bs.radius * 3.8),
+      // Single-point bs has radius 0 → offset would also be 0 → camera dives
+      // into the surface. Floor the range so we always land at a useful
+      // aerial view above the point.
+      const range = Math.max(bs.radius * 3.8, MIN_RANGE_M);
+      v.camera.flyToBoundingSphere(bs, {
+        duration: 1.4,
+        offset: new Cesium.HeadingPitchRange(0, SAFE_PITCH, range),
       });
     },
   }), []);
@@ -135,6 +162,20 @@ const Globe = forwardRef(function Globe(
     viewer.scene.fog.enabled            = false;
     // Disable water effect (requires extra shader pass)
     viewer.scene.globe.showWaterEffect  = false;
+
+    // ── Camera safety ────────────────────────────────────────────────────────
+    // Floor manual zoom-in so the user can never end up "inside" the surface
+    // (the source of the "lost in a blank background" complaint). They can
+    // still zoom to ~600 km altitude — close enough for regional context, far
+    // enough to keep geography visible.
+    viewer.scene.screenSpaceCameraController.minimumZoomDistance = 600_000;
+    // Cap zoom-out at geosynchronous-ish range so the globe stays in frame.
+    viewer.scene.screenSpaceCameraController.maximumZoomDistance = 60_000_000;
+
+    // Don't auto-track entities on click — Cesium's default behaviour pinches
+    // the camera into the entity, which was a frequent complaint.
+    viewer.trackedEntity  = undefined;
+    viewer.selectedEntity = undefined;
 
     // Initial camera position (whole Earth view)
     viewer.camera.setView({
