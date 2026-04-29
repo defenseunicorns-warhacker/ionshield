@@ -47,24 +47,23 @@ const Globe = forwardRef(function Globe(
   const layerDSRef     = useRef(null);  // CustomDataSource for layer entities
 
   // ── Imperative API ──────────────────────────────────────────────────────────
-  // Camera-safety rule: never land at a depth where the surface fills the
-  // viewport with no geographic context. We always end at an oblique aerial
-  // view *above* the target so the user keeps spatial awareness — the
-  // "land above the waypoint, not in it" rule.
+  // Camera-safety rule: never land in the surface, but stop close enough to
+  // see real geographic detail (state/country scale, not hemisphere).
   //
-  // MIN_RANGE_M  — minimum camera-to-target distance (~1,800 km). Below this,
-  //                a single waypoint pinches the view down to a blank ocean
-  //                (the source of the original "lost in a blank background"
-  //                complaint — for a 1-WP route, BoundingSphere.radius is 0
-  //                and the legacy offset of `radius * 3.8` collapsed to 0).
+  // MIN_RANGE_M  — minimum camera-to-target distance (~600 km). Below this,
+  //                the original "lost in a blank background" bug starts — for
+  //                a 1-WP route, BoundingSphere.radius is 0 and the legacy
+  //                offset of `radius * 3.8` collapsed to 0. 600 km is roughly
+  //                ISS altitude — close enough to see a region, far enough
+  //                to keep geography readable.
   // SAFE_PITCH   — −35° gives an aerial-oblique look; straight-down (-90°) is
   //                disorienting on a globe and was a frequent complaint.
-  const MIN_RANGE_M = 1_800_000;
+  const MIN_RANGE_M = 600_000;
   const SAFE_PITCH  = -Cesium.Math.toRadians(35);
 
   useImperativeHandle(ref, () => ({
     /** Fly the camera to a lon/lat position with an oblique aerial view. */
-    flyTo(lat, lon, altM = 2_500_000) {
+    flyTo(lat, lon, altM = 900_000) {
       const v = viewerRef.current;
       if (!v) return;
       // Use flyToBoundingSphere (with a degenerate sphere centred on the
@@ -164,11 +163,11 @@ const Globe = forwardRef(function Globe(
     viewer.scene.globe.showWaterEffect  = false;
 
     // ── Camera safety ────────────────────────────────────────────────────────
-    // Floor manual zoom-in so the user can never end up "inside" the surface
-    // (the source of the "lost in a blank background" complaint). They can
-    // still zoom to ~600 km altitude — close enough for regional context, far
-    // enough to keep geography visible.
-    viewer.scene.screenSpaceCameraController.minimumZoomDistance = 600_000;
+    // Floor manual zoom-in so the user can never end up "inside" the surface,
+    // but allow getting genuinely close — 150 km altitude is roughly aircraft
+    // cruise + a bit, lets users inspect a city block while still keeping
+    // geographic context.
+    viewer.scene.screenSpaceCameraController.minimumZoomDistance = 150_000;
     // Cap zoom-out at geosynchronous-ish range so the globe stays in frame.
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 60_000_000;
 
