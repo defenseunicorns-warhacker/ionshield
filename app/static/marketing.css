@@ -26,6 +26,26 @@
   --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Fira Code', 'Cascadia Code', Consolas, monospace;
   --nav-h: 56px;
+
+  /* ── Aliases for newer pages (e.g. /ml) that use a wider token set ─────
+     These map to the same colours as the legacy tokens above so existing
+     pages still render unchanged. */
+  --accent:       var(--blue-hi);
+  --accent-d:     #2563eb;
+  --accent-l:     #93c5fd;
+  --line-1:       var(--border);
+  --line-2:       var(--border-hi);
+  --t-1:          var(--text-1);
+  --t-2:          var(--text-2);
+  --t-3:          var(--text-3);
+  --t-4:          #2a3f55;
+  --sev-nominal:  var(--green);
+  --sev-watch:    #fbbf24;
+  --sev-warn:     var(--yellow);
+  --sev-danger:   var(--red);
+  --r-sm:         5px;
+  --r-md:         8px;
+  --r-lg:         12px;
 }
 
 html { scroll-behavior: smooth; font-size: 16px; }

@@ -496,6 +496,10 @@ def create_app() -> FastAPI:
     async def mkt_docs():
         return _page("docs.html")
 
+    @app.get("/ml", include_in_schema=False)
+    async def mkt_ml():
+        return _page("ml.html")
+
     @app.get("/pricing", include_in_schema=False)
     async def mkt_pricing():
         return _page("pricing.html")

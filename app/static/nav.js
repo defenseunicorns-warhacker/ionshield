@@ -14,6 +14,7 @@
     { href: '/integrations', label: 'Integrations' },
     { href: '/simulation',   label: 'Simulation' },
     { href: '/use-cases',    label: 'Use Cases' },
+    { href: '/ml',           label: 'ML' },
     { href: '/docs',         label: 'Docs' },
     { href: '/pricing',      label: 'Pricing' },
   ];
