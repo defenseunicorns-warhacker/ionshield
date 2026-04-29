@@ -24,54 +24,58 @@ function LayerToggles({ layers, onToggle }) {
 
   return (
     <div className="panel-section">
-      {/* Integrations Hub — central landing for ATAK, Foundry, API, etc. */}
-      <a
-        href="/integrations"
+      {/* Quick links — small, restrained pills matching the rest of the
+          panel's density. Replaces the previous oversized cyan-gradient
+          Simulation CTA. */}
+      <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: '#0a0e1a',
-          color: '#e2e8f0',
-          padding: '10px 12px',
-          borderRadius: 7,
-          border: '1px solid #1e293b',
-          textDecoration: 'none',
-          marginBottom: 10,
-          fontSize: 12,
-          fontWeight: 600,
-        }}
-        title="ATAK · Foundry · API · CoT · Scenarios"
-      >
-        <span>⊞ Integrations Hub</span>
-        <span style={{ fontSize: 10, color: '#64748b', letterSpacing: 1 }}>ATAK · FOUNDRY · API</span>
-      </a>
-      {/* Prominent route into Simulation Mode — historical storm replay */}
-      <a
-        href="/simulation"
-        style={{
-          display: 'block',
-          background: 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)',
-          color: '#0a0e1a',
-          padding: '12px 14px',
-          borderRadius: 8,
-          textDecoration: 'none',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 6,
           marginBottom: 14,
-          fontWeight: 700,
-          fontSize: 13,
-          letterSpacing: 0.3,
-          boxShadow: '0 4px 14px rgba(56,189,248,0.25)',
         }}
-        title="Open Simulation Mode"
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>🌐 Simulation Mode</span>
-          <span style={{ fontSize: 16 }}>→</span>
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.78, marginTop: 3 }}>
-          Replay May 2024 G5, Halloween 2003, St. Patrick's 2015
-        </div>
-      </a>
+        <a
+          href="/simulation"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#0a0e1a',
+            color: '#e2e8f0',
+            padding: '7px 10px',
+            borderRadius: 6,
+            border: '1px solid #1e293b',
+            textDecoration: 'none',
+            fontSize: 11.5,
+            fontWeight: 600,
+          }}
+          title="Replay historical storms"
+        >
+          <span>📼 Simulation</span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>→</span>
+        </a>
+        <a
+          href="/integrations"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#0a0e1a',
+            color: '#e2e8f0',
+            padding: '7px 10px',
+            borderRadius: 6,
+            border: '1px solid #1e293b',
+            textDecoration: 'none',
+            fontSize: 11.5,
+            fontWeight: 600,
+          }}
+          title="ATAK · Foundry · API"
+        >
+          <span>⊞ Integrations</span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>→</span>
+        </a>
+      </div>
       <div className="section-label">
         DATA LAYERS
         <span className="help-icon" title="Toggle visual overlays on the 3D globe. Values are derived from live NOAA data and are indicative, not precision measurements.">?</span>
