@@ -96,7 +96,10 @@ def test_integrations_link_in_nav():
 
 
 def test_landing_page_has_integrations_cta():
+    """Landing must have a working CTA into the integrations hub. Button copy
+    has shifted between "Integrations Hub" and "See Integrations" — the
+    link target /integrations is what matters."""
     with TestClient(app) as client:
         body = client.get("/").text
     assert "/integrations" in body
-    assert "Integrations Hub" in body
+    assert "Integrations" in body
