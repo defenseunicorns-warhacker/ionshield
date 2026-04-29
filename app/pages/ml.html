@@ -4,286 +4,528 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Machine Learning — IonShield</title>
-  <meta name="description" content="What IonShield's ML does today, what's next, and how it learns from each customer's environment over time." />
+  <meta name="description" content="IonShield's ML arc: from public-data ridge models today to customer-specific models and autonomous decision support. Built on a continuous feedback loop between operator outcomes and the model that serves them." />
   <link rel="stylesheet" href="/static/marketing.css" />
   <style>
-    .timeline { display: grid; gap: 18px; }
-    .tl-card {
-      background: var(--bg-2); border: 1px solid var(--line-1);
-      border-radius: var(--r-lg); padding: 22px;
+    /* ── Page-local: rich visuals on top of the design system ──────── */
+
+    .ml-page { padding-top: 24px; padding-bottom: 80px; }
+
+    /* Hero */
+    .ml-hero {
+      display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center;
+      padding: 60px 0 30px;
+    }
+    @media (min-width: 960px) {
+      .ml-hero { grid-template-columns: 1.1fr 1fr; gap: 60px; }
+    }
+    .ml-hero-eye {
+      display: inline-block;
+      font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--blue-hi); font-weight: 700; margin-bottom: 14px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(96, 165, 250, 0.12);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+    }
+    .ml-hero-h {
+      font-size: clamp(32px, 4.5vw, 48px);
+      letter-spacing: -0.025em; line-height: 1.1; color: var(--text-1);
+      font-weight: 800; margin-bottom: 18px;
+    }
+    .ml-hero-h em { color: var(--blue-hi); font-style: normal; }
+    .ml-hero-sub {
+      font-size: 16px; color: var(--text-2); line-height: 1.6;
+      max-width: 540px;
+    }
+    .ml-hero-sub b { color: var(--text-1); font-weight: 600; }
+
+    /* Hero figure: a stylized feedback-loop diagram */
+    .ml-figure {
+      position: relative; aspect-ratio: 1.1 / 1; max-width: 460px;
+      margin: 0 auto;
+      background: radial-gradient(ellipse at center, rgba(96,165,250,0.08), transparent 70%);
+    }
+    .ml-figure svg { width: 100%; height: 100%; }
+    .ml-node {
+      position: absolute; padding: 10px 14px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 10px; font-size: 12px; font-weight: 700;
+      color: var(--text-1); white-space: nowrap;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .ml-node-sub {
+      font-size: 9px; color: var(--text-3); font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;
+    }
+    .ml-node.public  { left: 6%;  top: 10%; }
+    .ml-node.fleet   { right: 4%; top: 10%;
+                       border-color: rgba(96,165,250,0.4); }
+    .ml-node.model   { left: 50%; top: 50%; transform: translate(-50%, -50%);
+                       background: linear-gradient(135deg, var(--bg-3), var(--bg-2));
+                       border-color: var(--blue-hi); padding: 14px 18px;
+                       box-shadow: 0 8px 30px rgba(96,165,250,0.2); }
+    .ml-node.outcome { left: 8%;  bottom: 10%;
+                       border-color: rgba(16,185,129,0.4); }
+    .ml-node.decide  { right: 6%; bottom: 10%;
+                       border-color: rgba(16,185,129,0.4); }
+
+    /* Section primitives */
+    .section-block { padding: 56px 0; }
+    .section-block.alt {
+      background: var(--bg-1);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Comparison grid: Generic ML vs IonShield */
+    .compare {
+      display: grid; gap: 16px;
+      grid-template-columns: 1fr; margin-top: 28px;
+    }
+    @media (min-width: 720px) { .compare { grid-template-columns: 1fr 1fr; } }
+    .compare-col {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px;
+    }
+    .compare-col.ours { border-color: var(--blue-hi);
+                        box-shadow: 0 0 0 1px rgba(96,165,250,0.15); }
+    .compare-col h3 {
+      font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--text-3); font-weight: 700; margin-bottom: 12px;
+    }
+    .compare-col.ours h3 { color: var(--blue-hi); }
+    .compare-col li {
+      list-style: none; padding: 8px 0; border-bottom: 1px solid var(--bg-3);
+      font-size: 13px; color: var(--text-2); line-height: 1.55;
+      display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: flex-start;
+    }
+    .compare-col li:last-child { border-bottom: 0; }
+    .compare-col li::before {
+      content: '✗'; color: var(--text-3); font-weight: 700;
+    }
+    .compare-col.ours li::before { content: '✓'; color: var(--green); }
+
+    /* Phase tiers — visual stepper */
+    .tier-list { display: grid; gap: 14px; }
+    .tier {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px;
+      display: grid; grid-template-columns: 100px 1fr; gap: 22px;
+      align-items: start;
+    }
+    @media (max-width: 640px) { .tier { grid-template-columns: 1fr; } }
+    .tier-label {
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      font-weight: 700; padding: 4px 10px; border-radius: 999px;
+      display: inline-block; align-self: start;
+      white-space: nowrap;
+    }
+    .tier.now      { border-left: 3px solid var(--green); }
+    .tier.now      .tier-label { background: rgba(16,185,129,0.13); color: var(--green); }
+    .tier.near     { border-left: 3px solid var(--yellow); }
+    .tier.near     .tier-label { background: rgba(245,158,11,0.13); color: var(--yellow); }
+    .tier.future   { border-left: 3px solid var(--blue-hi); }
+    .tier.future   .tier-label { background: rgba(96,165,250,0.13); color: var(--blue-hi); }
+    .tier-h { font-size: 20px; font-weight: 700; color: var(--text-1);
+              margin-bottom: 6px; letter-spacing: -0.01em; }
+    .tier-p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+    .tier-bullets {
+      list-style: none; margin-top: 12px;
+      display: grid; gap: 8px;
+    }
+    .tier-bullets li {
+      font-size: 12px; color: var(--text-2); line-height: 1.55;
+      padding-left: 18px; position: relative;
+    }
+    .tier-bullets li::before {
+      content: '▸'; position: absolute; left: 0; top: 0;
+      color: var(--blue-hi); font-weight: 700;
+    }
+    .tier-bullets b { color: var(--text-1); font-weight: 600; }
+
+    /* Loop diagram (real graphical flow) */
+    .loop {
+      display: grid; gap: 14px; margin-top: 28px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .loop-step {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
       position: relative;
     }
-    .tl-card.now      { border-left: 3px solid var(--sev-nominal); }
-    .tl-card.near     { border-left: 3px solid var(--sev-watch); }
-    .tl-card.future   { border-left: 3px solid var(--accent); }
-    .tl-eye {
-      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-      font-weight: 700; margin-bottom: 8px;
+    .loop-step::before {
+      content: ''; position: absolute; top: -1px; left: -1px;
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-hi));
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+      border-radius: 12px 0 0 0;
     }
-    .tl-eye.now    { color: var(--sev-nominal); }
-    .tl-eye.near   { color: var(--sev-watch); }
-    .tl-eye.future { color: var(--accent); }
-    .tl-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-    .tl-body  { font-size: 13px; color: var(--t-2); line-height: 1.6; }
-    .tl-meta  { font-size: 11px; color: var(--t-3); margin-top: 12px; font-family: var(--mono); }
+    .loop-step-num {
+      position: absolute; top: 6px; left: 7px;
+      color: white; font-size: 12px; font-weight: 800;
+      font-family: var(--mono); z-index: 1;
+    }
+    .loop-step-h {
+      font-size: 14px; font-weight: 700; color: var(--text-1);
+      margin: 18px 0 6px;
+    }
+    .loop-step-p { font-size: 12px; color: var(--text-2); line-height: 1.6; }
 
-    .loop-grid {
-      display: grid; gap: 18px;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    /* Pull quote / North-star statement */
+    .northstar {
+      background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+      border: 1px solid var(--blue-hi);
+      box-shadow: 0 0 0 1px rgba(96,165,250,0.1);
+      border-radius: 14px; padding: 32px;
+      text-align: center; max-width: 800px; margin: 0 auto;
     }
-    .loop-card {
-      background: var(--bg-2); border: 1px solid var(--line-1);
-      border-radius: var(--r-lg); padding: 22px;
+    .northstar-eye {
+      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--blue-hi); font-weight: 700; margin-bottom: 14px;
     }
-    .loop-num {
-      font-family: var(--mono); font-size: 11px; color: var(--accent);
-      letter-spacing: 0.16em; font-weight: 700;
+    .northstar p {
+      font-size: 22px; line-height: 1.4; color: var(--text-1);
+      letter-spacing: -0.01em; font-weight: 600;
     }
-    .loop-title { font-size: 15px; font-weight: 700; margin: 4px 0 8px; }
-    .loop-body  { font-size: 13px; color: var(--t-2); line-height: 1.55; }
+    .northstar p em {
+      font-style: normal; color: var(--blue-hi);
+    }
+
+    /* Disclaimer block */
+    .disclaim {
+      margin-top: 26px; padding: 14px 18px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 12px; color: var(--text-3);
+      line-height: 1.6; max-width: 760px;
+    }
+    .disclaim b { color: var(--text-2); }
+
+    /* Final CTA */
+    .ml-cta { text-align: center; max-width: 680px; margin: 0 auto; }
+    .ml-cta .sec-title { margin-bottom: 14px; }
+    .ml-cta-row { display: flex; gap: 10px; justify-content: center;
+                  flex-wrap: wrap; margin-top: 24px; }
   </style>
 </head>
 <body>
 
-<!-- ── Header ────────────────────────────────────────────────────── -->
-<section class="block tight">
-  <div class="container">
-    <div class="eyebrow">Machine learning</div>
-    <h1 class="sec-title">Auditable today,<br>customer-tuned tomorrow</h1>
-    <p class="lead">
-      Honest framing of where IonShield's ML is, where it's headed in the
-      near term, and what the long-term arc looks like. No fantasy claims,
-      no opaque models — and explicit boundaries on what's shipped vs.
-      directional.
+<div class="ml-page container">
+
+  <!-- ── Hero ─────────────────────────────────────────────────────── -->
+  <section class="ml-hero">
+    <div>
+      <span class="ml-hero-eye">Machine Learning</span>
+      <h1 class="ml-hero-h">
+        Models that <em>learn your<br>operations</em>, not a benchmark
+      </h1>
+      <p class="ml-hero-sub">
+        IonShield's ML doesn't stop at a generic forecaster. The arc is a
+        continuous feedback loop — your fleet's outcomes go back into a model
+        that becomes <b>customer-specific</b>, then increasingly
+        <b>autonomous</b> in the suggestions it serves your operators.
+      </p>
+    </div>
+
+    <!-- Stylised loop diagram -->
+    <div class="ml-figure" aria-hidden="true">
+      <svg viewBox="0 0 460 420">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+          </marker>
+        </defs>
+        <!-- Public data → model -->
+        <path d="M 100 70 Q 200 130 220 195" stroke="#1e3a5f" stroke-width="2"
+              fill="none" marker-end="url(#arrow)"/>
+        <!-- Fleet data → model -->
+        <path d="M 360 70 Q 270 130 240 195" stroke="#60a5fa" stroke-width="2"
+              fill="none" marker-end="url(#arrow)"/>
+        <!-- Model → decision -->
+        <path d="M 260 240 Q 320 280 360 350" stroke="#10b981" stroke-width="2"
+              fill="none" marker-end="url(#arrow)"/>
+        <!-- Decision → outcome -->
+        <path d="M 350 380 Q 230 380 130 380" stroke="#10b981" stroke-width="2"
+              fill="none" marker-end="url(#arrow)"/>
+        <!-- Outcome → model (the loop closing back) -->
+        <path d="M 100 350 Q 80 280 200 240" stroke="#60a5fa" stroke-width="2"
+              fill="none" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+      </svg>
+      <div class="ml-node public">
+        Public data
+        <div class="ml-node-sub">NOAA · NASA OMNI</div>
+      </div>
+      <div class="ml-node fleet">
+        Customer fleet
+        <div class="ml-node-sub">RTK · GPS · HF logs</div>
+      </div>
+      <div class="ml-node model">
+        Customer model
+        <div class="ml-node-sub">tuned · auditable</div>
+      </div>
+      <div class="ml-node decide">
+        Decision support
+        <div class="ml-node-sub">→ Autonomous</div>
+      </div>
+      <div class="ml-node outcome">
+        Operator outcomes
+        <div class="ml-node-sub">labels · drift</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── North star ─────────────────────────────────────────────── -->
+  <section class="section-block">
+    <div class="northstar">
+      <div class="northstar-eye">The arc</div>
+      <p>
+        Public data trains the baseline. Your fleet's outcomes train
+        <em>your</em> model. The model becomes the operator —
+        <em>suggesting first, deciding next.</em>
+      </p>
+    </div>
+  </section>
+
+
+  <!-- ── Why this is different ──────────────────────────────────── -->
+  <section class="section-block alt">
+    <div class="eyebrow">Why our ML beats generic forecasting</div>
+    <h2 class="sec-title">Same physics, but tuned to<br>your operating reality</h2>
+    <p class="sec-sub">
+      Generic space-weather ML forecasts the global Kp index. That's not what
+      your operator needs. We tune the model to the specific assets, regions,
+      and outcomes that your team actually cares about.
     </p>
-  </div>
-</section>
 
-<!-- ── Three-tier timeline ──────────────────────────────────────── -->
-<section class="block alt">
-  <div class="container">
+    <div class="compare">
+      <div class="compare-col">
+        <h3>Generic ML / Industry default</h3>
+        <ul>
+          <li>One global model, scored against academic benchmarks</li>
+          <li>Black-box weights — no way to explain a recommendation</li>
+          <li>Trained once, decays as conditions change</li>
+          <li>Same answer for a polar drone op as for an equatorial farm</li>
+          <li>Suggestions are advisory only — operator still owns every call</li>
+        </ul>
+      </div>
+      <div class="compare-col ours">
+        <h3>IonShield · Customer-tuned</h3>
+        <ul>
+          <li><b>Per-customer model</b> learning from <em>your</em> RTK / HF / mission logs</li>
+          <li>Auditable JSON weights — defensible to compliance &amp; legal</li>
+          <li>Continuous retraining via <b>champion / challenger</b> A/B</li>
+          <li>Per-region heads — polar polar, equatorial equatorial</li>
+          <li>Path to <b>autonomous suggestions</b> on cleared workflows</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── The roadmap, brutally honest tiers ────────────────────── -->
+  <section class="section-block">
     <div class="eyebrow">Roadmap</div>
-    <h2 class="sec-title">Where the ML is today,<br>where it's going</h2>
+    <h2 class="sec-title">The honest version of the arc</h2>
+    <p class="sec-sub">
+      Direction we are committed to, with a clear separation between what
+      ships today, what's near-term engineering, and what's the larger
+      product vision.
+    </p>
 
-    <div class="timeline">
+    <div class="tier-list">
 
-      <!-- TODAY -->
-      <div class="tl-card now">
-        <div class="tl-eye now">Shipping today</div>
-        <div class="tl-title">Auditable models in production</div>
-        <div class="tl-body">
-          Two ML systems run live in the public deployment:
-          <ul style="margin:10px 0 0 18px;color:var(--t-2);font-size:13px;line-height:1.7">
-            <li>
-              <b style="color:var(--t-1)">Event classifier</b> —
-              a multinomial logistic-regression model with softmax over
-              5 classes (BACKGROUND, GEOMAG_MAIN, SEP_EVENT, FLARE_M, FLARE_X).
-              Trained on real NOAA data with synthetic class balancing for
-              rare events.
-            </li>
-            <li>
-              <b style="color:var(--t-1)">24-hour Kp forecaster</b> —
-              multi-horizon ridge regression predicting Kp at +1 / +3 / +6 /
-              +12 / +24 h from a short lookback window of solar-wind drivers.
-              Closed-form trained on the NASA OMNI archive plus live snapshots.
-            </li>
-            <li>
-              <b style="color:var(--t-1)">Champion / challenger A/B</b> —
-              every new model registers as a shadow challenger. Auto-promotes
-              when it beats the live champion against operator feedback.
-            </li>
+      <div class="tier now">
+        <span class="tier-label">Today · live</span>
+        <div>
+          <div class="tier-h">Auditable models in production</div>
+          <p class="tier-p">
+            Two ML systems run live in the public deployment. Pure-Python
+            implementations, JSON-readable weights, full audit trail.
+          </p>
+          <ul class="tier-bullets">
+            <li><b>Event classifier</b> — multinomial logistic regression over 5 storm classes (background, geomag main, SEP event, M-flare, X-flare).</li>
+            <li><b>24-hour Kp forecaster</b> — multi-horizon ridge model trained on the NASA OMNI archive.</li>
+            <li><b>Champion / challenger</b> A/B with auto-promotion when a new model beats live performance.</li>
           </ul>
         </div>
-        <div class="tl-meta">Pure-Python · readable JSON weights · auto-pilot retrain · drift metrics · per-tenant audit log</div>
       </div>
 
-      <!-- NEAR-TERM -->
-      <div class="tl-card near">
-        <div class="tl-eye near">Near-term · 1–3 months</div>
-        <div class="tl-title">Specialised + customer-aware models</div>
-        <div class="tl-body">
-          Three near-term lifts that do not require new science, just engineering and data:
-          <ul style="margin:10px 0 0 18px;color:var(--t-2);font-size:13px;line-height:1.7">
-            <li><b style="color:var(--t-1)">Per-region heads</b> — one specialised forecaster per geomagnetic-latitude band so polar regions and the equatorial anomaly get the precision they need.</li>
-            <li><b style="color:var(--t-1)">Calibrated probabilities</b> — Platt or isotonic scaling on top of the classifier so a "70% blackout probability" is empirically 70%, not raw softmax noise.</li>
-            <li><b style="color:var(--t-1)">Customer feedback ground-truth</b> — wire the customer's own GPS C/N0 logs, RTK fix-time, or HF SNR into the feedback store so the model is scored against the operator's actual experience.</li>
+      <div class="tier near">
+        <span class="tier-label">Near · 1–3 mo</span>
+        <div>
+          <div class="tier-h">Customer-tuned model versions</div>
+          <p class="tier-p">
+            The headline lift: each customer's deployment grows its own model
+            tuned to its own operating environment. No new science required —
+            just the engineering to wire ground-truth in.
+          </p>
+          <ul class="tier-bullets">
+            <li><b>Customer feedback ground-truth</b> — pipe RTK fix-time, GPS C/N0, HF SNR, and mission outcomes into the feedback store. The model is scored against the operator's actual experience, not a benchmark.</li>
+            <li><b>Per-region heads</b> — one specialised forecaster per geomagnetic-latitude band (polar, mid-lat, equatorial anomaly).</li>
+            <li><b>Calibrated probabilities</b> — Platt / isotonic scaling so a 70% blackout probability is empirically 70%.</li>
           </ul>
         </div>
-        <div class="tl-meta">Same auditable foundation · per-tenant model versions · explicit roadmap, not fantasy</div>
       </div>
 
-      <!-- DIRECTIONAL -->
-      <div class="tl-card future">
-        <div class="tl-eye future">Direction · 6–12 months</div>
-        <div class="tl-title">Learning from customer-specific environments</div>
-        <div class="tl-body">
-          The long-term arc — stated as direction, not commitment:
-          <ul style="margin:10px 0 0 18px;color:var(--t-2);font-size:13px;line-height:1.7">
-            <li><b style="color:var(--t-1)">Customer-tuned model versions</b> — each customer's deployment carries its own promoted model, trained on its own environment and asset performance.</li>
-            <li><b style="color:var(--t-1)">Mission-history-informed recommendations</b> — accumulated mission and simulation data tells the system which decisions worked under which conditions; future recommendations get sharper.</li>
-            <li><b style="color:var(--t-1)">Sequence / state-aware forecasting</b> — predict not just Kp but storm phase (initial / main / recovery), so the recommendation can say "wait 90 min for recovery" instead of "monitor."</li>
-            <li><b style="color:var(--t-1)">Decision-support that improves over time</b> — the long-term arc is autonomy-friendly recommendation: IonShield suggests, the operator (or the system, if cleared) acts.</li>
+      <div class="tier future">
+        <span class="tier-label">Direction · 6–12 mo</span>
+        <div>
+          <div class="tier-h">Autonomous decision support</div>
+          <p class="tier-p">
+            The long arc. A customer-specific model with enough mission and
+            simulation history starts surfacing decisions, not just forecasts.
+            Operator stays in the loop until trust is earned.
+          </p>
+          <ul class="tier-bullets">
+            <li><b>Mission-history-informed recommendations</b> — accumulated outcomes tell the system which decisions worked, under which conditions, for which assets.</li>
+            <li><b>Storm-phase awareness</b> — the model says "wait 90 min for recovery," not just "monitor."</li>
+            <li><b>Autonomous suggestions on cleared workflows</b> — for routine, low-criticality decisions (e.g. "shift the harvest pass to morning"), the model can act with operator-defined authorisation. Defense and high-criticality always stays human-in-loop.</li>
           </ul>
         </div>
-        <div class="tl-meta">Stated as direction · technically reachable from today's foundation · no overclaiming</div>
       </div>
 
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ── Customer feedback loop ────────────────────────────────────── -->
-<section class="block">
-  <div class="container">
-    <div class="eyebrow">How customer learning works</div>
+
+  <!-- ── Feedback loop diagram ─────────────────────────────────── -->
+  <section class="section-block alt">
+    <div class="eyebrow">How the loop closes</div>
     <h2 class="sec-title">A feedback loop, not a black box</h2>
     <p class="sec-sub">
-      The mechanism by which IonShield gets better for each customer over time. It's
-      transparent, and it doesn't require giving up control of the customer's data.
+      Every prediction logs its inputs. Every operator outcome becomes a
+      label. The next model is trained on what actually happened to your
+      fleet — and proves itself in shadow before going live.
     </p>
 
-    <div class="loop-grid">
-      <div class="loop-card">
-        <div class="loop-num">01 · INGEST</div>
-        <div class="loop-title">Live + customer signals</div>
-        <div class="loop-body">
-          Public NOAA + NASA feeds combine with the customer's own ground-truth
-          (GPS C/N0, RTK fix-time, HF SNR, mission outcomes) inside the customer's
-          own environment.
-        </div>
+    <div class="loop">
+      <div class="loop-step">
+        <span class="loop-step-num">1</span>
+        <h3 class="loop-step-h">Ingest</h3>
+        <p class="loop-step-p">Public NOAA + NASA feeds combine with the customer's own ground-truth (GPS C/N0, RTK fix-time, HF SNR, mission outcomes) — inside the customer's perimeter when required.</p>
       </div>
-      <div class="loop-card">
-        <div class="loop-num">02 · PREDICT</div>
-        <div class="loop-title">Champion model serves</div>
-        <div class="loop-body">
-          The current champion model issues predictions on every operator request.
-          Each prediction is logged with its inputs and the operator-visible verdict.
-        </div>
+      <div class="loop-step">
+        <span class="loop-step-num">2</span>
+        <h3 class="loop-step-h">Predict</h3>
+        <p class="loop-step-p">The active champion model issues predictions on every operator request. Each prediction is logged with its inputs and the operator-visible verdict.</p>
       </div>
-      <div class="loop-card">
-        <div class="loop-num">03 · COMPARE</div>
-        <div class="loop-title">Ground-truth feedback</div>
-        <div class="loop-body">
-          Operator outcomes (was the link actually viable? did the RTK actually hold?)
-          come back as labels. Drift metrics surface when the model is no longer
-          tracking reality.
-        </div>
+      <div class="loop-step">
+        <span class="loop-step-num">3</span>
+        <h3 class="loop-step-h">Compare</h3>
+        <p class="loop-step-p">Operator outcomes (was the link viable? did the RTK actually hold?) come back as labels. Drift metrics surface when the model loses track of reality.</p>
       </div>
-      <div class="loop-card">
-        <div class="loop-num">04 · RETRAIN</div>
-        <div class="loop-title">Challenger spawns</div>
-        <div class="loop-body">
-          A new model trains on the updated dataset, registers as a shadow challenger,
-          and runs alongside the champion on real traffic — no production risk while
-          we evaluate.
-        </div>
+      <div class="loop-step">
+        <span class="loop-step-num">4</span>
+        <h3 class="loop-step-h">Retrain</h3>
+        <p class="loop-step-p">A new model trains on the updated dataset, registers as a shadow challenger, and runs alongside the champion on real traffic — no production risk while we evaluate.</p>
       </div>
-      <div class="loop-card">
-        <div class="loop-num">05 · PROMOTE</div>
-        <div class="loop-title">Auto-promote when better</div>
-        <div class="loop-body">
-          When the challenger beats the champion across a sample window with
-          margin, the system auto-swaps. Promotion is logged; rollback is one
-          API call.
-        </div>
+      <div class="loop-step">
+        <span class="loop-step-num">5</span>
+        <h3 class="loop-step-h">Promote</h3>
+        <p class="loop-step-p">When the challenger beats the champion across a sample window with margin, the system auto-swaps. Promotion is logged; rollback is one API call.</p>
       </div>
-      <div class="loop-card">
-        <div class="loop-num">06 · COMPOUND</div>
-        <div class="loop-title">Customer-specific advantage</div>
-        <div class="loop-body">
-          Over months, each customer's model converges on their own operating
-          environment, asset mix, and risk tolerance. The same foundation; the
-          customer's own outcome history.
-        </div>
+      <div class="loop-step">
+        <span class="loop-step-num">6</span>
+        <h3 class="loop-step-h">Compound</h3>
+        <p class="loop-step-p">Over months, your model converges on your environment, asset mix, and risk tolerance. The same foundation, your outcome history — your team's compounding advantage.</p>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ── Customer-environment angle ────────────────────────────────── -->
-<section class="block alt">
-  <div class="container">
-    <div class="eyebrow">Customer-environment deployment</div>
-    <h2 class="sec-title">Compatible with the platforms<br>your data already lives on</h2>
+
+  <!-- ── Customer-environment deployment ─────────────────────────── -->
+  <section class="section-block">
+    <div class="eyebrow">Deployment</div>
+    <h2 class="sec-title">Run the loop inside<br>your data perimeter</h2>
     <p class="sec-sub">
-      IonShield runs as a public cloud service today. For customers operating in
-      enterprise data platforms — including those built on Foundry-style
-      environments — it ships an ontology and Workshop layout pack so the same
-      foundation can run inside the customer's own perimeter.
+      Customer-specific models depend on customer-specific data. We deploy
+      compatibly with the data platforms your team already operates — so
+      your training data never leaves your environment.
     </p>
 
-    <div class="feat-row">
-      <div class="feat">
-        <div class="feat-h">Cloud demo</div>
-        <div class="feat-p">The default — what you're running on right now. Bearer-token auth, audit log, ML champion in the public deployment.</div>
+    <div class="compare">
+      <div class="compare-col">
+        <h3>Public cloud demo</h3>
+        <ul style="list-style:none">
+          <li style="grid-template-columns:none">
+            The default — what powers the live demo. Bearer-token auth,
+            audit log, ML champion in our managed deployment.
+          </li>
+        </ul>
       </div>
-      <div class="feat">
-        <div class="feat-h">Customer-environment deployable</div>
-        <div class="feat-p">For teams operating on Foundry or similar platforms, IonShield exports its ontology + Workshop layout + Parquet writes for in-perimeter deployment. <b>No formal partnership implied.</b></div>
-      </div>
-      <div class="feat">
-        <div class="feat-h">On-prem / air-gap</div>
-        <div class="feat-p">Available as a pilot engagement: containerised stack runs against an on-prem NOAA mirror with no external calls.</div>
+      <div class="compare-col ours">
+        <h3>Customer-environment deployment</h3>
+        <ul style="list-style:none">
+          <li style="grid-template-columns:none">
+            For teams operating on Foundry-style data platforms or in
+            on-prem environments, IonShield exports its ontology, Workshop
+            layout, and training pipeline so the same loop runs inside the
+            customer's perimeter.
+          </li>
+        </ul>
       </div>
     </div>
 
-    <div style="margin-top:30px;padding:14px 18px;background:var(--bg-2);
-                border:1px solid var(--line-1);border-radius:var(--r-md);
-                font-size:12px;color:var(--t-3);max-width:760px">
-      <b style="color:var(--t-2)">A note on framing.</b>
-      We deploy compatibly with Foundry-style data platforms. We do not represent
-      a formal partnership with any specific vendor. Customers who already operate
-      in such environments find the integration path short.
+    <div class="disclaim">
+      <b>A note on framing:</b> we deploy compatibly with Foundry-style data
+      platforms because those are the environments where customer-specific
+      training data already lives. We do not represent a formal partnership
+      with any specific vendor. Customers who already operate in such
+      environments find the integration path short.
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ── Why this approach ─────────────────────────────────────────── -->
-<section class="block">
-  <div class="container">
-    <div class="eyebrow">Why this approach</div>
-    <h2 class="sec-title">Auditable wins over opaque</h2>
+
+  <!-- ── Why auditable matters ─────────────────────────────────── -->
+  <section class="section-block alt">
+    <div class="eyebrow">Why auditable</div>
+    <h2 class="sec-title">For operators who have to<br>defend every recommendation</h2>
     <p class="sec-sub">
-      For defense, regulated commercial, and any operator who has to answer "why
-      did the system tell you to do that?" — auditable matters more than
-      sophisticated.
+      Defense, regulated commercial, anyone who has to answer "why did the
+      system tell you to do that?" — auditable matters more than
+      sophisticated. We optimise for the ability to read the model.
     </p>
-    <div class="feat-row">
-      <div class="feat">
-        <div class="feat-h">Readable model weights</div>
-        <div class="feat-p">Pure-Python regressors with JSON weights you can print to a screen. Compliance reviewers can read the model.</div>
-      </div>
-      <div class="feat">
-        <div class="feat-h">Shadow-mode before promote</div>
-        <div class="feat-p">No model ships to production users without proving itself on real traffic alongside the champion first. Promotion is reversible.</div>
-      </div>
-      <div class="feat">
-        <div class="feat-h">Physics as the floor</div>
-        <div class="feat-p">When the ML disagrees with physics-grounded models, physics wins by default. The ML adds, doesn't replace.</div>
-      </div>
-      <div class="feat">
-        <div class="feat-h">Operator feedback in the loop</div>
-        <div class="feat-p">Operator outcomes are first-class training signal. The model gets better at the operator's job, not at a benchmark.</div>
-      </div>
-    </div>
-  </div>
-</section>
 
-<!-- ── CTA ───────────────────────────────────────────────────────── -->
-<section class="block alt">
-  <div class="container" style="text-align:center;max-width:680px">
-    <h2 class="sec-title">See the live forecaster</h2>
-    <p class="sec-sub" style="margin:0 auto 28px">
-      The 24-hour Kp forecaster is live in the public deployment right now.
-      Hit the API or open the dashboard.
-    </p>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <a href="/api/v3/forecast/kp" target="_blank" class="btn btn-primary">Live Forecast JSON →</a>
-      <a href="/dashboard"  class="btn btn-ghost">Open Dashboard</a>
-      <a href="/api-console" class="btn btn-ghost">API Console</a>
+    <div class="loop">
+      <div class="loop-step">
+        <h3 class="loop-step-h">Readable model weights</h3>
+        <p class="loop-step-p">Pure-Python regressors with JSON weights you can print to a screen. Compliance reviewers can read the model.</p>
+      </div>
+      <div class="loop-step">
+        <h3 class="loop-step-h">Shadow mode before promote</h3>
+        <p class="loop-step-p">No model ships to production users without proving itself on real traffic alongside the champion. Promotion is reversible.</p>
+      </div>
+      <div class="loop-step">
+        <h3 class="loop-step-h">Physics as the floor</h3>
+        <p class="loop-step-p">When the ML disagrees with physics-grounded models, physics wins by default. The ML adds, doesn't replace.</p>
+      </div>
+      <div class="loop-step">
+        <h3 class="loop-step-h">Operator outcomes drive learning</h3>
+        <p class="loop-step-p">Your team's outcomes are first-class training signal. The model gets better at your operator's job — not at a benchmark leaderboard.</p>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
+
+
+  <!-- ── CTA ───────────────────────────────────────────────────── -->
+  <section class="section-block">
+    <div class="ml-cta">
+      <div class="eyebrow">Live today</div>
+      <h2 class="sec-title">See the live forecaster</h2>
+      <p class="sec-sub" style="margin: 0 auto 0;">
+        The 24-hour Kp forecaster is running in the public deployment right now.
+        Hit the JSON or open the dashboard to see it in action.
+      </p>
+      <div class="ml-cta-row">
+        <a href="/api/v3/forecast/kp" target="_blank" class="btn btn-primary">Live Forecast JSON →</a>
+        <a href="/dashboard" class="btn btn-ghost">Open Dashboard</a>
+        <a href="/integrations" class="btn btn-ghost">Integrations</a>
+      </div>
+    </div>
+  </section>
+
+</div>
 
 <script src="/static/nav.js"></script>
 </body>
