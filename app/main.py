@@ -24,7 +24,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -492,15 +492,9 @@ def create_app() -> FastAPI:
     async def mkt_use_cases():
         return _page("use-cases.html")
 
-    @app.get("/ml", include_in_schema=False)
-    async def mkt_ml():
-        return _page("ml.html")
-
-    # /docs intentionally retired — replaced by /ml. Redirect existing
-    # bookmarks instead of leaving a 404.
     @app.get("/docs", include_in_schema=False)
-    async def mkt_docs_redirect():
-        return RedirectResponse("/ml", status_code=308)
+    async def mkt_docs():
+        return _page("docs.html")
 
     @app.get("/pricing", include_in_schema=False)
     async def mkt_pricing():
@@ -532,10 +526,6 @@ def create_app() -> FastAPI:
         return FileResponse(_STATIC_DIR / "index.html")
 
     # ── B5: Simulation / Storm Replay Mode ────────────────────────────────────
-    @app.get("/simulation/run", include_in_schema=False)
-    async def simulation_run():
-        return _page("simulation_run.html")
-
     @app.get("/simulation", include_in_schema=False)
     async def simulation():
         return _page("simulation.html")

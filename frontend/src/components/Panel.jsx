@@ -24,60 +24,57 @@ function LayerToggles({ layers, onToggle }) {
 
   return (
     <div className="panel-section">
-      {/* Quick links — small, restrained, two equal-weight pills.
-          Replaces the previous oversized cyan-gradient Simulation CTA. */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 8,
-        marginBottom: 14,
-      }}>
-        <a
-          href="/simulation"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: '#0a0e1a',
-            border: '1px solid #1e293b',
-            color: '#e2e8f0',
-            padding: '8px 10px',
-            borderRadius: 6,
-            textDecoration: 'none',
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: 0.2,
-          }}
-          title="Replay historical storms (May 2024 G5, Halloween 2003, St. Patrick's 2015)"
-        >
-          <span>📼 Simulation</span>
-          <span style={{ fontSize: 11, color: '#64748b' }}>→</span>
-        </a>
-        <a
-          href="/integrations"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: '#0a0e1a',
-            border: '1px solid #1e293b',
-            color: '#e2e8f0',
-            padding: '8px 10px',
-            borderRadius: 6,
-            textDecoration: 'none',
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: 0.2,
-          }}
-          title="ATAK · Foundry · API"
-        >
-          <span>⊞ Integrations</span>
-          <span style={{ fontSize: 11, color: '#64748b' }}>→</span>
-        </a>
-      </div>
+      {/* Integrations Hub — central landing for ATAK, Foundry, API, etc. */}
+      <a
+        href="/integrations"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: '#0a0e1a',
+          color: '#e2e8f0',
+          padding: '10px 12px',
+          borderRadius: 7,
+          border: '1px solid #1e293b',
+          textDecoration: 'none',
+          marginBottom: 10,
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+        title="ATAK · Foundry · API · CoT · Scenarios"
+      >
+        <span>⊞ Integrations Hub</span>
+        <span style={{ fontSize: 10, color: '#64748b', letterSpacing: 1 }}>ATAK · FOUNDRY · API</span>
+      </a>
+      {/* Prominent route into Simulation Mode — historical storm replay */}
+      <a
+        href="/simulation"
+        style={{
+          display: 'block',
+          background: 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)',
+          color: '#0a0e1a',
+          padding: '12px 14px',
+          borderRadius: 8,
+          textDecoration: 'none',
+          marginBottom: 14,
+          fontWeight: 700,
+          fontSize: 13,
+          letterSpacing: 0.3,
+          boxShadow: '0 4px 14px rgba(56,189,248,0.25)',
+        }}
+        title="Open Simulation Mode"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>🌐 Simulation Mode</span>
+          <span style={{ fontSize: 16 }}>→</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.78, marginTop: 3 }}>
+          Replay May 2024 G5, Halloween 2003, St. Patrick's 2015
+        </div>
+      </a>
       <div className="section-label">
         DATA LAYERS
-        <HelpTip>Toggle visual overlays on the 3D globe. Values are derived from live NOAA data and are indicative, not precision measurements.</HelpTip>
+        <span className="help-icon" title="Toggle visual overlays on the 3D globe. Values are derived from live NOAA data and are indicative, not precision measurements.">?</span>
       </div>
       {entries.map(({ key, dot, status }) => (
         <div
@@ -142,103 +139,6 @@ function WaypointList({ waypoints, decision, onRemove }) {
   );
 }
 
-// ── Help tip ──────────────────────────────────────────────────────────────────
-// Replaces the previous `<span class="help-icon" title="…">?` pattern, which
-// looked clickable but did nothing on touch / keyboard. The new component
-// reveals an inline help text on click and via keyboard activation, while
-// preserving the desktop hover-tooltip behaviour for power users.
-
-function HelpTip({ children }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        className="help-icon"
-        aria-expanded={open}
-        aria-label={open ? 'Hide help' : 'Show help'}
-        title={typeof children === 'string' ? children : undefined}
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
-        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
-      >
-        ?
-      </button>
-      {open && (
-        <div className="help-tip-body" role="note">
-          {children}
-        </div>
-      )}
-    </>
-  );
-}
-
-// ── Translation summary ───────────────────────────────────────────────────────
-// The headline operator-readable answer: worst-leg GPS error in meters, HF
-// blackout duration in minutes, affected legs. Shown above recommended actions
-// so operators see the *number* before they read the prose.
-
-function TranslationSummary({ decision }) {
-  const wps = decision?.waypoints || [];
-  if (!wps.length) return null;
-
-  // Worst-leg by GPS error and HF degradation
-  const worstGps = wps.reduce((m, wp) =>
-    (wp.gps_error_m ?? -1) > (m.gps_error_m ?? -1) ? wp : m, wps[0]);
-  const degradedLegs = wps.filter(w => !w.hf_viable || (w.gps_error_m ?? 0) > 5);
-
-  // Approximate "minutes degraded" from confidence + worst-leg severity, when
-  // the decision engine doesn't surface an explicit duration. Honest fallback:
-  // when we don't have a duration we say so.
-  const blackoutMin = decision?.hf_blackout_minutes;
-  const hasBlackout = typeof blackoutMin === 'number';
-
-  const sevClass = (m) =>
-    m == null ? '' : m > 15 ? 'sev-bad' : m > 5 ? 'sev-warn' : 'sev-ok';
-
-  return (
-    <div className="dec-block translation-summary">
-      <div className="section-label">TRANSLATION</div>
-      <div className="ts-grid">
-        <div className="ts-cell">
-          <div className="ts-label">GPS L1 error · worst leg</div>
-          <div className={`ts-value ${sevClass(worstGps?.gps_error_m)}`}>
-            {worstGps?.gps_error_m != null
-              ? `${worstGps.gps_error_m.toFixed(1)} m`
-              : '—'}
-          </div>
-          <div className="ts-foot">
-            {worstGps?.name || '—'}
-          </div>
-        </div>
-        <div className="ts-cell">
-          <div className="ts-label">HF outage · expected</div>
-          <div className={`ts-value ${
-            hasBlackout ? (blackoutMin > 30 ? 'sev-bad' : blackoutMin > 5 ? 'sev-warn' : 'sev-ok') : ''
-          }`}>
-            {hasBlackout ? `${Math.round(blackoutMin)} min` : 'No outage'}
-          </div>
-          <div className="ts-foot">
-            {decision?.action === 'NO_GO' ? 'Plan alternate band' : 'Monitor band viability'}
-          </div>
-        </div>
-        <div className="ts-cell ts-cell-wide">
-          <div className="ts-label">Legs affected</div>
-          <div className="ts-leg-list">
-            {degradedLegs.length === 0
-              ? <span className="ts-foot">All clear · standard ops</span>
-              : degradedLegs.map(w => (
-                  <span key={w.name} className={`ts-leg ${sevClass(w.gps_error_m)}`}>
-                    {w.name}
-                  </span>
-                ))
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Confidence Bar ────────────────────────────────────────────────────────────
 
 function ConfidenceSection({ confidence }) {
@@ -253,7 +153,7 @@ function ConfidenceSection({ confidence }) {
       <div className="conf-header">
         <span className="conf-label">
           CONFIDENCE
-          <HelpTip>HIGH (≥0.75): fresh data, all feeds live. MEDIUM: minor gaps. LOW / VERY LOW: stale or missing feeds. Do not act on LOW confidence decisions without verifying current NOAA data.</HelpTip>
+          <span className="help-icon" title="HIGH (≥0.75): fresh data, all feeds live. MEDIUM: minor gaps. LOW / VERY LOW: stale or missing feeds. Do not act on LOW confidence decisions without verifying current NOAA data.">?</span>
         </span>
         <span className="conf-score" style={{ color }}>{label} · {score.toFixed(2)}</span>
       </div>
@@ -363,7 +263,7 @@ function ProvenanceSection({ provenance }) {
         <summary className="prov-details" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text-3)', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>▸</span>
           Provenance
-          <HelpTip>Records the exact inputs used. The input_hash is a SHA-256 fingerprint — the same inputs always produce the same hash, enabling deterministic replay via /api/v2/replay.</HelpTip>
+          <span className="help-icon" title="Records the exact inputs used. The input_hash is a SHA-256 fingerprint — the same inputs always produce the same hash, enabling deterministic replay via /api/v2/replay.">?</span>
         </summary>
         <div style={{ paddingTop: 6 }}>
           {[
@@ -431,11 +331,6 @@ function DecisionResult({ decision }) {
       <div className="dec-sentence" data-testid="action-sentence">
         {decision.action_sentence || '—'}
       </div>
-
-      {/* Translation summary — the operator-readable headline:
-          worst-leg GPS error in meters, HF blackout in minutes, affected legs.
-          This is the "Google Maps of space weather" key output. */}
-      <TranslationSummary decision={decision} />
 
       {/* Alternatives */}
       {alts.length > 0 && (

@@ -3,303 +3,217 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Use Cases — IonShield</title>
-  <meta name="description" content="Real operational problems IonShield solves: GPS-degraded UAV flights, RTK autosteer outages on harvest day, ATAK blackouts, polar route diverts, and the cost of finding out the hard way." />
+  <title>Use Cases — IonShield Defense, Aviation & Maritime</title>
+  <meta name="description" content="IonShield use cases: defense mission planning with TAK overlay, polar aviation route risk, satellite communications scheduling, and maritime HF planning." />
+  <meta name="keywords" content="defense space weather, UAV GNSS operations, polar aviation HF blackout, satellite comms scheduling, TAK space weather overlay, real-time geospatial risk" />
+  <link rel="canonical" href="https://ionshield.io/use-cases" />
   <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    .uc-section { margin-bottom: 64px; }
+    .uc-header  { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 24px; }
+    .uc-icon    { font-size: 48px; flex-shrink: 0; }
+    .uc-meta    {}
+    .uc-tag     {
+      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; padding: 3px 10px; border-radius: 3px; margin-right: 6px;
+      background: var(--bg-3); color: var(--blue-hi); border: 1px solid var(--border);
+    }
+    .uc-body    { font-size: 13px; color: var(--text-2); line-height: 1.75; }
+    .uc-body p  { margin-bottom: 12px; }
+    .pain-box   {
+      background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.2);
+      border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;
+    }
+    .pain-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--red); margin-bottom: 6px; }
+    .solve-box  {
+      background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.2);
+      border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;
+    }
+    .solve-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green); margin-bottom: 6px; }
+    .metric-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+    .metric     { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 140px; }
+    .metric-val { font-size: 24px; font-weight: 800; color: var(--blue-hi); }
+    .metric-lbl { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+    .divider    { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  </style>
 </head>
 <body>
 
-<!-- ── Header ────────────────────────────────────────────────────── -->
-<section class="block tight">
+<div class="page-hero">
   <div class="container">
-    <div class="eyebrow">Operator value</div>
-    <h1 class="sec-title">Real problems, translated answers</h1>
-    <p class="lead">
-      Each use case below follows the same shape — what goes wrong, what
-      IonShield surfaces, what the operator does differently, what the cost
-      avoidance looks like. No vague pitches.
+    <div class="eyebrow">Use Cases</div>
+    <h1 class="sec-title">Built for operators who<br>can't afford surprises</h1>
+    <p class="sec-sub" style="margin-bottom:0">
+      Detailed scenarios showing how IonShield transforms ionospheric data
+      into actionable decisions for defense, aviation, maritime, and research teams.
     </p>
   </div>
-</section>
+</div>
 
-<!-- ── 1. Defense / ATAK ─────────────────────────────────────────── -->
-<section class="block alt">
+<section>
   <div class="container">
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">
 
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">🪖</span>
-          <div>
-            <div class="usecase-tagline">Defense · Forward-deployed</div>
-            <div class="usecase-title">ATAK ground operations</div>
+    <!-- Use Case 1: Defense / TAK -->
+    <div class="uc-section">
+      <div class="uc-header">
+        <div class="uc-icon">🪖</div>
+        <div class="uc-meta">
+          <div style="margin-bottom:8px">
+            <span class="uc-tag">Defense</span>
+            <span class="uc-tag">Ground Maneuver</span>
+            <span class="uc-tag">TAK Integration</span>
           </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">A G3+ storm collapses HF propagation over the AOR. The team's primary comms goes silent without warning; SATCOM degrades minutes later.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"HF 3–12 MHz blackout ~42 min over polar leg, GPS L1 +18 m at waypoints 2–3, switch to backup VHF / SATCOM-Ka." Live overlay in ATAK.</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Pre-authorise alternate comms before the window, reroute waypoint 3 east of the auroral oval, brief team on degraded GPS for INS handoff.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">Mission failure or compromised C2 during a degraded window — measured in lives, not dollars.</span>
-          </div>
+          <h2 class="sec-title" style="font-size:clamp(20px,2.5vw,28px);margin-bottom:6px">Scenario 1: Defense Mission Planning</h2>
+          <p style="color:var(--text-3);font-size:12px">Special Operations / Ground Maneuver · UAV / UAS Routing</p>
         </div>
       </div>
+      <div class="uc-body">
+        <div class="pain-box">
+          <div class="pain-label">⚠ Pain Point</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            A SOCOM element is planning a 6-waypoint vehicle route through mountainous terrain.
+            The S6 knows that ionospheric disturbances degrade Blue Force Tracking GPS and can
+            make HF radio checkpoints unreliable, but has no tool to quantify the risk for
+            specific waypoints or recommend a comms fallback plan. A generic NOAA Kp alert says
+            "unsettled conditions" — useless without route context.
+          </p>
+        </div>
+        <div class="solve-box">
+          <div class="solve-label">✓ IonShield Solution</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            The operator loads the 6-waypoint route into IonShield, selects "MRAP" platform
+            (GPS L1L2, criticality 4). Within 200 ms, each route segment is color-coded:
+            green for WP01–WP03, orange for WP04–WP05, red for WP06.
+            The decision reads: <em>"CAUTION — GPS error exceeds 35 m at WP05–WP06 due to auroral
+            oval incursion. Recommend enabling INS coupling before WP04 and confirming SATCOM link
+            before departure."</em> Confidence: HIGH (0.84).
+          </p>
+        </div>
 
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">🛩️</span>
-          <div>
-            <div class="usecase-tagline">UAV · BVLOS · Drone</div>
-            <div class="usecase-title">Beyond-visual-line-of-sight UAV ops</div>
-          </div>
+        <div class="metric-row">
+          <div class="metric"><div class="metric-val">&lt;200 ms</div><div class="metric-lbl">Decision latency</div></div>
+          <div class="metric"><div class="metric-val">6 WPs</div><div class="metric-lbl">Per-waypoint risk</div></div>
+          <div class="metric"><div class="metric-val">SHA-256</div><div class="metric-lbl">Audit trail</div></div>
+          <div class="metric"><div class="metric-val">TAK</div><div class="metric-lbl">CoT push (roadmap)</div></div>
         </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">RTK GPS error climbs above the platform's 1.5 m threshold mid-flight. The aircraft loses precision lock, drifts, returns-to-launch or violates BVLOS waiver conditions.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"GPS L1 expected to exceed 2 m over flight zone 14:20–16:40 UTC. Operate before 14:15 or after 16:55."</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Schedule the inspection / spray flight for the clean window. If the mission can't move, fly with manual oversight or swap the platform.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">~$4–12k per aborted commercial UAV mission, plus regulatory exposure for BVLOS violations.</span>
-          </div>
-        </div>
+
+        <p>
+          IonShield's TAK/CoT adapter (Phase 1 roadmap) will push decision overlays
+          directly to ATAK/WinTAK as vector COP layers, enabling space weather risk
+          to appear alongside Blue Force tracks and IED reports in the operator's
+          existing COP — with no additional workflow step.
+        </p>
       </div>
-
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">🌾</span>
-          <div>
-            <div class="usecase-tagline">Precision agriculture · RTK</div>
-            <div class="usecase-title">Autosteer + variable-rate applicators</div>
-          </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">RTK fix degrades during harvest or planting. Autosteer drops to float-fix or DGPS, autosteer accuracy drops from 2 cm to 30+ cm — overlap waste, missed strips, off-target chemistry.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"RTK fix integrity at risk over the Plains tomorrow 10:00–14:00 local. Plan high-precision passes for morning window before storm onset."</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Push planting to the morning window, use the afternoon for grain handling / non-RTK tasks, hold off on variable-rate fertiliser passes.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">$5–15 / acre on a 1,500-acre operation in overlap and re-pass waste during a single bad day.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">✈️</span>
-          <div>
-            <div class="usecase-tagline">Aviation · Polar dispatch</div>
-            <div class="usecase-title">Polar route GNSS integrity</div>
-          </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">Polar-cap absorption knocks out HF; GNSS RAIM goes unavailable mid-route; flight is rerouted to a southern track at fuel + crew cost.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"Polar HF likely lost 18:00–22:00 UTC, GNSS integrity degraded at FL370+. 24-h advance forecast issued for dispatch desk."</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Pre-flight reroute decision (saves last-minute fuel uplift), or accept the polar route with backup HF and pre-authorised altitude change.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">$50–80k per polar diversion (fuel + slot + crew + fleet repositioning).</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">⛴️</span>
-          <div>
-            <div class="usecase-tagline">Maritime · SAR · Polar</div>
-            <div class="usecase-title">Long-haul HF + SAR comms</div>
-          </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">Long-haul vessel loses HF without warning during a high-latitude transit. Search-and-rescue coordination depends on links that may not exist.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"HF 8 MHz unusable for the next 4 h on the Northwest Passage; switch to Iridium SBD or wait until 02:30 UTC."</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Schedule comms windows around recovery; pre-authorise SBD spend; brief vessel master on the outage timeline.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">SAR response delays measured in hours, not minutes; missed ETA penalties, regulatory exposure.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">📐</span>
-          <div>
-            <div class="usecase-tagline">Surveying · Construction</div>
-            <div class="usecase-title">High-accuracy field surveying</div>
-          </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">A crew shows up to a site, sets up RTK, and can't hold fix. Day is lost; daily-rate equipment + crew burns money.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"GPS L1 / L2 ionospheric error elevated at site coordinates today 13:00–17:00 local; survey-grade fix unlikely in window."</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Reschedule field crew for a clean day, or run the morning window only; do office / processing tasks during the bad window.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">$2–6k per lost field day on a typical RTK survey crew.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">🚛</span>
-          <div>
-            <div class="usecase-tagline">Autonomy · Off-road</div>
-            <div class="usecase-title">Mining / agriculture / autonomous fleets</div>
-          </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">Driverless haul trucks or robotic tractors lose differential GPS, drop to manual takeover, and shed throughput across the entire site.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"DGPS performance at site degraded for the next 3 h; expect ~14 m position uncertainty during peak. Recommend operator-takeover policy active.</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Activate manual-takeover policy ahead of the window (no surprise drops); shift crew schedule; pre-stage backup operators.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">5–10% of daily haul throughput on an autonomous mine = six-figure / shift.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="usecase">
-        <div class="usecase-head">
-          <span class="usecase-icon">🛰️</span>
-          <div>
-            <div class="usecase-tagline">Satellite · SATCOM operations</div>
-            <div class="usecase-title">Link-margin scheduling</div>
-          </div>
-        </div>
-        <div class="usecase-body">
-          <div class="usecase-row problem">
-            <span class="usecase-row-label">What goes wrong</span>
-            <span class="usecase-row-val">An ionospheric scintillation window eats 4 dB of link margin during a planned uplink; the file transfer fails and slot has to be rebooked.</span>
-          </div>
-          <div class="usecase-row translate">
-            <span class="usecase-row-label">What IonShield surfaces</span>
-            <span class="usecase-row-val">"L-band fade peak 3.2 dB at 18:40 UTC over equatorial anomaly belt. Reschedule uplink before 18:15 or after 19:30."</span>
-          </div>
-          <div class="usecase-row decision">
-            <span class="usecase-row-label">Operator decision</span>
-            <span class="usecase-row-val">Reschedule uplink, switch to a backup band, or accept the loss with retry budget.</span>
-          </div>
-          <div class="usecase-row">
-            <span class="usecase-row-label">Cost avoidance</span>
-            <span class="usecase-row-val muted">Re-booked slot fees + commercial penalties for missed delivery windows.</span>
-          </div>
-        </div>
-      </div>
-
     </div>
-  </div>
-</section>
 
-<!-- ── For non-mission-planners ──────────────────────────────────── -->
-<section class="block">
-  <div class="container">
-    <div class="eyebrow">Not just mission planners</div>
-    <h2 class="sec-title">If your day depends on a clean signal,<br>you're a user.</h2>
-    <p class="sec-sub">
-      The operators who get the most value out of IonShield often don't think of
-      themselves as "mission planners." They're farmers, surveyors, drone pilots,
-      dispatchers, oil &amp; gas crews, autonomous fleet supervisors, and
-      search-and-rescue coordinators. The translation layer is the same.
-    </p>
+    <hr class="divider" />
 
-    <div class="grid grid-4">
-      <div class="card"><div class="card-title">Farmer / agronomist</div>
-        <div class="card-body">"Should I run the planter this afternoon, or is RTK going to fall over?"</div></div>
-      <div class="card"><div class="card-title">Drone operator</div>
-        <div class="card-body">"Can I fly the BVLOS inspection on schedule, or do I need to reschedule?"</div></div>
-      <div class="card"><div class="card-title">Surveyor</div>
-        <div class="card-body">"Is today a survey-grade day at this site, or am I burning crew costs?"</div></div>
-      <div class="card"><div class="card-title">Dispatcher</div>
-        <div class="card-body">"Is the polar leg viable on tonight's flight, or do I file the southern track?"</div></div>
-      <div class="card"><div class="card-title">Forward operator</div>
-        <div class="card-body">"Does my HF survive the next 6 hours? When do I switch to backup comms?"</div></div>
-      <div class="card"><div class="card-title">SAR coordinator</div>
-        <div class="card-body">"What's my comms uptime to the search vessel over the next watch?"</div></div>
-      <div class="card"><div class="card-title">Mine supervisor</div>
-        <div class="card-body">"Will the autonomous haul fleet hold throughput tonight?"</div></div>
-      <div class="card"><div class="card-title">SATCOM operator</div>
-        <div class="card-body">"Should I move the uplink window or accept the link margin?"</div></div>
+    <!-- Use Case 2: Aviation -->
+    <div class="uc-section">
+      <div class="uc-header">
+        <div class="uc-icon">✈️</div>
+        <div class="uc-meta">
+          <div style="margin-bottom:8px">
+            <span class="uc-tag">Aviation</span>
+            <span class="uc-tag">Polar Routes</span>
+            <span class="uc-tag">GNSS Integrity</span>
+          </div>
+          <h2 class="sec-title" style="font-size:clamp(20px,2.5vw,28px);margin-bottom:6px">Scenario 2: Polar Aviation Routing</h2>
+          <p style="color:var(--text-3);font-size:12px">Commercial / Military Aviation · BVLOS UAS Operations</p>
+        </div>
+      </div>
+      <div class="uc-body">
+        <div class="pain-box">
+          <div class="pain-label">⚠ Pain Point</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            A polar transatlantic flight (JFK → LHR) crosses the auroral zone during an active
+            Kp=6 event. HF radio is required as a backup communications channel above 60°N,
+            but polar cap absorption can make HF completely unusable for hours.
+            Current crew resources — NOAA SWPC text bulletins — give global alerts without
+            route-specific HF viability or GPS error forecasts.
+          </p>
+        </div>
+        <div class="solve-box">
+          <div class="solve-label">✓ IonShield Solution</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            Dispatch inputs the polar route (7 waypoints). IonShield identifies waypoints
+            WP4–WP6 as inside the auroral oval (risk: DEGRADED) with GPS L1L5 error
+            estimated at 28–45 m. HF viability is marked <em>false</em> for WP5–WP6
+            (polar cap absorption active). The decision: <em>"CAUTION — HF NOT VIABLE
+            at WP5–WP6. Confirm SATCOM L-band backup. GPS integrity monitoring is
+            recommended from WP4 onward."</em>
+            The 72-hour forecast timeline shows conditions improving within 4 hours —
+            a 2-hour departure delay yields a full GO verdict.
+          </p>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><div class="metric-val">7 WPs</div><div class="metric-lbl">Polar route analysis</div></div>
+          <div class="metric"><div class="metric-val">72 h</div><div class="metric-lbl">Departure window forecast</div></div>
+          <div class="metric"><div class="metric-val">HF · SATCOM</div><div class="metric-lbl">Comms fallback advisor</div></div>
+          <div class="metric"><div class="metric-val">0.79</div><div class="metric-lbl">Confidence score</div></div>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
 
-<!-- ── CTA ───────────────────────────────────────────────────────── -->
-<section class="block alt">
-  <div class="container" style="text-align:center;max-width:680px">
-    <h2 class="sec-title">Don't find out the hard way.</h2>
-    <p class="sec-sub" style="margin:0 auto 28px">
-      Open the dashboard, drop your AOI, and see what the next 24 hours look like
-      for your operations.
-    </p>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <a href="/dashboard" class="btn btn-primary">Open Dashboard →</a>
-      <a href="/simulation" class="btn btn-ghost">Replay a Storm</a>
+    <hr class="divider" />
+
+    <!-- Use Case 3: Satellite Ops -->
+    <div class="uc-section">
+      <div class="uc-header">
+        <div class="uc-icon">🛰️</div>
+        <div class="uc-meta">
+          <div style="margin-bottom:8px">
+            <span class="uc-tag">Satellite Operations</span>
+            <span class="uc-tag">SATCOM</span>
+            <span class="uc-tag">Link Margin</span>
+          </div>
+          <h2 class="sec-title" style="font-size:clamp(20px,2.5vw,28px);margin-bottom:6px">Scenario 3: Satellite Comms Scheduling</h2>
+          <p style="color:var(--text-3);font-size:12px">Satellite Ground Stations · MILSATCOM · Commercial LEO/GEO</p>
+        </div>
+      </div>
+      <div class="uc-body">
+        <div class="pain-box">
+          <div class="pain-label">⚠ Pain Point</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            A satellite ground station schedules critical payload uplinks during a geomagnetic
+            storm. Scintillation and increased ionospheric delay cause bit-error rate spikes
+            that corrupt uplink commands, requiring costly retransmission windows and
+            mission schedule slippage. The operations team lacks an automated tool to
+            flag high-scintillation periods before scheduling.
+          </p>
+        </div>
+        <div class="solve-box">
+          <div class="solve-label">✓ IonShield Solution</div>
+          <p style="margin:0;font-size:13px;color:var(--text-2)">
+            IonShield's comms decision endpoint (<code style="font-family:monospace;font-size:11px;background:var(--bg-3);padding:1px 4px;border-radius:2px;">GET /api/v2/comms-decision</code>)
+            is polled by the scheduling system every 5 minutes. During elevated Kp periods,
+            the verdict switches from USE_PRIMARY_HF to SWITCH_TO_SATCOM — automatically
+            triggering the scheduler to defer L-band uplinks to the next quiet window
+            identified in the 72-hour forecast. After-action replay confirms which uplink
+            windows were affected and validates the scheduling logic.
+          </p>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><div class="metric-val">5 min</div><div class="metric-lbl">Polling interval</div></div>
+          <div class="metric"><div class="metric-val">API-first</div><div class="metric-lbl">Scheduler integration</div></div>
+          <div class="metric"><div class="metric-val">Replay</div><div class="metric-lbl">After-action audit</div></div>
+        </div>
+      </div>
     </div>
+
+    <hr class="divider" />
+
+    <div class="cta-box">
+      <h2>Your use case here</h2>
+      <p>We offer tailored 60-day pilot programs for defense, aviation, and maritime operators. Tell us your mission profile.</p>
+      <div class="cta-btns">
+        <a href="/pricing"   class="btn btn-primary">View Pilot Program</a>
+        <a href="/dashboard" class="btn btn-ghost">Try the Demo</a>
+      </div>
+    </div>
+
   </div>
 </section>
 

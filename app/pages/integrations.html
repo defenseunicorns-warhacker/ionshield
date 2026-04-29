@@ -3,278 +3,354 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Integrations — IonShield</title>
-  <meta name="description" content="How IonShield connects into the systems your team already runs: ATAK / TAK Server, JSON API, GIS exports, and customer-environment deployment." />
+  <title>IonShield — Integrations Hub</title>
   <link rel="stylesheet" href="/static/marketing.css" />
   <style>
-    .integ {
-      background: var(--bg-2); border: 1px solid var(--line-1);
-      border-radius: var(--r-lg); padding: 22px;
-      display: flex; flex-direction: column; gap: 14px; min-height: 280px;
-      transition: border-color 0.2s var(--ease), transform 0.2s, background 0.2s;
+    body { background:#0a0e1a; color:#e2e8f0; margin:0;
+           font-family:'Inter',-apple-system,sans-serif; line-height:1.5; }
+    main { max-width: 1200px; margin: 0 auto; padding: 90px 24px 80px; }
+
+    .hero { display:flex; flex-direction:column; gap:8px; margin-bottom: 32px; }
+    .hero h1 { color:#38bdf8; font-size:34px; letter-spacing:-0.5px; margin:0; }
+    .hero p { color:#94a3b8; font-size:15px; max-width: 620px; margin:0; }
+
+    .live-strip {
+      display:flex; gap:12px; flex-wrap:wrap; margin: 16px 0 32px;
+      padding: 14px 18px; border-radius:10px;
+      background: linear-gradient(135deg, rgba(56,189,248,0.07), rgba(56,189,248,0));
+      border: 1px solid #1e293b;
     }
-    .integ:hover { border-color: var(--line-2); background: var(--bg-3); }
-    .integ-head { display: flex; align-items: center; gap: 12px; }
-    .integ-icon {
-      width: 44px; height: 44px; border-radius: 11px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; flex-shrink: 0;
+    .live-pill {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:11px; color:#94a3b8; letter-spacing:0.4px;
     }
-    .integ-title { font-size: 16px; font-weight: 700; margin: 0; }
-    .integ-tagline {
-      font-size: 10px; letter-spacing: 0.16em; color: var(--t-3);
-      text-transform: uppercase; margin: 0;
+    .live-pill .dot { width:8px; height:8px; border-radius:50%;
+                      background:#22c55e; box-shadow:0 0 8px #22c55e; }
+    .live-pill .dot.warn { background:#f59e0b; box-shadow:0 0 8px #f59e0b; }
+    .live-pill .dot.bad  { background:#ef4444; box-shadow:0 0 8px #ef4444; }
+    .live-pill b { color:#e2e8f0; font-weight:700; }
+
+    .grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap:18px;
     }
-    .integ-body { font-size: 13px; color: var(--t-2); line-height: 1.6; }
-    .integ-actions {
-      display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto;
+    .card {
+      background:#0f172a; border:1px solid #1e293b; border-radius:12px;
+      padding:22px; display:flex; flex-direction:column; gap:14px;
+      transition: border-color .15s, transform .15s;
+      position: relative; overflow: hidden;
     }
-    .integ-btn {
-      flex: 1 1 auto; min-width: 110px;
-      padding: 9px 12px; border-radius: var(--r-sm);
-      font-size: 12px; font-weight: 700; text-decoration: none; text-align: center;
-      transition: background 0.15s, border-color 0.15s;
-      border: 1px solid var(--line-2); color: var(--t-1);
+    .card:hover { border-color:#38bdf8; transform: translateY(-2px); }
+    .card-head { display:flex; align-items:center; gap:12px; }
+    .card-icon {
+      width:44px; height:44px; border-radius:10px;
+      background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+      display:flex; align-items:center; justify-content:center;
+      font-size:22px; flex-shrink:0;
     }
-    .integ-btn-primary {
-      background: var(--accent); color: var(--bg-0); border-color: var(--accent);
+    .card-icon.atak { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+    .card-icon.foundry { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); }
+    .card-icon.api { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .card-icon.ml { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+    .card-icon.sim { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+    .card-icon.dash { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%); }
+
+    .card-title { font-size:16px; font-weight:700; color:#e2e8f0; margin:0; }
+    .card-tagline { font-size:11px; color:#64748b; letter-spacing:0.6px;
+                    text-transform:uppercase; margin:0; }
+    .card-body { font-size:13px; color:#94a3b8; min-height: 40px; }
+
+    .card-status {
+      display:inline-flex; align-items:center; gap:5px;
+      font-size:10px; padding:3px 8px; border-radius:10px;
+      font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
     }
-    .integ-btn-primary:hover { background: var(--accent-d); color: var(--bg-0); }
-    .integ-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .integ-btn-primary:hover { color: var(--bg-0); }
-    .integ-list {
-      display: grid; gap: 6px; font-size: 12px; color: var(--t-3);
-      padding: 10px 0; border-top: 1px solid var(--line-1);
+    .card-status.ok    { background:rgba(34,197,94,0.15); color:#22c55e; }
+    .card-status.warn  { background:rgba(245,158,11,0.15); color:#f59e0b; }
+    .card-status.setup { background:rgba(56,189,248,0.15); color:#38bdf8; }
+
+    .card-actions {
+      display:flex; gap:8px; flex-wrap:wrap; margin-top: auto;
     }
-    .integ-list-row {
-      display: flex; justify-content: space-between; align-items: center;
+    .btn {
+      flex:1 1 auto; padding:9px 12px; border-radius:7px;
+      font-size:12px; font-weight:700; letter-spacing:0.3px;
+      text-decoration:none; text-align:center; cursor:pointer;
+      border: 1px solid transparent; transition: background .15s, border-color .15s;
+      min-width: 110px;
     }
-    .integ-list-row code { font-family: var(--mono); color: var(--t-2); }
+    .btn-primary { background:#38bdf8; color:#0a0e1a; }
+    .btn-primary:hover { background:#0ea5e9; }
+    .btn-ghost   { background:transparent; color:#38bdf8; border-color:#1e293b; }
+    .btn-ghost:hover { border-color:#38bdf8; }
+
+    .card-stat-row {
+      display:flex; gap:14px; padding: 8px 0; border-top:1px solid #1e293b;
+      border-bottom:1px solid #1e293b;
+    }
+    .stat-mini { flex:1; }
+    .stat-mini .lbl { font-size:9px; color:#64748b; text-transform:uppercase;
+                      letter-spacing:1px; }
+    .stat-mini .val { font-size:18px; font-weight:700; color:#e2e8f0;
+                      font-family: ui-monospace, monospace; margin-top:2px; }
+
+    .console-block {
+      background:#0a0e1a; border:1px solid #1e293b; border-radius:8px;
+      padding:10px 12px; font-family: ui-monospace, monospace; font-size:11px;
+      color:#fbbf24; overflow-x:auto; max-height:120px;
+    }
   </style>
 </head>
 <body>
-
-<!-- ── Header ────────────────────────────────────────────────────── -->
-<section class="block tight">
-  <div class="container">
-    <div class="eyebrow">Deployment</div>
-    <h1 class="sec-title">Integrations</h1>
-    <p class="lead">
-      Pick the integration pathway that matches how your team already works.
-      Live demo endpoints below all run against the production deployment.
-    </p>
-
-    <!-- Live status strip — confirms pipeline is healthy before users click -->
-    <div class="status-strip" style="margin-top:24px">
-      <div class="ss-live"><span class="ss-dot"></span>Live pipeline</div>
-      <div class="ss-div"></div>
-      <div class="ss-item"><span class="ss-label">Status</span><span class="ss-value" id="ss-status">—</span></div>
-      <div class="ss-div"></div>
-      <div class="ss-item"><span class="ss-label">Data age</span><span class="ss-value" id="ss-age">—</span></div>
-      <div class="ss-div"></div>
-      <div class="ss-item"><span class="ss-label">Feeds live</span><span class="ss-value" id="ss-feeds">—</span></div>
-      <div class="ss-div"></div>
-      <div class="ss-item"><span class="ss-label">Kp now</span><span class="ss-value" id="ss-kp">—</span></div>
+  <main>
+    <div class="hero">
+      <h1>Integrations Hub</h1>
+      <p>
+        Every IonShield surface in one place — live data, one-click downloads,
+        copy-paste install steps. Pick the integration that matches how your
+        team already works.
+      </p>
     </div>
-  </div>
-</section>
 
-<!-- ── Integrations grid ────────────────────────────────────────── -->
-<section class="block alt">
-  <div class="container">
+    <!-- Live status strip — populated by JS -->
+    <div class="live-strip" id="status-strip">
+      <span class="live-pill"><span class="dot" id="dot-pipeline"></span>
+        Pipeline <b id="pl-status">—</b></span>
+      <span class="live-pill">Kp now <b id="pl-kp">—</b></span>
+      <span class="live-pill">Forecast peak 24h <b id="pl-fcast">—</b></span>
+      <span class="live-pill">Data age <b id="pl-age">—</b></span>
+      <span class="live-pill"><b id="pl-feeds">—</b> feeds live</span>
+    </div>
 
-    <h2 class="sec-title" style="margin-bottom:8px">Operator workflows</h2>
-    <p class="sec-sub">Direct paths from IonShield into the tools your operators already run.</p>
+    <div class="grid">
 
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
-
-      <!-- ATAK / TAK -->
-      <div class="integ">
-        <div class="integ-head">
-          <div class="integ-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a)">📡</div>
+      <!-- LIVE 3D DASHBOARD -->
+      <a class="card" href="/dashboard" style="text-decoration:none;color:inherit;">
+        <div class="card-head">
+          <div class="card-icon dash">🌍</div>
           <div>
-            <div class="integ-tagline">Defense / forward-deployed</div>
-            <h3 class="integ-title">ATAK · WinTAK · iTAK</h3>
+            <p class="card-tagline">Real-time</p>
+            <h2 class="card-title">3D Live Dashboard</h2>
           </div>
-          <span class="pill pill-ok" style="margin-left:auto">Live</span>
+          <span class="card-status ok" style="margin-left:auto">Live</span>
         </div>
-        <div class="integ-body">
-          One-click network-link KML auto-refreshes risk zones in ATAK every 5 min.
-          DDIL pack covers offline operations. Cursor-on-Target 2.0 feed plugs into
-          TAK Server.
+        <div class="card-body">
+          Cesium globe with risk overlay, route planner, and Replay drawer.
+          The default operator surface — open this if you don't know where else to go.
         </div>
-        <div class="integ-list">
-          <div class="integ-list-row"><span>Network link</span><code>/atak/network-link.kml</code></div>
-          <div class="integ-list-row"><span>DDIL pack</span><code>/atak/offline-pack.kmz</code></div>
-          <div class="integ-list-row"><span>CoT feed</span><code>/overlay/ionshield.cot</code></div>
+        <div class="card-actions">
+          <span class="btn btn-primary">Open Dashboard →</span>
         </div>
-        <div class="integ-actions">
-          <a class="integ-btn integ-btn-primary" href="/atak">Setup Guide →</a>
-          <a class="integ-btn" href="/atak/network-link.kml" download>↓ Network Link</a>
-          <a class="integ-btn" href="/atak/offline-pack.kmz" download>↓ DDIL</a>
+      </a>
+
+      <!-- SIMULATION MODE -->
+      <a class="card" href="/simulation" style="text-decoration:none;color:inherit;">
+        <div class="card-head">
+          <div class="card-icon sim">📼</div>
+          <div>
+            <p class="card-tagline">Historical</p>
+            <h2 class="card-title">Simulation Mode</h2>
+          </div>
+          <span class="card-status ok" style="margin-left:auto">Live</span>
+        </div>
+        <div class="card-body">
+          Replay May 2024 G5, Halloween 2003, St. Patrick's 2015 + 4 showcase
+          storms. Click regions to drill in, scrub the timeline, switch
+          customer views (defense / aerospace / commercial-grid).
+        </div>
+        <div class="card-actions">
+          <span class="btn btn-primary">Open Simulation →</span>
+        </div>
+      </a>
+
+      <!-- ATAK -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon atak">📡</div>
+          <div>
+            <p class="card-tagline">Defense / Field Ops</p>
+            <h2 class="card-title">ATAK / WinTAK / iTAK</h2>
+          </div>
+          <span class="card-status ok" style="margin-left:auto">Live</span>
+        </div>
+        <div class="card-body">
+          Drop the network-link KML into ATAK once — auto-refreshes every 5 min.
+          DDIL pack covers offline ops with current risk + 24h Kp forecast.
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="/atak/network-link.kml" download>↓ Network Link</a>
+          <a class="btn btn-ghost" href="/atak/offline-pack.kmz" download>↓ DDIL Pack</a>
+          <a class="btn btn-ghost" href="/atak">Setup Guide</a>
         </div>
       </div>
 
-      <!-- JSON API + Auth -->
-      <div class="integ">
-        <div class="integ-head">
-          <div class="integ-icon" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9)">🔌</div>
+      <!-- FOUNDRY -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon foundry">⬢</div>
           <div>
-            <div class="integ-tagline">Developers / autonomy stacks</div>
-            <h3 class="integ-title">JSON API + Bearer auth</h3>
+            <p class="card-tagline">Enterprise / Palantir</p>
+            <h2 class="card-title">Palantir Foundry</h2>
           </div>
-          <span class="pill pill-ok" style="margin-left:auto">Live</span>
+          <span class="card-status ok" style="margin-left:auto" id="foundry-status">Syncing</span>
         </div>
-        <div class="integ-body">
-          Per-tenant Bearer-token API with full audit log. Hit any endpoint
-          from your own dashboard, mission planner, or autonomy stack.
+        <div class="card-body">
+          Parquet writes to four datasets every 5 min. Ontology + Workshop layout
+          + sample SQL ship as a single import pack — stand up an in-tenant app
+          in under an hour.
         </div>
-        <div class="integ-list">
-          <div class="integ-list-row"><span>Risk map (live)</span><code>/api/v3/risk-map</code></div>
-          <div class="integ-list-row"><span>24-h forecast</span><code>/api/v3/forecast/kp</code></div>
-          <div class="integ-list-row"><span>Mint a key</span><code>POST /api/v3/admin/keys</code></div>
-        </div>
-        <div class="integ-actions">
-          <a class="integ-btn integ-btn-primary" href="/api-console">Open Console →</a>
-          <a class="integ-btn" href="/openapi.json" target="_blank">OpenAPI</a>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="/api/v3/foundry/pack" target="_blank">↓ Foundry Pack</a>
+          <a class="btn btn-ghost" href="/api/v3/foundry/ontology" target="_blank">Ontology</a>
+          <a class="btn btn-ghost" href="/foundry">Setup Guide</a>
         </div>
       </div>
 
-      <!-- GIS Exports -->
-      <div class="integ">
-        <div class="integ-head">
-          <div class="integ-icon" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)">🗺️</div>
+      <!-- API + AUTH -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon api">🔑</div>
           <div>
-            <div class="integ-tagline">Analysts / GIS teams</div>
-            <h3 class="integ-title">GIS exports</h3>
+            <p class="card-tagline">Developer</p>
+            <h2 class="card-title">API + Auth</h2>
           </div>
-          <span class="pill pill-ok" style="margin-left:auto">Live</span>
+          <span class="card-status setup" style="margin-left:auto">Bearer Tokens</span>
         </div>
-        <div class="integ-body">
-          Pre-computed scenario assets ready to drop into Google Earth, QGIS,
-          Mapbox, or ArcGIS — no transformation step needed.
+        <div class="card-body">
+          Per-tenant Bearer-token auth with audit log. Mint keys via the admin
+          endpoint, hit any v3 endpoint with <code>Authorization: Bearer iks_…</code>.
         </div>
-        <div class="integ-list">
-          <div class="integ-list-row"><span>KMZ</span><code>scenario.kmz</code></div>
-          <div class="integ-list-row"><span>GeoJSON</span><code>scenario.geojson</code></div>
-          <div class="integ-list-row"><span>Earth Studio CSV</span><code>keyframes.csv</code></div>
-        </div>
-        <div class="integ-actions">
-          <a class="integ-btn integ-btn-primary" href="/simulation">Browse Scenarios →</a>
-          <a class="integ-btn" href="/api/v3/scenarios" target="_blank">Catalog</a>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="/api-console">API Console →</a>
+          <a class="btn btn-ghost" href="/docs">Full Docs</a>
+          <a class="btn btn-ghost" href="/openapi.json" target="_blank">OpenAPI</a>
         </div>
       </div>
 
-      <!-- Customer environments / Foundry-compatible -->
-      <div class="integ">
-        <div class="integ-head">
-          <div class="integ-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6)">⬢</div>
+      <!-- 24H FORECAST -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon ml">📈</div>
           <div>
-            <div class="integ-tagline">Enterprise / on-prem</div>
-            <h3 class="integ-title">Customer environment deployment</h3>
+            <p class="card-tagline">ML</p>
+            <h2 class="card-title">24-Hour Kp Forecaster</h2>
           </div>
-          <span class="pill pill-info" style="margin-left:auto">Compatible</span>
+          <span class="card-status ok" style="margin-left:auto" id="ml-status">Active</span>
         </div>
-        <div class="integ-body">
-          IonShield is deployable into customer-side data platforms — including those
-          built on Foundry-style environments. Ships an ontology + Workshop layout pack
-          and Parquet-format dataset writes. <em style="color:var(--t-3)">No formal
-          partnership implied.</em>
+        <div class="card-body">
+          Multi-horizon ridge model (1h / 3h / 6h / 12h / 24h) trained on
+          NASA OMNI archive + live snapshots. Auto-retrains on demand.
         </div>
-        <div class="integ-list">
-          <div class="integ-list-row"><span>Ontology pack</span><code>/api/v3/foundry/ontology</code></div>
-          <div class="integ-list-row"><span>Sample SQL</span><code>/api/v3/foundry/sql</code></div>
-          <div class="integ-list-row"><span>Workshop layout</span><code>/api/v3/foundry/pack</code></div>
+        <div class="card-stat-row" id="forecast-strip">
+          <div class="stat-mini"><div class="lbl">+1h</div><div class="val" id="f1">—</div></div>
+          <div class="stat-mini"><div class="lbl">+6h</div><div class="val" id="f6">—</div></div>
+          <div class="stat-mini"><div class="lbl">+12h</div><div class="val" id="f12">—</div></div>
+          <div class="stat-mini"><div class="lbl">+24h</div><div class="val" id="f24">—</div></div>
         </div>
-        <div class="integ-actions">
-          <a class="integ-btn integ-btn-primary" href="/foundry">Setup Guide →</a>
-          <a class="integ-btn" href="/api/v3/foundry/pack" target="_blank">Pack JSON</a>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="/api/v3/forecast/kp" target="_blank">JSON</a>
+          <a class="btn btn-ghost" href="/dashboard">View on Dashboard</a>
         </div>
       </div>
 
-      <!-- Direct embed / live overlay -->
-      <div class="integ">
-        <div class="integ-head">
-          <div class="integ-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">🌐</div>
+      <!-- CoT / TAK SERVER -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon atak">⚡</div>
           <div>
-            <div class="integ-tagline">Web / dashboards</div>
-            <h3 class="integ-title">Live web overlay</h3>
+            <p class="card-tagline">Defense / TAK Server</p>
+            <h2 class="card-title">CoT Feed</h2>
           </div>
-          <span class="pill pill-ok" style="margin-left:auto">Live</span>
+          <span class="card-status ok" style="margin-left:auto">Live</span>
         </div>
-        <div class="integ-body">
-          Drop the IonShield risk overlay into any Leaflet, Mapbox, or Cesium
-          dashboard via a single GeoJSON endpoint. Auto-refreshes server-side.
+        <div class="card-body">
+          Cursor-on-Target XML 2.0 events with stable UIDs (<code>IONSHIELD-&lt;id&gt;</code>)
+          and ARGB-coloured markers. Pull from <code>/overlay/ionshield.cot</code> or
+          set <code>COT_SERVER_HOST</code> for direct push.
         </div>
-        <div class="integ-list">
-          <div class="integ-list-row"><span>Live GeoJSON</span><code>/overlay/risk.geojson</code></div>
-          <div class="integ-list-row"><span>Live KML</span><code>/overlay/risk.kml</code></div>
-        </div>
-        <div class="integ-actions">
-          <a class="integ-btn integ-btn-primary" href="/overlay/risk.geojson" target="_blank">GeoJSON</a>
-          <a class="integ-btn" href="/overlay/risk.kml" target="_blank">KML</a>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="/overlay/ionshield.cot" target="_blank">CoT Feed</a>
+          <a class="btn btn-ghost" href="/overlay/risk.kml" target="_blank">KML</a>
+          <a class="btn btn-ghost" href="/overlay/risk.geojson" target="_blank">GeoJSON</a>
         </div>
       </div>
 
-      <!-- Email / webhook alerts (honest "coming soon") -->
-      <div class="integ">
-        <div class="integ-head">
-          <div class="integ-icon" style="background:linear-gradient(135deg,#64748b,#475569)">🔔</div>
+      <!-- SCENARIO EXPORTS -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon sim">🎬</div>
           <div>
-            <div class="integ-tagline">Operations / on-call</div>
-            <h3 class="integ-title">Webhook + email alerts</h3>
+            <p class="card-tagline">Analysts / Animators</p>
+            <h2 class="card-title">Scenario Exports</h2>
           </div>
-          <span class="pill pill-soon" style="margin-left:auto">Coming Soon</span>
+          <span class="card-status ok" style="margin-left:auto" id="scen-status">— scenarios</span>
         </div>
-        <div class="integ-body">
-          Threshold-based alerts (Kp ≥ 6, GPS error &gt; 10 m in your AOI) delivered
-          to Slack, PagerDuty, or operator email. Available as part of pilot
-          engagements; configurable per-tenant.
+        <div class="card-body">
+          KMZ for Google Earth, Adobe Earth Studio Tracks CSV, or time-indexed
+          GeoJSON for QGIS / Mapbox / ArcGIS. Pre-computed and CDN-cacheable.
         </div>
-        <div class="integ-actions">
-          <a class="integ-btn integ-btn-primary" href="/pricing">Talk to us →</a>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="/api/v3/scenarios" target="_blank">Catalog</a>
+          <a class="btn btn-ghost" href="/simulation">Browse Visually</a>
         </div>
       </div>
 
     </div>
-  </div>
-</section>
+  </main>
 
-<!-- ── Pilot CTA ─────────────────────────────────────────────────── -->
-<section class="block">
-  <div class="container" style="text-align:center;max-width:680px">
-    <h2 class="sec-title">Need a different integration?</h2>
-    <p class="sec-sub" style="margin:0 auto 28px">
-      We've shipped what most operators reach for first. If your stack needs
-      something else, the API is the universal escape hatch — or we'll build it for
-      you in a pilot.
-    </p>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <a href="/api-console" class="btn btn-primary">Open API Console →</a>
-      <a href="/pricing"     class="btn btn-ghost">Pilot Engagement</a>
-    </div>
-  </div>
-</section>
+  <script src="/static/nav.js"></script>
+  <script>
+    // Populate live status strip + forecast tiles + counts on page load.
+    (async () => {
+      const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      const setDot  = (id, kind) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = 'dot' + (kind === 'warn' ? ' warn' : kind === 'bad' ? ' bad' : '');
+      };
 
-<script src="/static/nav.js"></script>
-<script>
-(async () => {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  try {
-    const h = await fetch('/api/v3/health').then(r => r.json());
-    const total = Object.keys(h.noaa_feeds || {}).length;
-    const ok    = Object.values(h.noaa_feeds || {}).filter(s => s === 'ok').length;
-    set('ss-status', h.ok ? 'OPERATIONAL' : 'DEGRADED');
-    set('ss-age',    `${h.data_age_seconds}s`);
-    set('ss-feeds',  `${ok}/${total}`);
-  } catch {
-    set('ss-status', 'unreachable');
-  }
-  try {
-    const f = await fetch('/api/v3/forecast/kp').then(r => r.json());
-    set('ss-kp', f.current_kp?.toFixed(1) ?? '—');
-  } catch {}
-})();
-</script>
+      // Health
+      try {
+        const r = await fetch('/api/v3/health');
+        const d = await r.json();
+        const total = Object.keys(d.noaa_feeds || {}).length;
+        const ok = Object.values(d.noaa_feeds || {}).filter(s => s === 'ok').length;
+        setText('pl-status', d.ok ? 'live' : 'degraded');
+        setDot('dot-pipeline', d.ok ? 'ok' : (ok > total / 2 ? 'warn' : 'bad'));
+        setText('pl-age', `${d.data_age_seconds}s`);
+        setText('pl-feeds', `${ok}/${total}`);
+        // Driver Kp lives elsewhere — pull from forecast since /health doesn't include it
+      } catch (e) {
+        setText('pl-status', 'unreachable');
+        setDot('dot-pipeline', 'bad');
+      }
+
+      // Forecast — fills the kp number, the +1/+6/+12/+24 tiles, and peak
+      try {
+        const r = await fetch('/api/v3/forecast/kp');
+        if (r.ok) {
+          const d = await r.json();
+          setText('pl-kp', d.current_kp?.toFixed(1) ?? '—');
+          const byH = Object.fromEntries((d.entries || []).map(e => [e.horizon_h, e]));
+          [1, 6, 12, 24].forEach(h => {
+            const e = byH[h];
+            if (e) setText(`f${h}`, e.kp_predicted.toFixed(1));
+          });
+          const peak = Math.max(...d.entries.map(e => e.kp_predicted));
+          setText('pl-fcast', peak.toFixed(1));
+        }
+      } catch {}
+
+      // Scenario count
+      try {
+        const r = await fetch('/api/v3/scenarios');
+        if (r.ok) {
+          const d = await r.json();
+          setText('scen-status', `${(d.scenarios || []).length} scenarios`);
+        }
+      } catch {}
+    })();
+  </script>
 </body>
 </html>

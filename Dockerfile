@@ -46,11 +46,6 @@ COPY --from=py-builder /install /usr/local
 COPY main.py .
 COPY app/ app/
 
-# Default locations.json — drives /overlay/ionshield.cot and the location
-# monitoring endpoints. Operators can override at runtime by mounting a
-# replacement file or setting LOCATIONS_FILE.
-COPY locations.json .
-
 # Generated frontend assets from frontend-builder (overlays app/static/)
 COPY --from=frontend-builder /workspace/app/static/ app/static/
 

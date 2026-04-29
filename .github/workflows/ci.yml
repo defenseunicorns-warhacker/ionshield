@@ -99,14 +99,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify all pages present
         run: |
-          # docs.html was retired in favour of ml.html; /docs returns a 308
-          # redirect to /ml. Keep this list in sync with app/main.py routes.
-          for page in index features demo use-cases ml pricing compliance \
-                     integrations simulation simulation_run api_console \
-                     atak foundry; do
+          for page in index features demo use-cases docs pricing compliance; do
             test -f app/pages/${page}.html || (echo "❌ Missing: app/pages/${page}.html" && exit 1)
           done
-          echo "✓ All marketing pages present"
+          echo "✓ All 7 marketing pages present"
 
   # ── Docker build (verify image compiles on every push) ────────────────────
   docker-build:

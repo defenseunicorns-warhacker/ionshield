@@ -332,8 +332,7 @@ def test_simulation_html_has_export_menu():
     """B3 caveat 4 (refreshed): the export dropdown collapses three formats
     behind one button so casual viewers aren't confronted with KMZ /
     Keyframes CSV / GeoJSON jargon."""
-    # Export menu now lives on the live sim page (simulation_run.html).
-    html = (Path(__file__).parent.parent / "app" / "pages" / "simulation_run.html").read_text()
+    html = (Path(__file__).parent.parent / "app" / "pages" / "simulation.html").read_text()
     assert 'id="export-wrap"' in html
     assert 'id="export-menu"' in html
     assert "Export for analysts" in html
