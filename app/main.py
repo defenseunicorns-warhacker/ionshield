@@ -500,12 +500,6 @@ def create_app() -> FastAPI:
     async def mkt_ml():
         return _page("ml.html")
 
-    # Vertical landing pages — same engine, audience-specific framing.
-    # /uav and /defense get added as their pages ship (Phases 2 and 3).
-    @app.get("/ag", include_in_schema=False)
-    async def mkt_ag():
-        return _page("ag.html")
-
     @app.get("/pricing", include_in_schema=False)
     async def mkt_pricing():
         return _page("pricing.html")
