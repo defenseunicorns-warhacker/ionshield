@@ -273,6 +273,60 @@ html, body, #root {
 .dec-rec-list { margin: 0; padding-left: 18px; font-size: 11px; color: var(--text-2); line-height: 1.8; }
 .dec-rec-list li { list-style: disc; }
 
+/* ── Mission score cards (Stage 3 — verdict-first dashboard) ─────────── */
+.ms-scores {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.ms-score {
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px;
+}
+.ms-score-label {
+  font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-3); font-weight: 700;
+}
+.ms-score-value {
+  font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace; margin-top: 2px;
+}
+.ms-score-unit { font-size: 11px; color: var(--text-3); font-weight: 500; font-family: var(--font-body); }
+.ms-score-bar {
+  height: 3px; background: var(--bg-1); border-radius: 2px;
+  overflow: hidden; margin-top: 6px;
+}
+.ms-score-fill { height: 100%; transition: width .3s ease; }
+.ms-score-sub { font-size: 10px; color: var(--text-3); margin-top: 5px; }
+
+/* ── "Run as Mission Planner" handoff ─────────────────────────────── */
+.ms-handoff {
+  display: flex; flex-direction: column; gap: 8px;
+  background: rgba(96, 165, 250, 0.04);
+  border-left: 2px solid var(--blue);
+  border-radius: 0;
+}
+.ms-handoff-btn {
+  display: inline-block; align-self: flex-start;
+  background: var(--blue); color: #fff;
+  padding: 6px 12px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; text-decoration: none;
+  letter-spacing: .02em; transition: background .15s;
+}
+.ms-handoff-btn:hover { background: #2563eb; color: #fff; text-decoration: none; }
+
+/* ── Scientific view collapsible (Stage 3) ────────────────────────── */
+.ms-sci { padding: 0; }
+.ms-sci-summary {
+  padding: 9px 12px; cursor: pointer; user-select: none;
+  font-size: 10px; color: var(--text-3); font-weight: 600;
+  letter-spacing: .04em; list-style: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.ms-sci-summary::-webkit-details-marker { display: none; }
+.ms-sci-chev { font-size: 9px; transition: transform .15s; display: inline-block; }
+.ms-sci[open] .ms-sci-chev { transform: rotate(90deg); }
+.ms-sci-summary:hover { color: var(--text-1); }
+.ms-sci-body { /* sections inside use existing .dec-block styles */ }
+
 /* Confidence */
 .conf-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .conf-label  { font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); }

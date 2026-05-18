@@ -73,12 +73,27 @@ describe('DecisionResult', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('shows the action badge label', () => {
+  it('shows the mission-vocab verdict badge', () => {
+    // Stage 3: the dashboard panel now renders engine vocabulary in mission
+    // language. Engine "CAUTION" → mission "HIGH RISK"; engine "GO" → mission
+    // "CLEAR"; engine "ADVISORY" → mission "CAUTION"; engine "NO_GO" → mission
+    // "DELAY".
     render(<DecisionResult decision={ROUTE_DECISION} />);
-    // Use the data-testid container and check for the badge element within it
     const panel = screen.getByTestId('decision-result');
     const badge = panel.querySelector('.dec-action-badge');
-    expect(badge).toHaveTextContent('CAUTION');
+    expect(badge).toHaveTextContent('HIGH RISK');
+  });
+
+  it('renders mission reliability score cards', () => {
+    render(<DecisionResult decision={ROUTE_DECISION} />);
+    const panel = screen.getByTestId('decision-result');
+    expect(panel.querySelector('.ms-scores')).not.toBeNull();
+    expect(panel.querySelectorAll('.ms-score').length).toBe(2);
+  });
+
+  it('shows the Run as Mission Planner handoff', () => {
+    render(<DecisionResult decision={ROUTE_DECISION} />);
+    expect(screen.getByText(/Run as Mission Planner/i)).toBeInTheDocument();
   });
 
   it('shows the action_sentence in plain text', () => {

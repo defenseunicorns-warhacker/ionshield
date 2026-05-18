@@ -290,14 +290,83 @@ function ProvenanceSection({ provenance }) {
   );
 }
 
+// ── Mission vocabulary helpers ────────────────────────────────────────────────
+// Stage 3: dashboard reads as a mission tool. Engine vocabulary stays in the
+// API (GO / ADVISORY / CAUTION / NO_GO), but the operator sees mission
+// vocabulary (CLEAR / CAUTION / HIGH_RISK / DELAY) — same words as the
+// Mission Planner at /mission so the two surfaces are consistent.
+
+const MISSION_VERDICT_BY_ENGINE_ACTION = {
+  GO:       { level: 'CLEAR',     summary: 'CLEAR · Proceed',                  color: 'var(--green)'  },
+  ADVISORY: { level: 'CAUTION',   summary: 'CAUTION · Monitor and adapt',      color: 'var(--yellow)' },
+  CAUTION:  { level: 'HIGH_RISK', summary: 'HIGH RISK · Mitigate before launch', color: 'var(--orange)' },
+  NO_GO:    { level: 'DELAY',     summary: 'DELAY · Do not proceed',           color: 'var(--red)'    },
+};
+
+/** Translate the engine response into mission-vocab + reliability scores.
+ *  Derived client-side from the same `decision` the engine already returned —
+ *  no extra network call. Stage 2's /api/v3/mission/assess endpoint applies
+ *  the full mission-aware tolerance logic; the dashboard uses civilian
+ *  thresholds (10 m GPS error) which is what users selecting a Platform
+ *  preset implicitly opted into. Operators who need RTK-grade tolerance
+ *  click the "Run as Mission" link to /mission and get the tighter scoring.
+ */
+function deriveMissionView(decision) {
+  const verdict =
+    MISSION_VERDICT_BY_ENGINE_ACTION[(decision?.action || 'GO').toUpperCase()] ||
+    MISSION_VERDICT_BY_ENGINE_ACTION.GO;
+
+  const wps = decision?.waypoints || [];
+  const worstGps = wps.reduce((m, w) => Math.max(m, w.gps_error_m || 0), 0);
+  const hfBad = wps.filter(w => w.hf_viable === false).length;
+  const hfTotal = wps.length || 1;
+  const pcaAny = wps.some(w => w.pca_active);
+
+  // Dashboard tolerance: 10 m (civilian primary nav). Aligned with the
+  // "medium" GNSS-dependence preset on /mission.
+  const GNSS_TOL_M = 10;
+  const gnssScore = Math.max(0, Math.min(100, 100 - (worstGps / (GNSS_TOL_M * 3)) * 100));
+  const gnssLabel =
+    gnssScore >= 80 ? 'GOOD' :
+    gnssScore >= 55 ? 'DEGRADED' :
+    gnssScore >= 30 ? 'POOR' : 'UNRELIABLE';
+
+  let commsRisk = (hfBad / hfTotal) * 80;
+  if (pcaAny) commsRisk += 25;
+  commsRisk = Math.max(0, Math.min(100, commsRisk));
+  const commsLabel =
+    commsRisk >= 70 ? 'CRITICAL' :
+    commsRisk >= 40 ? 'HIGH' :
+    commsRisk >= 15 ? 'MODERATE' : 'LOW';
+
+  return {
+    verdict,
+    gnss: { score: gnssScore, label: gnssLabel, worst_error_m: worstGps, tolerance_m: GNSS_TOL_M },
+    comms: { score: commsRisk, label: commsLabel, hf_viable_legs: hfTotal - hfBad, total_legs: hfTotal, pca_active: pcaAny },
+  };
+}
+
+function scoreColor(s) {
+  return s >= 80 ? 'var(--green)' : s >= 55 ? 'var(--yellow)' : s >= 30 ? 'var(--orange)' : 'var(--red)';
+}
+function riskColor(r) {
+  return r >= 70 ? 'var(--red)' : r >= 40 ? 'var(--orange)' : r >= 15 ? 'var(--yellow)' : 'var(--green)';
+}
+
 // ── Decision Result ───────────────────────────────────────────────────────────
+// Verdict-first layout (Stage 3): mission verdict + reliability cards lead,
+// recommended actions next, and the science details (confidence drivers,
+// per-waypoint table, provenance) collapse into a "Scientific view" section
+// for operators who want them. Engine vocabulary stays intact in the
+// underlying decision object — the dashboard just renders it in mission
+// language.
 
 function DecisionResult({ decision }) {
   if (!decision) return null;
-  const as    = getActionStyle(decision.action);
   const stale = decision.confidence?.stale_data === true;
-  const alts  = decision.alternatives || [];
   const recs  = decision.recommended_actions || [];
+  const view  = deriveMissionView(decision);
+  const v     = view.verdict;
 
   return (
     <div className="dec-panel" data-testid="decision-result">
@@ -312,16 +381,16 @@ function DecisionResult({ decision }) {
         </div>
       )}
 
-      {/* Action header */}
+      {/* ── Mission verdict (verdict-first per the operational-mode principle) */}
       <div
         className="dec-action-header"
-        style={{ borderLeftColor: as.color, background: `${as.color}14` }}
+        style={{ borderLeftColor: v.color, background: `${v.color}14` }}
       >
         <div>
-          <div className="dec-action-badge" style={{ background: as.color }}>
-            {as.label}
+          <div className="dec-action-badge" style={{ background: v.color }}>
+            {v.level.replace('_', ' ')}
           </div>
-          <div className="dec-type-sub">ROUTE RISK · v2 DECISION ENGINE</div>
+          <div className="dec-type-sub">MISSION RISK · {v.summary.toUpperCase()}</div>
         </div>
         {decision.valid_until && (
           <div className="dec-valid">
@@ -331,42 +400,92 @@ function DecisionResult({ decision }) {
         )}
       </div>
 
-      {/* Plain-language action sentence (required — not colour-coded alone) */}
+      {/* Plain-language explanation — operator language, not Kp */}
       <div className="dec-sentence" data-testid="action-sentence">
         {decision.action_sentence || '—'}
       </div>
 
-      {/* Alternatives */}
-      {alts.length > 0 && (
-        <div className="dec-block dec-alts">
-          Also consider:{' '}
-          {alts.map(a => (
-            <span key={a} className="dec-alt-pill">{String(a).replace(/_/g, ' ')}</span>
-          ))}
+      {/* ── Reliability score cards (the operator's headline numbers) */}
+      <div className="dec-block">
+        <div className="ms-scores">
+          <div className="ms-score">
+            <div className="ms-score-label">GNSS Reliability · {view.gnss.label}</div>
+            <div className="ms-score-value" style={{ color: scoreColor(view.gnss.score) }}>
+              {view.gnss.score.toFixed(0)}
+              <span className="ms-score-unit"> / 100</span>
+            </div>
+            <div className="ms-score-bar">
+              <div
+                className="ms-score-fill"
+                style={{ width: `${view.gnss.score.toFixed(0)}%`, background: scoreColor(view.gnss.score) }}
+              />
+            </div>
+            <div className="ms-score-sub">
+              Worst-leg {view.gnss.worst_error_m.toFixed(1)} m · {view.gnss.tolerance_m} m tolerance
+            </div>
+          </div>
+          <div className="ms-score">
+            <div className="ms-score-label">Comms Risk · {view.comms.label}</div>
+            <div className="ms-score-value" style={{ color: riskColor(view.comms.score) }}>
+              {view.comms.score.toFixed(0)}
+              <span className="ms-score-unit"> / 100</span>
+            </div>
+            <div className="ms-score-bar">
+              <div
+                className="ms-score-fill"
+                style={{ width: `${view.comms.score.toFixed(0)}%`, background: riskColor(view.comms.score) }}
+              />
+            </div>
+            <div className="ms-score-sub">
+              {view.comms.hf_viable_legs}/{view.comms.total_legs} HF-viable
+              {view.comms.pca_active ? ' · PCA active' : ''}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Recommended actions */}
+      {/* ── Recommended action(s) — what the operator should do */}
       {recs.length > 0 && (
         <div className="dec-block">
-          <div className="section-label">RECOMMENDED ACTIONS</div>
+          <div className="section-label">RECOMMENDED ACTION</div>
           <ul className="dec-rec-list">
             {recs.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </div>
       )}
 
-      {/* Confidence */}
-      <ConfidenceSection confidence={decision.confidence} />
+      {/* Alternatives — engine-level fallback actions (e.g. DELAY_OPERATION) */}
+      {(decision.alternatives || []).length > 0 && (
+        <div className="dec-block dec-alts">
+          Also consider:{' '}
+          {(decision.alternatives || []).map(a => (
+            <span key={a} className="dec-alt-pill">{String(a).replace(/_/g, ' ')}</span>
+          ))}
+        </div>
+      )}
 
-      {/* System impacts */}
-      <ImpactsSection impacts={decision.impacts} />
+      {/* ── "Run as Mission Planner" handoff for full mission-aware scoring */}
+      <div className="dec-block ms-handoff">
+        <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.5 }}>
+          Need RTK-grade tolerance, custom GNSS / comms dependence, or
+          mission-specific risk profile?
+        </div>
+        <a href="/mission" className="ms-handoff-btn">▶ Run as Mission Planner</a>
+      </div>
 
-      {/* Per-waypoint table */}
-      <WaypointTable waypoints={decision.waypoints} />
-
-      {/* Provenance */}
-      <ProvenanceSection provenance={decision.provenance} />
+      {/* ── Scientific view (collapsed by default) ──────────────────────── */}
+      <details className="dec-block ms-sci">
+        <summary className="ms-sci-summary">
+          <span className="ms-sci-chev">▸</span>
+          Scientific view · confidence, impacts, per-waypoint table, raw inputs
+        </summary>
+        <div className="ms-sci-body">
+          <ConfidenceSection confidence={decision.confidence} />
+          <ImpactsSection impacts={decision.impacts} />
+          <WaypointTable waypoints={decision.waypoints} />
+          <ProvenanceSection provenance={decision.provenance} />
+        </div>
+      </details>
     </div>
   );
 }
