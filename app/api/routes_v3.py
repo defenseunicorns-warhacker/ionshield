@@ -1682,3 +1682,103 @@ async def foundry_sql_samples(request: Request) -> dict:
     from app.outputs import foundry_pack as fp
 
     return {"queries": fp.sample_sql_queries()}
+
+
+# ── Mission Planner (Stage 2) ────────────────────────────────────────────────
+
+
+from pydantic import BaseModel as _MissionBase, Field as _MissionField  # noqa: E402
+
+
+class _MissionWaypointReq(_MissionBase):
+    name: str = "WP"
+    lat: float = _MissionField(..., ge=-90, le=90)
+    lon: float = _MissionField(..., ge=-180, le=180)
+
+
+class _MissionRequestModel(_MissionBase):
+    mission_type: str = _MissionField(
+        "uav", description="uav | bvlos | precision-ag | maritime | defense-patrol | surveying | autonomous-ground"
+    )
+    gnss_dependence: str = _MissionField("medium", description="low | medium | high | rtk")
+    comms_dependence: str = _MissionField("medium", description="low | medium | high")
+    risk_tolerance: str = _MissionField("medium", description="low | medium | high")
+    waypoints: list[_MissionWaypointReq] = _MissionField(default_factory=list, min_length=1)
+    time_window: str = _MissionField("now", description="now | next-1h | next-6h | next-24h")
+    callsign: str = ""
+
+
+@router_v3.post("/mission/assess")
+async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
+    """
+    Operator-language mission assessment.
+
+    Takes a mission profile (mission_type, GNSS/comms dependence, risk
+    tolerance, waypoints) and returns the full operator-facing
+    MissionAssessment: mission risk level (CLEAR/CAUTION/HIGH_RISK/DELAY),
+    GNSS Reliability score, Comms Risk score, plain-English explanation,
+    recommended actions, data quality, and source-labelled provenance.
+
+    Internally maps to the existing route-risk engine (same as
+    POST /api/v2/route-decision) but adds mission-type-aware scoring:
+    a 0.5 m GPS error reads as DEGRADED for an RTK ag mission and GOOD
+    for a defense patrol — the engine itself doesn't know which mission
+    it's serving.
+    """
+    from app.api.routes_v2 import _build_env, _engine, _platform_from_request, PlatformRequest
+    from app.models.decision import WaypointInput
+    from app.models.mission import (
+        MissionRequest,
+        MissionWaypoint,
+        assess_mission,
+        map_to_platform_kwargs,
+    )
+
+    mission = MissionRequest(
+        mission_type=req.mission_type,
+        gnss_dependence=req.gnss_dependence,
+        comms_dependence=req.comms_dependence,
+        risk_tolerance=req.risk_tolerance,
+        waypoints=[MissionWaypoint(w.name, w.lat, w.lon) for w in req.waypoints],
+        time_window=req.time_window,
+        callsign=req.callsign,
+    )
+
+    # Build the engine inputs from the mission profile, run the engine, then
+    # hand the engine's output to the mission scorer for the operator card.
+    plat_kwargs = map_to_platform_kwargs(mission)
+    platform = _platform_from_request(
+        PlatformRequest(asset_type=plat_kwargs["asset_type"], criticality=plat_kwargs["criticality"])
+    )
+    env = _build_env()
+    wp_inputs = [WaypointInput(w.lat, w.lon, w.name) for w in mission.waypoints]
+
+    rec, wp_decisions = _engine.route_risk(env, wp_inputs, platform)
+
+    # Reconstruct the same dict shape POST /api/v2/route-decision returns,
+    # so the mission scorer reads from a single canonical format.
+    route_decision = {
+        **rec.to_dict(),
+        "waypoints": [
+            {
+                "name": w.name,
+                "lat": w.lat,
+                "lon": w.lon,
+                "risk_level": w.risk_level,
+                "risk_score": w.risk_score,
+                "gps_error_m": w.gps_error_m,
+                "hf_viable": w.hf_viable,
+                "hf_best_freq_mhz": w.hf_best_freq_mhz,
+                "hf_best_reliability_pct": w.hf_best_reliability_pct,
+                "hf_absorption_db": w.hf_absorption_db,
+                "satcom_fade_db": w.satcom_fade_db,
+                "s4_index": w.s4_index,
+                "pca_active": w.pca_active,
+                "watch_notes": w.watch_notes,
+            }
+            for w in wp_decisions
+        ],
+    }
+
+    assessment = assess_mission(mission, route_decision)
+    return assessment.to_dict()

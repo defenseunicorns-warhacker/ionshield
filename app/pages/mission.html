@@ -453,134 +453,93 @@
     document.getElementById('m-run').focus();
   }
 
-  // ── Mapping mission inputs → decision-engine inputs ──────────────────────
-  // Stage 2 will move this to the server (POST /api/v3/mission/assess), but
-  // for Stage 1 we map here so the page is functional against the existing
-  // POST /api/v2/route-decision endpoint.
-
-  const ASSET_BY_GNSS = {
-    low:    'GPS_INS',
-    medium: 'GPS_L1L2',
-    high:   'GPS_L1L5',
-    rtk:    'GPS_L1L5',
-  };
-
-  const CRIT_BY_TOLERANCE_AND_TYPE = (tolerance, type) => {
-    // Defense patrol + BVLOS = high criticality; UAV inspection = medium;
-    // Precision ag / surveying / autonomous-ground = medium unless tolerance high.
-    let base = 3;
-    if (type === 'defense-patrol' || type === 'bvlos' || type === 'maritime') base = 4;
-    if (type === 'uav' || type === 'surveying') base = 3;
-    if (type === 'precision-ag' || type === 'autonomous-ground') base = 3;
-    if (tolerance === 'low') base = Math.min(5, base + 1);
-    if (tolerance === 'high') base = Math.max(1, base - 1);
-    return base;
-  };
-
-  function buildDecisionRequest() {
-    const type   = document.getElementById('m-type').value;
-    const gnss   = document.getElementById('m-gnss-dep').value;
-    const tol    = document.getElementById('m-tolerance').value;
-
-    const waypoints = Array.from(wpRoot.querySelectorAll('.mp-wp-row')).map(row => ({
-      name: row.querySelector('.mp-wp-name').value || 'WP',
-      lat:  parseFloat(row.querySelector('.mp-wp-lat').value),
-      lon:  parseFloat(row.querySelector('.mp-wp-lon').value),
-    })).filter(wp => Number.isFinite(wp.lat) && Number.isFinite(wp.lon));
-
-    return {
-      waypoints,
-      platform: {
-        asset_type:  ASSET_BY_GNSS[gnss] || 'GPS_L1L2',
-        criticality: CRIT_BY_TOLERANCE_AND_TYPE(tol, type),
-        system_dependencies: [],
-      },
-    };
-  }
+  // Stage 2 note: mission-language → decision-engine mapping lives
+  // server-side in app/models/mission.py and POST /api/v3/mission/assess.
+  // Client just builds the operator payload (see buildMissionPayload below)
+  // and renders the response.
 
   // ── Render the result card ────────────────────────────────────────────────
-  function renderResult(decision, missionMeta) {
+  // Stage 2: consumes the server-side MissionAssessment from
+  // POST /api/v3/mission/assess. Scoring + verdict are now derived
+  // server-side and mission-aware; the UI is purely presentation.
+  function renderResult(assessment) {
     const root = document.getElementById('m-result');
-    if (!decision) { root.innerHTML = '<div class="mp-error">Empty response from decision engine.</div>'; return; }
+    if (!assessment) {
+      root.innerHTML = '<div class="mp-error">Empty response from mission assessor.</div>';
+      return;
+    }
 
-    const action = (decision.action || 'GO').toUpperCase();
-    const verdictClass = action === 'NO_GO' ? 'no_go'
-                       : action === 'CAUTION' ? 'caution'
-                       : action === 'ADVISORY' ? 'advisory' : 'go';
-    const missionLabel = {
-      GO:       'CLEAR · Proceed',
-      ADVISORY: 'CAUTION · Monitor and adapt',
-      CAUTION:  'HIGH RISK · Mitigate before launch',
-      NO_GO:    'DELAY · Do not proceed',
-    }[action] || action;
+    const level = assessment.mission_risk_level || 'CLEAR';
+    const verdictClass = {
+      CLEAR:    'go',
+      CAUTION:  'advisory',
+      HIGH_RISK:'caution',
+      DELAY:    'no_go',
+    }[level] || 'go';
 
-    // Reliability scores from per-waypoint data
-    const wps = decision.waypoints || [];
-    const worstGps = wps.reduce((m, w) => Math.max(m, w.gps_error_m || 0), 0);
-    const hfBad   = wps.filter(w => w.hf_viable === false).length;
-    const hfTotal = wps.length || 1;
-    const pcaAny  = wps.some(w => w.pca_active);
-
-    // GNSS reliability: 100 at 0m error, 0 at 50m error
-    const gnssScore = Math.max(0, Math.min(100, 100 - (worstGps / 50) * 100));
-    // Comms risk: percentage of waypoints with HF degraded, bumped by PCA
-    const commsRisk = Math.min(100, (hfBad / hfTotal) * 100 + (pcaAny ? 25 : 0));
+    const gnss = assessment.gnss || {};
+    const comms = assessment.comms || {};
+    const dq = assessment.data_quality || {};
+    const inputs = assessment.inputs_echo || {};
+    const raw = assessment.raw_decision || {};
+    const prov = raw.provenance || {};
 
     const scoreColor = (s) => s >= 80 ? 'var(--green)' : s >= 55 ? 'var(--yellow)'
                                                        : s >= 30 ? 'var(--orange)' : 'var(--red)';
     const riskColor  = (r) => r >= 70 ? 'var(--red)'   : r >= 40 ? 'var(--orange)'
                                                        : r >= 15 ? 'var(--yellow)' : 'var(--green)';
+    const dqClass = (dq.label || 'MEDIUM').toLowerCase();
 
-    const conf = decision.confidence || {};
-    const confLabel = (conf.label || 'MEDIUM').toUpperCase();
-    const confClass = confLabel.startsWith('HIGH') ? 'high'
-                    : confLabel.startsWith('LOW') || confLabel.startsWith('VERY') ? 'low'
-                    : 'medium';
+    const gnssScore = Number(gnss.score || 0);
+    const commsScore = Number(comms.score || 0);
+    const recs = assessment.recommended_actions || [];
 
-    const prov = decision.provenance || {};
     const obs  = (prov.observations_used || []).join(', ') || '—';
     const fcs  = (prov.forecasts_used    || []).join(', ') || '—';
-    const miss = (prov.feeds_unavailable || []).join(', ');
-
-    const recs = decision.recommended_actions || [];
-    if (!recs.length && decision.action_sentence) recs.push(decision.action_sentence);
 
     root.innerHTML = `
       <!-- Verdict -->
       <div class="mp-verdict ${verdictClass}">
-        <div class="level">Mission risk · ${missionLabel}</div>
-        <div class="summary">${decision.action_sentence || 'No explanation provided.'}</div>
+        <div class="level">Mission risk · ${assessment.mission_risk_summary || level}</div>
+        <div class="summary">${assessment.plain_explanation || 'No explanation provided.'}</div>
       </div>
 
       <!-- Reliability scores -->
       <div class="mp-scores">
         <div class="mp-score">
-          <div class="mp-score-label">GNSS Reliability</div>
+          <div class="mp-score-label">GNSS Reliability · ${gnss.label || ''}</div>
           <div class="mp-score-value" style="color:${scoreColor(gnssScore)}">${gnssScore.toFixed(0)}<span style="font-size:13px;color:var(--text-3);font-family:var(--font);font-weight:500;"> / 100</span></div>
           <div class="mp-score-bar"><div class="mp-score-fill" style="width:${gnssScore.toFixed(0)}%;background:${scoreColor(gnssScore)}"></div></div>
-          <div class="mp-score-sub">Worst-leg GPS error: ${worstGps.toFixed(1)} m</div>
+          <div class="mp-score-sub">
+            Worst-leg ${(gnss.worst_error_m ?? 0).toFixed(2)} m
+            vs ${(gnss.tolerance_m ?? 0).toFixed(2)} m tolerance
+            ${gnss.affected_legs ? `· ${gnss.affected_legs}/${gnss.total_legs} legs over tolerance` : ''}
+          </div>
         </div>
         <div class="mp-score">
-          <div class="mp-score-label">Comms Risk</div>
-          <div class="mp-score-value" style="color:${riskColor(commsRisk)}">${commsRisk.toFixed(0)}<span style="font-size:13px;color:var(--text-3);font-family:var(--font);font-weight:500;"> / 100</span></div>
-          <div class="mp-score-bar"><div class="mp-score-fill" style="width:${commsRisk.toFixed(0)}%;background:${riskColor(commsRisk)}"></div></div>
-          <div class="mp-score-sub">${hfBad}/${hfTotal} legs with degraded HF${pcaAny ? ' · PCA active' : ''}</div>
+          <div class="mp-score-label">Comms Risk · ${comms.label || ''}</div>
+          <div class="mp-score-value" style="color:${riskColor(commsScore)}">${commsScore.toFixed(0)}<span style="font-size:13px;color:var(--text-3);font-family:var(--font);font-weight:500;"> / 100</span></div>
+          <div class="mp-score-bar"><div class="mp-score-fill" style="width:${commsScore.toFixed(0)}%;background:${riskColor(commsScore)}"></div></div>
+          <div class="mp-score-sub">
+            ${comms.hf_viable_legs ?? 0}/${comms.total_legs ?? 0} HF-viable legs
+            ${comms.pca_active ? '· PCA active' : ''}
+          </div>
         </div>
       </div>
 
       <!-- Drivers (operator language) -->
       <div class="mp-driver-strip">
-        <div class="mp-driver ${worstGps > 15 ? 'mp-driver-sev-warn' : ''} ${worstGps > 30 ? 'mp-driver-sev-bad' : ''}">
+        <div class="mp-driver ${(gnss.worst_error_m || 0) > 5 ? 'mp-driver-sev-warn' : ''} ${(gnss.worst_error_m || 0) > 15 ? 'mp-driver-sev-bad' : ''}">
           <span class="mp-driver-k">GPS error</span>
-          <span class="mp-driver-v">${worstGps.toFixed(1)} m</span>
+          <span class="mp-driver-v">${(gnss.worst_error_m || 0).toFixed(2)} m</span>
         </div>
-        <div class="mp-driver ${hfBad > 0 ? 'mp-driver-sev-warn' : ''} ${hfBad === hfTotal ? 'mp-driver-sev-bad' : ''}">
+        <div class="mp-driver ${(comms.total_legs - comms.hf_viable_legs) > 0 ? 'mp-driver-sev-warn' : ''} ${comms.hf_viable_legs === 0 && comms.total_legs > 0 ? 'mp-driver-sev-bad' : ''}">
           <span class="mp-driver-k">HF availability</span>
-          <span class="mp-driver-v">${hfTotal - hfBad}/${hfTotal} legs</span>
+          <span class="mp-driver-v">${comms.hf_viable_legs ?? 0}/${comms.total_legs ?? 0}</span>
         </div>
-        <div class="mp-driver ${pcaAny ? 'mp-driver-sev-bad' : ''}">
+        <div class="mp-driver ${comms.pca_active ? 'mp-driver-sev-bad' : ''}">
           <span class="mp-driver-k">Polar cap</span>
-          <span class="mp-driver-v">${pcaAny ? 'ACTIVE' : 'clear'}</span>
+          <span class="mp-driver-v">${comms.pca_active ? 'ACTIVE' : 'clear'}</span>
         </div>
       </div>
 
@@ -588,17 +547,16 @@
       ${recs.length ? `
       <div class="mp-recs">
         <h4>Recommended action</h4>
-        <ul>${recs.map(r => `<li>${r}</li>`).join('')}</ul>
+        <ul>${recs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>
       </div>` : ''}
 
       <!-- Confidence / data quality -->
       <div class="mp-conf">
         <span class="mp-conf-label">Data quality</span>
-        <span class="mp-conf-pill ${confClass}">${confLabel}${conf.score != null ? ` · ${conf.score.toFixed(2)}` : ''}</span>
+        <span class="mp-conf-pill ${dqClass}">${dq.label || '—'}${dq.score != null ? ` · ${Number(dq.score).toFixed(2)}` : ''}</span>
         <span class="mp-conf-detail">
-          ${conf.stale_data ? '⚠ Stale NOAA observation — verify before acting. ' : ''}
-          ${miss ? `Feeds unavailable: ${miss}. ` : ''}
-          ${conf.data_completeness != null ? `Completeness ${Math.round(conf.data_completeness * 100)}%.` : ''}
+          ${(dq.notes || []).map(escapeHtml).join(' ')}
+          ${dq.completeness != null ? `Completeness ${Math.round(dq.completeness * 100)}%.` : ''}
         </span>
       </div>
 
@@ -608,7 +566,15 @@
         <div class="mp-prov-body">
           <div class="mp-prov-row">
             <span class="mp-prov-k">Mission</span>
-            <span class="mp-prov-v">${missionMeta.callsign || '—'} · ${missionMeta.type} · ${missionMeta.window}</span>
+            <span class="mp-prov-v">${escapeHtml(inputs.callsign || '—')} · ${escapeHtml(inputs.mission_type || '—')} · ${escapeHtml(inputs.time_window || '—')}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">GNSS dep.</span>
+            <span class="mp-prov-v">${escapeHtml(inputs.gnss_dependence || '—')} · receiver ${gnss.asset_type || '—'}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Comms dep.</span>
+            <span class="mp-prov-v">${escapeHtml(inputs.comms_dependence || '—')} · ${escapeHtml(comms.fallback_hint || '')}</span>
           </div>
           <div class="mp-prov-row">
             <span class="mp-prov-k">Model version</span>
@@ -620,11 +586,11 @@
           </div>
           <div class="mp-prov-row">
             <span class="mp-prov-k">Observations</span>
-            <span class="mp-prov-v"><span class="mp-prov-tag measured">measured</span>${obs}</span>
+            <span class="mp-prov-v"><span class="mp-prov-tag measured">measured</span>${escapeHtml(obs)}</span>
           </div>
           <div class="mp-prov-row">
             <span class="mp-prov-k">Forecasts</span>
-            <span class="mp-prov-v"><span class="mp-prov-tag modeled">modeled</span>${fcs}</span>
+            <span class="mp-prov-v"><span class="mp-prov-tag modeled">modeled</span>${escapeHtml(fcs)}</span>
           </div>
           <div class="mp-prov-row">
             <span class="mp-prov-k">Decision engine</span>
@@ -632,45 +598,69 @@
           </div>
           <div class="mp-prov-row">
             <span class="mp-prov-k">Generated</span>
-            <span class="mp-prov-v">${prov.computed_at || '—'}</span>
+            <span class="mp-prov-v">${assessment.generated_at || prov.computed_at || '—'}</span>
           </div>
         </div>
       </details>
     `;
   }
 
+  // Small HTML-escape utility — defends against rendering user-controlled
+  // callsigns / mission names from inputs_echo.
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── Build the mission payload (operator language) ────────────────────────
+  // Stage 2: payload is in mission language; server handles the translation
+  // to decision-engine inputs and mission-aware scoring.
+  function buildMissionPayload() {
+    const waypoints = Array.from(wpRoot.querySelectorAll('.mp-wp-row')).map(row => ({
+      name: row.querySelector('.mp-wp-name').value || 'WP',
+      lat:  parseFloat(row.querySelector('.mp-wp-lat').value),
+      lon:  parseFloat(row.querySelector('.mp-wp-lon').value),
+    })).filter(wp => Number.isFinite(wp.lat) && Number.isFinite(wp.lon));
+
+    return {
+      mission_type:    document.getElementById('m-type').value,
+      gnss_dependence: document.getElementById('m-gnss-dep').value,
+      comms_dependence:document.getElementById('m-comms-dep').value,
+      risk_tolerance:  document.getElementById('m-tolerance').value,
+      time_window:     document.getElementById('m-window').value,
+      callsign:        document.getElementById('m-callsign').value,
+      waypoints,
+    };
+  }
+
   // ── Submit handler ───────────────────────────────────────────────────────
   async function runAssessment() {
     const root = document.getElementById('m-result');
     const btn  = document.getElementById('m-run');
-    const req  = buildDecisionRequest();
-    if (!req.waypoints.length) {
+    const payload = buildMissionPayload();
+    if (!payload.waypoints.length) {
       root.innerHTML = '<div class="mp-error">Add at least one waypoint with valid lat/lon.</div>';
       return;
     }
 
     btn.disabled = true; btn.textContent = 'Assessing…';
-    root.innerHTML = '<div class="mp-loading"></div><div style="text-align:center;color:var(--text-3);font-size:12px;margin-top:14px;">Running live decision engine…</div>';
-
-    const missionMeta = {
-      type:     document.getElementById('m-type').value,
-      callsign: document.getElementById('m-callsign').value,
-      window:   document.getElementById('m-window').value,
-    };
+    root.innerHTML = '<div class="mp-loading"></div><div style="text-align:center;color:var(--text-3);font-size:12px;margin-top:14px;">Running mission assessment…</div>';
 
     try {
-      const r = await fetch('/api/v2/route-decision', {
+      const r = await fetch('/api/v3/mission/assess', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(req),
+        body:    JSON.stringify(payload),
       });
       if (!r.ok) {
         const txt = await r.text();
-        root.innerHTML = `<div class="mp-error">Decision engine returned HTTP ${r.status}: ${txt.slice(0, 240)}</div>`;
+        root.innerHTML = `<div class="mp-error">Mission assessor returned HTTP ${r.status}: ${txt.slice(0, 280)}</div>`;
         return;
       }
-      const decision = await r.json();
-      renderResult(decision, missionMeta);
+      const assessment = await r.json();
+      renderResult(assessment);
     } catch (e) {
       root.innerHTML = `<div class="mp-error">Network error: ${e.message}</div>`;
     } finally {
