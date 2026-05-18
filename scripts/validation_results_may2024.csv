@@ -1,0 +1,10 @@
+timestamp,kp,bz_nt,xray_class,proton_pfu,note,modog_gps_m,mimku_gps_m,gunso_gps_m,mimku_hf_best_mhz,mimku_hf_reliability_pct,mimku_pca_active,gunso_hf_viable_count,gunso_hf_best_mhz,gunso_hf_reliability_pct,gunso_pca_active,gunso_hf_blackout
+2024-05-10 18:00Z,5.3,-10.0,M,15.0,Storm onset,7.1,7.1,8.7,28.0,99,True,5,28.0,88,True,False
+2024-05-10 21:00Z,7.0,-10.0,M,50.0,G3 storm,11.0,11.0,13.0,21.0,98,True,5,28.0,84,True,False
+2024-05-11 00:00Z,8.3,-25.0,X,1000.0,"G5 peak — X1 flare, S3 proton",13.9,13.9,17.3,28.0,98,True,4,28.0,81,True,False
+2024-05-11 03:00Z,8.0,-25.0,X,1000.0,G5 sustained,13.2,13.2,16.6,28.0,98,True,4,28.0,82,True,False
+2024-05-11 06:00Z,7.3,-10.0,M,200.0,G4 declining,11.6,11.6,14.3,21.0,98,True,4,28.0,84,True,False
+2024-05-11 09:00Z,6.3,-10.0,M,50.0,G2 recovery,9.4,9.4,11.4,28.0,99,True,6,28.0,90,True,False
+2024-05-11 12:00Z,5.0,-10.0,C,10.0,G1 late recovery,6.4,6.4,7.8,14.5,100,False,8,28.0,98,False,False
+2024-05-12 00:00Z,4.3,0.0,C,1.0,Post-storm quiet,4.8,4.8,5.5,14.5,100,False,8,28.0,98,False,False
+2024-05-13 00:00Z,2.7,0.0,B,0.1,Background quiet,3.9,3.9,3.9,10.0,100,False,8,18.0,98,False,False

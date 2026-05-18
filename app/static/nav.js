@@ -10,12 +10,12 @@
 
   const LINKS = [
     { href: '/',             label: 'Home' },
+    { href: '/mission',      label: 'Mission' },
     { href: '/features',     label: 'Features' },
     { href: '/integrations', label: 'Integrations' },
     { href: '/simulation',   label: 'Simulation' },
     { href: '/use-cases',    label: 'Use Cases' },
     { href: '/ml',           label: 'ML' },
-    { href: '/docs',         label: 'Docs' },
     { href: '/pricing',      label: 'Pricing' },
   ];
 
@@ -48,8 +48,8 @@
         </a>
         <div class="mkt-nav-links">${navLinks}</div>
         <span class="mkt-nav-sep"></span>
-        <a href="/dashboard" class="mkt-cta" aria-label="Open the live 3D dashboard">
-          Launch Dashboard →
+        <a href="/mission" class="mkt-cta" aria-label="Open the IonShield Mission Planner">
+          Open Mission Planner →
         </a>
       </div>
     </nav>
@@ -76,7 +76,8 @@
           <a href="/features">Features</a>
           <a href="/demo">Live Demo</a>
           <a href="/pricing">Pricing & Pilot</a>
-          <a href="/dashboard">Dashboard</a>
+          <a href="/mission">Mission Planner</a>
+          <a href="/dashboard">Scientific dashboard</a>
         </div>
         <div class="mkt-footer-col">
           <h4>Resources</h4>

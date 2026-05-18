@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission Planner — IonShield</title>
+  <meta name="description" content="Operational reliability scoring for GNSS/RF-dependent missions. Translate live space weather into a mission risk level, plain-English explanation, and recommended action." />
+  <link rel="stylesheet" href="/static/marketing.css" />
+  <style>
+    /* ── Page-local styles. Scoped tight so they don't leak to other pages. */
+
+    body { background: var(--bg-0); }
+    main.mp { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* Header strip */
+    .mp-header { display: flex; align-items: flex-start; justify-content: space-between;
+                 gap: 24px; flex-wrap: wrap; margin-bottom: 28px; }
+    .mp-header h1 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.025em;
+                    line-height: 1.1; color: var(--text-1); font-weight: 800; margin-bottom: 8px; }
+    .mp-header p  { color: var(--text-2); font-size: 14px; max-width: 640px; line-height: 1.55; }
+    .mp-header .alt-link {
+      color: var(--text-3); font-size: 12px; text-decoration: none;
+      padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
+      white-space: nowrap;
+    }
+    .mp-header .alt-link:hover { color: var(--blue-hi); border-color: var(--blue-hi); }
+
+    /* Scenario chips row */
+    .mp-scenarios { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 24px; }
+    .mp-scenario {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 12px; cursor: pointer;
+      font-size: 12px; color: var(--text-2); display: inline-flex; gap: 7px;
+      align-items: center; line-height: 1.3;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .mp-scenario:hover { border-color: var(--blue-hi); color: var(--text-1); background: var(--bg-3); }
+    .mp-scenario .lbl {
+      font-size: 9px; letter-spacing: .14em; color: var(--blue-hi);
+      text-transform: uppercase; font-weight: 700;
+    }
+
+    /* Main two-column layout */
+    .mp-grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+    @media (min-width: 940px) { .mp-grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+    /* Form panel */
+    .mp-panel {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px;
+    }
+    .mp-panel h2 {
+      font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--text-3); font-weight: 700; margin-bottom: 16px;
+    }
+    .mp-field { margin-bottom: 14px; }
+    .mp-field label { display: block; font-size: 11px; color: var(--text-2);
+                       font-weight: 600; margin-bottom: 6px; }
+    .mp-field input, .mp-field select {
+      width: 100%; box-sizing: border-box;
+      background: var(--bg-1); color: var(--text-1);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 9px 11px; font-size: 13px;
+      font-family: var(--font);
+    }
+    .mp-field input:focus, .mp-field select:focus {
+      outline: none; border-color: var(--blue-hi);
+    }
+    .mp-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mp-field-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    .mp-waypoints { display: grid; gap: 6px; margin-top: 6px; }
+    .mp-wp-row {
+      display: grid; grid-template-columns: 80px 80px 1fr 28px; gap: 6px;
+      align-items: center;
+    }
+    .mp-wp-row input { padding: 6px 8px; font-size: 12px;
+                        font-family: ui-monospace, monospace; }
+    .mp-wp-rm {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-3); border-radius: 4px; cursor: pointer; padding: 6px;
+      font-size: 11px;
+    }
+    .mp-wp-rm:hover { border-color: var(--red); color: var(--red); }
+    .mp-wp-add {
+      background: transparent; border: 1px dashed var(--border);
+      color: var(--text-2); border-radius: 6px; padding: 8px;
+      font-size: 12px; cursor: pointer; margin-top: 4px; width: 100%;
+    }
+    .mp-wp-add:hover { border-color: var(--blue-hi); color: var(--blue-hi); }
+
+    .mp-submit-row { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+    .mp-run {
+      background: var(--blue); color: white; border: none;
+      padding: 11px 22px; border-radius: 7px; font-weight: 700; font-size: 13px;
+      cursor: pointer; transition: background .15s, transform .1s;
+    }
+    .mp-run:hover { background: #2563eb; transform: translateY(-1px); }
+    .mp-run:disabled { background: var(--bg-4); color: var(--text-3); cursor: default;
+                        transform: none; }
+    .mp-hint { font-size: 11px; color: var(--text-3); }
+
+    /* Result panel */
+    .mp-result {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px; min-height: 280px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .mp-result-empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 8px; padding: 30px 12px;
+      color: var(--text-3); text-align: center;
+    }
+    .mp-result-empty .ico { font-size: 32px; opacity: .35; }
+    .mp-result-empty .ttl { font-size: 14px; color: var(--text-1); font-weight: 700; }
+    .mp-result-empty .sub { font-size: 12px; color: var(--text-3); max-width: 320px; line-height: 1.55; }
+
+    /* Verdict block — the headline */
+    .mp-verdict {
+      padding: 16px 18px; border-radius: 10px; border-left: 4px solid;
+      display: grid; gap: 4px;
+    }
+    .mp-verdict.go      { background: rgba(16,185,129,.07);  border-color: var(--green);  }
+    .mp-verdict.advisory{ background: rgba(245,158,11,.07);  border-color: var(--yellow); }
+    .mp-verdict.caution { background: rgba(249,115,22,.08);  border-color: var(--orange); }
+    .mp-verdict.no_go   { background: rgba(239,68,68,.09);   border-color: var(--red);    }
+    .mp-verdict .level {
+      font-size: 11px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700;
+    }
+    .mp-verdict.go      .level { color: var(--green); }
+    .mp-verdict.advisory .level { color: var(--yellow); }
+    .mp-verdict.caution .level { color: var(--orange); }
+    .mp-verdict.no_go   .level { color: var(--red); }
+    .mp-verdict .summary { font-size: 14px; color: var(--text-1); line-height: 1.5; }
+
+    /* Reliability scores */
+    .mp-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .mp-score {
+      background: var(--bg-1); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px;
+    }
+    .mp-score-label {
+      font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--text-3); font-weight: 700;
+    }
+    .mp-score-value {
+      font-size: 22px; font-weight: 800; color: var(--text-1);
+      font-family: ui-monospace, monospace; margin-top: 2px;
+    }
+    .mp-score-bar {
+      height: 4px; border-radius: 2px; background: var(--bg-3);
+      overflow: hidden; margin-top: 8px;
+    }
+    .mp-score-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+    .mp-score-sub { font-size: 10px; color: var(--text-3); margin-top: 6px; }
+
+    /* Recommendation list */
+    .mp-recs {
+      background: var(--bg-1); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .mp-recs h4 {
+      font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--blue-hi); font-weight: 700; margin-bottom: 8px;
+    }
+    .mp-recs ul { list-style: none; padding: 0; margin: 0; }
+    .mp-recs li {
+      padding: 5px 0; font-size: 12px; color: var(--text-2); line-height: 1.5;
+      padding-left: 18px; position: relative;
+    }
+    .mp-recs li::before {
+      content: '▸'; position: absolute; left: 0; top: 0;
+      color: var(--blue-hi); font-weight: 700;
+    }
+
+    /* Driver / explanation strip */
+    .mp-driver-strip {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+      padding: 12px; background: var(--bg-1); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 11px;
+    }
+    .mp-driver { display: grid; gap: 2px; }
+    .mp-driver-k { color: var(--text-3); font-size: 9px;
+                   letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+    .mp-driver-v { color: var(--text-1); font-family: ui-monospace, monospace;
+                   font-size: 13px; font-weight: 700; }
+    .mp-driver-sev-warn  .mp-driver-v { color: var(--yellow); }
+    .mp-driver-sev-bad   .mp-driver-v { color: var(--red); }
+
+    /* Confidence + data quality block */
+    .mp-conf {
+      background: var(--bg-1); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .mp-conf-label {
+      font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--text-3); font-weight: 700;
+    }
+    .mp-conf-pill {
+      padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+      font-family: ui-monospace, monospace;
+    }
+    .mp-conf-pill.high    { background: rgba(16,185,129,.12); color: var(--green); }
+    .mp-conf-pill.medium  { background: rgba(245,158,11,.12); color: var(--yellow); }
+    .mp-conf-pill.low     { background: rgba(239,68,68,.12);  color: var(--red); }
+    .mp-conf-detail { font-size: 11px; color: var(--text-3); flex: 1; min-width: 180px; }
+
+    /* Provenance / inputs (collapsible) */
+    .mp-prov {
+      background: var(--bg-1); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+    }
+    .mp-prov summary {
+      padding: 10px 14px; cursor: pointer; user-select: none;
+      font-size: 11px; color: var(--text-2); font-weight: 600;
+      letter-spacing: .04em; list-style: none;
+    }
+    .mp-prov summary::-webkit-details-marker { display: none; }
+    .mp-prov summary::before { content: '▸ '; color: var(--text-3); }
+    .mp-prov[open] summary::before { content: '▾ '; }
+    .mp-prov-body { padding: 0 14px 14px; font-size: 11px; color: var(--text-3);
+                    line-height: 1.6; display: grid; gap: 8px; }
+    .mp-prov-row {
+      display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: start;
+    }
+    .mp-prov-k { color: var(--text-3); font-weight: 600; }
+    .mp-prov-v { color: var(--text-2); font-family: ui-monospace, monospace;
+                 font-size: 11px; word-break: break-all; }
+    .mp-prov-tag {
+      display: inline-block; padding: 1px 6px; border-radius: 3px;
+      font-size: 9px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; margin-right: 4px;
+    }
+    .mp-prov-tag.measured { background: rgba(16,185,129,.13); color: var(--green); }
+    .mp-prov-tag.modeled  { background: rgba(96,165,250,.13); color: var(--blue-hi); }
+    .mp-prov-tag.heuristic{ background: rgba(245,158,11,.13); color: var(--yellow); }
+
+    /* Error state */
+    .mp-error {
+      background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.3);
+      border-radius: 8px; padding: 14px; color: var(--red); font-size: 12px;
+    }
+
+    /* Loading bar */
+    .mp-loading { height: 2px; background: var(--bg-3); border-radius: 2px; overflow: hidden; }
+    .mp-loading::after {
+      content: ''; display: block; width: 30%; height: 100%;
+      background: linear-gradient(90deg, transparent, var(--blue-hi), transparent);
+      animation: mp-slide 1.2s ease-in-out infinite;
+    }
+    @keyframes mp-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+  </style>
+</head>
+<body>
+
+<main class="mp">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <div class="mp-header">
+    <div>
+      <h1>Mission Planner</h1>
+      <p>
+        Define your mission. Get an operational reliability score, a plain-English
+        explanation of what space weather is driving the risk, and a recommended
+        action — backed by the live IonShield decision engine.
+      </p>
+    </div>
+    <a class="alt-link" href="/dashboard">View scientific dashboard →</a>
+  </div>
+
+  <!-- ── Demo scenarios row ──────────────────────────────────────── -->
+  <div class="mp-scenarios" aria-label="Pre-baked demo scenarios">
+    <button class="mp-scenario" data-scenario="uav-polar">
+      <span class="lbl">UAV</span>
+      Polar inspection · GPS-degraded
+    </button>
+    <button class="mp-scenario" data-scenario="ag-rtk">
+      <span class="lbl">AG</span>
+      RTK autosteer during planting
+    </button>
+    <button class="mp-scenario" data-scenario="bvls-corridor">
+      <span class="lbl">BVLOS</span>
+      Pipeline corridor flight · elevated GPS uncertainty
+    </button>
+    <button class="mp-scenario" data-scenario="defense-patrol">
+      <span class="lbl">DEFENSE</span>
+      Patrol leg · degraded HF, GPS caution
+    </button>
+  </div>
+
+  <!-- ── Form + result ───────────────────────────────────────────── -->
+  <div class="mp-grid">
+
+    <!-- LEFT: form -->
+    <form class="mp-panel" id="mission-form" onsubmit="event.preventDefault(); runAssessment();">
+      <h2>1 · Mission Profile</h2>
+
+      <div class="mp-field">
+        <label for="m-type">Mission type</label>
+        <select id="m-type">
+          <option value="uav">UAV — short-range inspection</option>
+          <option value="bvlos">BVLOS drone — long-range autonomous</option>
+          <option value="precision-ag">Precision agriculture (RTK autosteer)</option>
+          <option value="maritime">Maritime / SAR</option>
+          <option value="defense-patrol">Defense patrol</option>
+          <option value="surveying">Surveying / construction RTK</option>
+          <option value="autonomous-ground">Autonomous ground vehicle</option>
+        </select>
+      </div>
+
+      <div class="mp-field-row">
+        <div class="mp-field">
+          <label for="m-gnss-dep">GNSS dependence</label>
+          <select id="m-gnss-dep">
+            <option value="low">Low (INS available)</option>
+            <option value="medium" selected>Medium (primary nav)</option>
+            <option value="high">High (sole-source GNSS)</option>
+            <option value="rtk">RTK-critical (cm accuracy)</option>
+          </select>
+        </div>
+        <div class="mp-field">
+          <label for="m-comms-dep">Comms dependence</label>
+          <select id="m-comms-dep">
+            <option value="low">Low (intermittent OK)</option>
+            <option value="medium" selected>Medium (HF + SATCOM)</option>
+            <option value="high">High (continuous required)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mp-field">
+        <label for="m-tolerance">Operational risk tolerance</label>
+        <select id="m-tolerance">
+          <option value="low">Low — high-criticality mission, no surprises</option>
+          <option value="medium" selected>Medium — standard ops</option>
+          <option value="high">High — exploratory / training</option>
+        </select>
+      </div>
+
+      <h2 style="margin-top: 22px;">2 · Route or area</h2>
+      <p class="mp-hint" style="margin-bottom: 12px;">
+        Add at least one waypoint. Use multiple to assess a full route.
+      </p>
+
+      <div class="mp-waypoints" id="m-waypoints">
+        <!-- waypoints rendered by JS -->
+      </div>
+      <button type="button" class="mp-wp-add" id="m-wp-add">+ Add waypoint</button>
+
+      <h2 style="margin-top: 22px;">3 · Time window</h2>
+      <div class="mp-field-row">
+        <div class="mp-field">
+          <label for="m-window">Window</label>
+          <select id="m-window">
+            <option value="now" selected>Live (now)</option>
+            <option value="next-1h">Next 1 hour</option>
+            <option value="next-6h">Next 6 hours</option>
+            <option value="next-24h">Next 24 hours</option>
+          </select>
+        </div>
+        <div class="mp-field">
+          <label for="m-callsign">Mission ID / callsign (optional)</label>
+          <input id="m-callsign" type="text" placeholder="e.g. Vanguard-3" />
+        </div>
+      </div>
+
+      <div class="mp-submit-row">
+        <button type="submit" class="mp-run" id="m-run">▶ Assess Mission</button>
+        <span class="mp-hint">Runs against live NOAA / OMNI / GloTEC feeds.</span>
+      </div>
+    </form>
+
+    <!-- RIGHT: result -->
+    <div class="mp-result" id="m-result">
+      <div class="mp-result-empty">
+        <div class="ico">🛰️</div>
+        <div class="ttl">No assessment yet</div>
+        <div class="sub">
+          Fill the mission profile on the left (or click a scenario above) and
+          press <strong>Assess Mission</strong>. The output shows your mission
+          risk level, reliability scores, and recommended action.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="/static/nav.js"></script>
+<script>
+  // ─────────────────────────────────────────────────────────────────────────
+  // Mission Planner — Stage 1
+  // Wires to existing POST /api/v2/route-decision. Reliability + risk scores
+  // are derived client-side from the decision-engine response. Stage 2 will
+  // move that math server-side behind POST /api/v3/mission/assess.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Waypoint rows ─────────────────────────────────────────────────────────
+  const wpRoot = document.getElementById('m-waypoints');
+
+  function addWaypointRow(name='', lat='', lon='') {
+    const wrap = document.createElement('div');
+    wrap.className = 'mp-wp-row';
+    wrap.innerHTML = `
+      <input class="mp-wp-name" type="text"   value="${name}" placeholder="Name" />
+      <input class="mp-wp-lat"  type="number" step="0.01" value="${lat}" placeholder="Lat" />
+      <input class="mp-wp-lon"  type="number" step="0.01" value="${lon}" placeholder="Lon" />
+      <button type="button" class="mp-wp-rm" aria-label="Remove waypoint">×</button>
+    `;
+    wrap.querySelector('.mp-wp-rm').addEventListener('click', () => wrap.remove());
+    wpRoot.appendChild(wrap);
+  }
+  document.getElementById('m-wp-add').addEventListener('click', () => addWaypointRow());
+
+  // Initial waypoint
+  addWaypointRow('WP01', 38.8, -104.5);
+
+  // ── Scenario presets ─────────────────────────────────────────────────────
+  const SCENARIOS = {
+    'uav-polar': {
+      type: 'uav', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'Polar-Insp-1',
+      waypoints: [['WP01', 64.7, -147.1], ['WP02', 68.4, -149.2], ['WP03', 70.0, -149.0]],
+    },
+    'ag-rtk': {
+      type: 'precision-ag', gnss: 'rtk', comms: 'low', tol: 'medium', callsign: 'Field-North-40',
+      waypoints: [['CenterPivot-1', 45.7, -100.1]],
+    },
+    'bvls-corridor': {
+      type: 'bvlos', gnss: 'high', comms: 'high', tol: 'low', callsign: 'BVLOS-Pipeline-A',
+      waypoints: [['Start', 41.0, -104.5], ['Mid-1', 43.5, -106.0], ['Mid-2', 46.0, -107.5], ['End', 48.5, -109.0]],
+    },
+    'defense-patrol': {
+      type: 'defense-patrol', gnss: 'medium', comms: 'high', tol: 'low', callsign: 'Patrol-Bravo',
+      waypoints: [['Alpha', 35.7, 139.3], ['Bravo', 37.0, 140.0], ['Charlie', 38.5, 141.0]],
+    },
+  };
+
+  document.querySelectorAll('.mp-scenario').forEach(btn => {
+    btn.addEventListener('click', () => loadScenario(btn.dataset.scenario));
+  });
+
+  function loadScenario(key) {
+    const s = SCENARIOS[key];
+    if (!s) return;
+    document.getElementById('m-type').value      = s.type;
+    document.getElementById('m-gnss-dep').value  = s.gnss;
+    document.getElementById('m-comms-dep').value = s.comms;
+    document.getElementById('m-tolerance').value = s.tol;
+    document.getElementById('m-callsign').value  = s.callsign;
+    wpRoot.innerHTML = '';
+    s.waypoints.forEach(([n, la, lo]) => addWaypointRow(n, la, lo));
+    document.getElementById('m-run').focus();
+  }
+
+  // ── Mapping mission inputs → decision-engine inputs ──────────────────────
+  // Stage 2 will move this to the server (POST /api/v3/mission/assess), but
+  // for Stage 1 we map here so the page is functional against the existing
+  // POST /api/v2/route-decision endpoint.
+
+  const ASSET_BY_GNSS = {
+    low:    'GPS_INS',
+    medium: 'GPS_L1L2',
+    high:   'GPS_L1L5',
+    rtk:    'GPS_L1L5',
+  };
+
+  const CRIT_BY_TOLERANCE_AND_TYPE = (tolerance, type) => {
+    // Defense patrol + BVLOS = high criticality; UAV inspection = medium;
+    // Precision ag / surveying / autonomous-ground = medium unless tolerance high.
+    let base = 3;
+    if (type === 'defense-patrol' || type === 'bvlos' || type === 'maritime') base = 4;
+    if (type === 'uav' || type === 'surveying') base = 3;
+    if (type === 'precision-ag' || type === 'autonomous-ground') base = 3;
+    if (tolerance === 'low') base = Math.min(5, base + 1);
+    if (tolerance === 'high') base = Math.max(1, base - 1);
+    return base;
+  };
+
+  function buildDecisionRequest() {
+    const type   = document.getElementById('m-type').value;
+    const gnss   = document.getElementById('m-gnss-dep').value;
+    const tol    = document.getElementById('m-tolerance').value;
+
+    const waypoints = Array.from(wpRoot.querySelectorAll('.mp-wp-row')).map(row => ({
+      name: row.querySelector('.mp-wp-name').value || 'WP',
+      lat:  parseFloat(row.querySelector('.mp-wp-lat').value),
+      lon:  parseFloat(row.querySelector('.mp-wp-lon').value),
+    })).filter(wp => Number.isFinite(wp.lat) && Number.isFinite(wp.lon));
+
+    return {
+      waypoints,
+      platform: {
+        asset_type:  ASSET_BY_GNSS[gnss] || 'GPS_L1L2',
+        criticality: CRIT_BY_TOLERANCE_AND_TYPE(tol, type),
+        system_dependencies: [],
+      },
+    };
+  }
+
+  // ── Render the result card ────────────────────────────────────────────────
+  function renderResult(decision, missionMeta) {
+    const root = document.getElementById('m-result');
+    if (!decision) { root.innerHTML = '<div class="mp-error">Empty response from decision engine.</div>'; return; }
+
+    const action = (decision.action || 'GO').toUpperCase();
+    const verdictClass = action === 'NO_GO' ? 'no_go'
+                       : action === 'CAUTION' ? 'caution'
+                       : action === 'ADVISORY' ? 'advisory' : 'go';
+    const missionLabel = {
+      GO:       'CLEAR · Proceed',
+      ADVISORY: 'CAUTION · Monitor and adapt',
+      CAUTION:  'HIGH RISK · Mitigate before launch',
+      NO_GO:    'DELAY · Do not proceed',
+    }[action] || action;
+
+    // Reliability scores from per-waypoint data
+    const wps = decision.waypoints || [];
+    const worstGps = wps.reduce((m, w) => Math.max(m, w.gps_error_m || 0), 0);
+    const hfBad   = wps.filter(w => w.hf_viable === false).length;
+    const hfTotal = wps.length || 1;
+    const pcaAny  = wps.some(w => w.pca_active);
+
+    // GNSS reliability: 100 at 0m error, 0 at 50m error
+    const gnssScore = Math.max(0, Math.min(100, 100 - (worstGps / 50) * 100));
+    // Comms risk: percentage of waypoints with HF degraded, bumped by PCA
+    const commsRisk = Math.min(100, (hfBad / hfTotal) * 100 + (pcaAny ? 25 : 0));
+
+    const scoreColor = (s) => s >= 80 ? 'var(--green)' : s >= 55 ? 'var(--yellow)'
+                                                       : s >= 30 ? 'var(--orange)' : 'var(--red)';
+    const riskColor  = (r) => r >= 70 ? 'var(--red)'   : r >= 40 ? 'var(--orange)'
+                                                       : r >= 15 ? 'var(--yellow)' : 'var(--green)';
+
+    const conf = decision.confidence || {};
+    const confLabel = (conf.label || 'MEDIUM').toUpperCase();
+    const confClass = confLabel.startsWith('HIGH') ? 'high'
+                    : confLabel.startsWith('LOW') || confLabel.startsWith('VERY') ? 'low'
+                    : 'medium';
+
+    const prov = decision.provenance || {};
+    const obs  = (prov.observations_used || []).join(', ') || '—';
+    const fcs  = (prov.forecasts_used    || []).join(', ') || '—';
+    const miss = (prov.feeds_unavailable || []).join(', ');
+
+    const recs = decision.recommended_actions || [];
+    if (!recs.length && decision.action_sentence) recs.push(decision.action_sentence);
+
+    root.innerHTML = `
+      <!-- Verdict -->
+      <div class="mp-verdict ${verdictClass}">
+        <div class="level">Mission risk · ${missionLabel}</div>
+        <div class="summary">${decision.action_sentence || 'No explanation provided.'}</div>
+      </div>
+
+      <!-- Reliability scores -->
+      <div class="mp-scores">
+        <div class="mp-score">
+          <div class="mp-score-label">GNSS Reliability</div>
+          <div class="mp-score-value" style="color:${scoreColor(gnssScore)}">${gnssScore.toFixed(0)}<span style="font-size:13px;color:var(--text-3);font-family:var(--font);font-weight:500;"> / 100</span></div>
+          <div class="mp-score-bar"><div class="mp-score-fill" style="width:${gnssScore.toFixed(0)}%;background:${scoreColor(gnssScore)}"></div></div>
+          <div class="mp-score-sub">Worst-leg GPS error: ${worstGps.toFixed(1)} m</div>
+        </div>
+        <div class="mp-score">
+          <div class="mp-score-label">Comms Risk</div>
+          <div class="mp-score-value" style="color:${riskColor(commsRisk)}">${commsRisk.toFixed(0)}<span style="font-size:13px;color:var(--text-3);font-family:var(--font);font-weight:500;"> / 100</span></div>
+          <div class="mp-score-bar"><div class="mp-score-fill" style="width:${commsRisk.toFixed(0)}%;background:${riskColor(commsRisk)}"></div></div>
+          <div class="mp-score-sub">${hfBad}/${hfTotal} legs with degraded HF${pcaAny ? ' · PCA active' : ''}</div>
+        </div>
+      </div>
+
+      <!-- Drivers (operator language) -->
+      <div class="mp-driver-strip">
+        <div class="mp-driver ${worstGps > 15 ? 'mp-driver-sev-warn' : ''} ${worstGps > 30 ? 'mp-driver-sev-bad' : ''}">
+          <span class="mp-driver-k">GPS error</span>
+          <span class="mp-driver-v">${worstGps.toFixed(1)} m</span>
+        </div>
+        <div class="mp-driver ${hfBad > 0 ? 'mp-driver-sev-warn' : ''} ${hfBad === hfTotal ? 'mp-driver-sev-bad' : ''}">
+          <span class="mp-driver-k">HF availability</span>
+          <span class="mp-driver-v">${hfTotal - hfBad}/${hfTotal} legs</span>
+        </div>
+        <div class="mp-driver ${pcaAny ? 'mp-driver-sev-bad' : ''}">
+          <span class="mp-driver-k">Polar cap</span>
+          <span class="mp-driver-v">${pcaAny ? 'ACTIVE' : 'clear'}</span>
+        </div>
+      </div>
+
+      <!-- Recommended action(s) -->
+      ${recs.length ? `
+      <div class="mp-recs">
+        <h4>Recommended action</h4>
+        <ul>${recs.map(r => `<li>${r}</li>`).join('')}</ul>
+      </div>` : ''}
+
+      <!-- Confidence / data quality -->
+      <div class="mp-conf">
+        <span class="mp-conf-label">Data quality</span>
+        <span class="mp-conf-pill ${confClass}">${confLabel}${conf.score != null ? ` · ${conf.score.toFixed(2)}` : ''}</span>
+        <span class="mp-conf-detail">
+          ${conf.stale_data ? '⚠ Stale NOAA observation — verify before acting. ' : ''}
+          ${miss ? `Feeds unavailable: ${miss}. ` : ''}
+          ${conf.data_completeness != null ? `Completeness ${Math.round(conf.data_completeness * 100)}%.` : ''}
+        </span>
+      </div>
+
+      <!-- Provenance (collapsible) -->
+      <details class="mp-prov">
+        <summary>Inputs &amp; provenance</summary>
+        <div class="mp-prov-body">
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Mission</span>
+            <span class="mp-prov-v">${missionMeta.callsign || '—'} · ${missionMeta.type} · ${missionMeta.window}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Model version</span>
+            <span class="mp-prov-v">${prov.model_version || '—'}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Input hash</span>
+            <span class="mp-prov-v">${prov.input_hash || '—'}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Observations</span>
+            <span class="mp-prov-v"><span class="mp-prov-tag measured">measured</span>${obs}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Forecasts</span>
+            <span class="mp-prov-v"><span class="mp-prov-tag modeled">modeled</span>${fcs}</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Decision engine</span>
+            <span class="mp-prov-v"><span class="mp-prov-tag heuristic">heuristic</span>route-risk v2 (Klobuchar GPS · CCIR-888 HF · Bailey PCA)</span>
+          </div>
+          <div class="mp-prov-row">
+            <span class="mp-prov-k">Generated</span>
+            <span class="mp-prov-v">${prov.computed_at || '—'}</span>
+          </div>
+        </div>
+      </details>
+    `;
+  }
+
+  // ── Submit handler ───────────────────────────────────────────────────────
+  async function runAssessment() {
+    const root = document.getElementById('m-result');
+    const btn  = document.getElementById('m-run');
+    const req  = buildDecisionRequest();
+    if (!req.waypoints.length) {
+      root.innerHTML = '<div class="mp-error">Add at least one waypoint with valid lat/lon.</div>';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Assessing…';
+    root.innerHTML = '<div class="mp-loading"></div><div style="text-align:center;color:var(--text-3);font-size:12px;margin-top:14px;">Running live decision engine…</div>';
+
+    const missionMeta = {
+      type:     document.getElementById('m-type').value,
+      callsign: document.getElementById('m-callsign').value,
+      window:   document.getElementById('m-window').value,
+    };
+
+    try {
+      const r = await fetch('/api/v2/route-decision', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(req),
+      });
+      if (!r.ok) {
+        const txt = await r.text();
+        root.innerHTML = `<div class="mp-error">Decision engine returned HTTP ${r.status}: ${txt.slice(0, 240)}</div>`;
+        return;
+      }
+      const decision = await r.json();
+      renderResult(decision, missionMeta);
+    } catch (e) {
+      root.innerHTML = `<div class="mp-error">Network error: ${e.message}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = '▶ Assess Mission';
+    }
+  }
+</script>
+</body>
+</html>
