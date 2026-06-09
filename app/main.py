@@ -220,10 +220,7 @@ def _register_default_sources() -> None:
     Decision confidence reports staleness honestly.
     """
     if settings.offline_mode:
-        logger.warning(
-            "OFFLINE_MODE enabled — external data fetches disabled. "
-            "Serving archived/replay data only."
-        )
+        logger.warning("OFFLINE_MODE enabled — external data fetches disabled. " "Serving archived/replay data only.")
         return
 
     from app.data.noaa import cache_snapshot as _noaa_status
