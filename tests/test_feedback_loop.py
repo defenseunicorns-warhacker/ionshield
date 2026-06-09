@@ -244,8 +244,15 @@ def test_v3_training_retrain_endpoint_returns_status():
     with TestClient(app) as client:
         r = client.post("/api/v3/training/retrain")
         assert r.status_code == 200
-        # Will be "noop" or "swapped" depending on whether samples exist
-        assert r.json()["status"] in {"noop", "swapped", "rejected"}
+        # Depends on local sample state: "noop" (no samples), "rejected"
+        # (worse than champion), "swapped" (instant promote), or
+        # "challenger_registered" (champion/challenger shadow window).
+        assert r.json()["status"] in {
+            "noop",
+            "swapped",
+            "rejected",
+            "challenger_registered",
+        }
 
 
 def test_v3_a7_endpoints_in_openapi():

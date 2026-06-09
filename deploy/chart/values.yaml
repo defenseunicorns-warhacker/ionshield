@@ -1,0 +1,79 @@
+# IonShield Helm chart values.
+# Every IonShield app setting is an env var — see app/config.py for the full list.
+
+image:
+  repository: ghcr.io/ionshield/ionshield
+  tag: 0.1.0
+  pullPolicy: IfNotPresent
+
+replicaCount: 1   # single-replica by design: SQLite archive + in-memory cache
+
+service:
+  port: 8000
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""   # cluster default
+
+config:
+  logLevel: INFO
+  corsOrigins: "*"
+  rateLimit: "120/minute"
+  contactRateLimit: "5/hour"
+  refreshIntervalSeconds: 300
+  alertThreshold: ELEVATED
+
+  # ── Air-gap / disconnected operation ──────────────────────────────────────
+  # true  → no external fetches; serves archived snapshots + scenario replay
+  # false → live NOAA SWPC + NASA HAPI ingestion (needs egress, see udsPackage)
+  offlineMode: false
+  # Point at an in-enclave SWPC mirror/relay when one exists:
+  swpcBaseUrl: "https://services.swpc.noaa.gov"
+  hapiBaseUrl: "https://cdaweb.gsfc.nasa.gov/hapi"
+
+  # ── ATAK CoT push (in-cluster or enclave TAK server) ──────────────────────
+  cotServerHost: ""     # e.g. tak-server.tak.svc.cluster.local
+  cotServerPort: 8087
+  cotStaleMinutes: 10
+
+# Secrets are NOT templated with real values. Either:
+#   a) set existingSecret to a pre-created Secret name (keys: API_KEY, ADMIN_BEARER), or
+#   b) leave empty to run in open mode (demo only).
+auth:
+  existingSecret: ""
+
+# locations.json — monitored locations driving /overlay/ionshield.cot.
+# Inline YAML here becomes a ConfigMap mounted over the bundled default.
+locations: []
+# Example:
+# locations:
+#   - name: "Thule AB"
+#     lat: 76.53
+#     lon: -68.70
+#     alert_threshold: ELEVATED
+
+# ── UDS integration ──────────────────────────────────────────────────────────
+# Renders a uds.dev/v1alpha1 Package CR that UDS Core (Pepr) reconciles into
+# Istio VirtualService exposure + NetworkPolicies. Disable for plain Kubernetes.
+udsPackage:
+  enabled: true
+  # Hostname prefix on the UDS tenant gateway: https://ionshield.uds.dev
+  host: ionshield
+  gateway: tenant
+  # Allow egress to NOAA/NASA. Set false when offlineMode=true for a
+  # zero-egress, default-deny posture.
+  allowInternetEgress: true
+  # Keycloak SSO in front of the app (UDS Core authservice). Off by default:
+  # IonShield has its own bearer-token tenant auth; turn this on when the
+  # customer wants enclave SSO in front of everything.
+  sso:
+    enabled: false

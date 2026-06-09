@@ -1,0 +1,11 @@
+{{- if .Values.locations }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ionshield-locations
+  labels:
+    {{- include "ionshield.labels" . | nindent 4 }}
+data:
+  locations.json: |
+    {{ .Values.locations | toJson }}
+{{- end }}

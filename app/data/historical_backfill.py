@@ -38,12 +38,13 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy import insert, select
 
+from app.config import settings
 from app.data.db import get_engine, noaa_snapshots
 
 logger = logging.getLogger(__name__)
 
 
-HAPI_URL = "https://cdaweb.gsfc.nasa.gov/hapi/data"
+HAPI_URL = settings.hapi_base_url.rstrip("/") + "/data"
 HAPI_DATASET_ID = "OMNI2_H0_MRG1HR"
 HAPI_PARAMETERS = "BZ_GSM1800,N1800,V1800,PR-FLX_101800,KP1800"
 BACKFILL_TAG = "historical_backfill"

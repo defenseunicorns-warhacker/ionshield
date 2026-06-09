@@ -20,21 +20,27 @@ from datetime import datetime, timezone
 
 import httpx
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 # ── NOAA endpoints ────────────────────────────────────────────────────────────
+# Base URL is configurable (SWPC_BASE_URL) so disconnected enclaves can point
+# at an internal mirror/relay instead of the public internet.
+
+_SWPC = settings.swpc_base_url.rstrip("/")
 
 NOAA_ENDPOINTS: dict[str, str] = {
-    "kp": "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",
-    "xray": "https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json",
+    "kp": f"{_SWPC}/json/planetary_k_index_1m.json",
+    "xray": f"{_SWPC}/json/goes/primary/xrays-6-hour.json",
     # Solar wind feeds moved from /json/ to /products/ in 2025+ and switched
     # from array-of-dicts to header-row + array-of-arrays format.
-    "wind": "https://services.swpc.noaa.gov/products/solar-wind/plasma-2-hour.json",
-    "mag": "https://services.swpc.noaa.gov/products/solar-wind/mag-2-hour.json",
+    "wind": f"{_SWPC}/products/solar-wind/plasma-2-hour.json",
+    "mag": f"{_SWPC}/products/solar-wind/mag-2-hour.json",
     # Integral proton 1-hour file was retired; use 3-day file (multi-channel).
-    "proton": "https://services.swpc.noaa.gov/json/goes/primary/integral-protons-3-day.json",
+    "proton": f"{_SWPC}/json/goes/primary/integral-protons-3-day.json",
     # 3-day Kp forecast: header row + [time_tag, kp, observed|predicted, noaa_scale] rows
-    "kp_forecast": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json",
+    "kp_forecast": f"{_SWPC}/products/noaa-planetary-k-index-forecast.json",
 }
 
 # Conservative quiet-time fallback values used when feeds are unavailable.

@@ -1,0 +1,8 @@
+# Helm values applied when deploying via Zarf.
+# ###ZARF_VAR_x### tokens are replaced by Zarf at deploy time.
+config:
+  offlineMode: ###ZARF_VAR_OFFLINE_MODE###
+
+udsPackage:
+  enabled: ###ZARF_VAR_UDS_PACKAGE_ENABLED###
+  host: "###ZARF_VAR_HOST###"

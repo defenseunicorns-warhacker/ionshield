@@ -1,0 +1,14 @@
+apiVersion: v2
+name: ionshield
+description: >-
+  IonShield — space weather operational intelligence. Translates real-time
+  ionospheric and geomagnetic data into mission decisions for GPS, HF, and
+  SATCOM-dependent operations. ATAK CoT, KML/KMZ, and Parquet outputs.
+type: application
+version: 0.1.0
+appVersion: "3.0"
+keywords:
+  - space-weather
+  - atak
+  - mission-planning
+  - dual-use

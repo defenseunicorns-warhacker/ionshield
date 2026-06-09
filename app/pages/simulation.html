@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>IonShield · Simulation Mode</title>
   <link rel="stylesheet" href="/static/marketing.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin="" />
+  <!-- Leaflet vendored locally (air-gap compatible — no CDN) -->
+  <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
   <style>
     body { margin: 0; background: #0a0e1a; color: #e2e8f0;
            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; }
@@ -235,9 +234,7 @@
 
   <div class="loader" id="loader" style="display:none">Loading scenario data…</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-          crossorigin=""></script>
+  <script src="/static/vendor/leaflet/leaflet.js"></script>
   <script src="/static/simulation.js"></script>
 </body>
 </html>

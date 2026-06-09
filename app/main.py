@@ -213,7 +213,19 @@ async def _push_foundry_fused() -> None:
 
 
 def _register_default_sources() -> None:
-    """Register the built-in NOAA + ionosphere sources with the registry."""
+    """Register the built-in NOAA + ionosphere sources with the registry.
+
+    In OFFLINE_MODE no sources are registered: run_all() becomes a no-op,
+    and the platform serves archived snapshots + precomputed scenarios.
+    Decision confidence reports staleness honestly.
+    """
+    if settings.offline_mode:
+        logger.warning(
+            "OFFLINE_MODE enabled — external data fetches disabled. "
+            "Serving archived/replay data only."
+        )
+        return
+
     from app.data.noaa import cache_snapshot as _noaa_status
     from app.data.ustec import cache_snapshot as _iono_status
 
@@ -344,7 +356,10 @@ async def lifespan(app: FastAPI):
         try:
             from app.data import historical_backfill, scenario_precompute
 
-            await historical_backfill.backfill_all_predefined()
+            # Backfill hits NASA CDAWeb HAPI — skip when air-gapped. Scenario
+            # precompute still runs against whatever the local DB holds.
+            if not settings.offline_mode:
+                await historical_backfill.backfill_all_predefined()
             results = await scenario_precompute.precompute_all()
             written = sum(1 for r in results if r.get("written"))
             logger.info(

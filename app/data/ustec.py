@@ -30,9 +30,11 @@ from typing import Any
 
 import httpx
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
-SWPC_BASE = "https://services.swpc.noaa.gov"
+SWPC_BASE = settings.swpc_base_url.rstrip("/")
 
 USTEC_ENDPOINTS: dict[str, str] = {
     "f107": f"{SWPC_BASE}/json/f107_cm_flux.json",

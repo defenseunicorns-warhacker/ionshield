@@ -127,7 +127,22 @@ const Globe = forwardRef(function Globe(
     });
 
     // ── Base imagery ─────────────────────────────────────────────────────────
-    // Add OpenStreetMap tiles as the base layer via UrlTemplateImageryProvider
+    // Layer 0: bundled NaturalEarthII tileset (ships inside the Cesium build —
+    // zero network). Guarantees a readable globe in air-gapped / disconnected
+    // deployments where OSM tiles can't load. Failed OSM tiles are transparent,
+    // so this layer shows through automatically.
+    Cesium.TileMapServiceImageryProvider.fromUrl(
+      Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'),
+    )
+      .then(offlineProvider => {
+        if (!viewerRef.current) return;
+        // Insert at index 0 so OSM/Ion (added synchronously below) stay on top.
+        viewerRef.current.imageryLayers.add(new Cesium.ImageryLayer(offlineProvider), 0);
+        viewerRef.current.scene.requestRender();
+      })
+      .catch(() => { /* bundled asset missing — OSM still covers connected use */ });
+
+    // Layer 1: OpenStreetMap tiles via UrlTemplateImageryProvider
     // (the non-deprecated path for Cesium 1.104+).
     // If an Ion token is set, also attempt to swap in Bing/Ion imagery.
     const osmProvider = new Cesium.UrlTemplateImageryProvider({

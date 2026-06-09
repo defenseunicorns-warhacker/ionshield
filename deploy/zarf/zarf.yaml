@@ -1,0 +1,63 @@
+# Zarf package definition for IonShield.
+#
+# Zarf (zarf.dev, by Defense Unicorns) bundles the container image + Helm chart
+# into a single self-contained tarball that deploys into air-gapped clusters —
+# no registry access needed on the target side.
+#
+# Create (connected machine, image must exist locally or in a reachable registry):
+#   cd deploy/zarf
+#   zarf package create . --confirm
+#   → zarf-package-ionshield-<arch>-0.1.0.tar.zst
+#
+# Deploy (target cluster, can be fully disconnected):
+#   zarf package deploy zarf-package-ionshield-*.tar.zst --confirm
+#
+# Deploy in air-gapped mode (no NOAA egress):
+#   zarf package deploy zarf-package-ionshield-*.tar.zst \
+#     --set OFFLINE_MODE=true --confirm
+kind: ZarfPackageConfig
+metadata:
+  name: ionshield
+  description: "IonShield — space weather operational intelligence. Mission decisions for GPS/HF/SATCOM in contested EM environments. ATAK CoT + KML/KMZ outputs."
+  version: 0.1.0
+
+constants:
+  - name: IMAGE_TAG
+    value: "0.1.0"
+
+variables:
+  - name: OFFLINE_MODE
+    description: "true = air-gapped (no external fetches); false = live NOAA ingestion"
+    default: "false"
+  - name: UDS_PACKAGE_ENABLED
+    description: "Render the UDS Package CR (requires UDS Core in the cluster)"
+    default: "true"
+  - name: HOST
+    description: "Hostname prefix on the UDS tenant gateway"
+    default: "ionshield"
+
+components:
+  - name: ionshield
+    required: true
+    charts:
+      - name: ionshield
+        namespace: ionshield
+        localPath: ../chart
+        version: 0.1.0
+        valuesFiles:
+          - values-zarf.yaml
+    images:
+      # Zarf pulls this at package-create time and embeds it in the tarball.
+      # Point at wherever you pushed the hardened image.
+      - "ghcr.io/ionshield/ionshield:0.1.0"
+    actions:
+      onDeploy:
+        after:
+          - wait:
+              cluster:
+                kind: Pod
+                namespace: ionshield
+                name: app=ionshield
+                condition: Ready
+            description: "Wait for IonShield to become Ready"
+            maxTotalSeconds: 300

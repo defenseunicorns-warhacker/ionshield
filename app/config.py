@@ -32,6 +32,18 @@ class Settings(BaseSettings):
     refresh_interval_seconds: int = 300
     noaa_timeout_seconds: float = 10.0
 
+    # ── Air-gap / disconnected operation ────────────────────────────────────
+    # OFFLINE_MODE=true disables all external data fetches (NOAA SWPC, NASA
+    # HAPI backfill). The platform serves the last archived snapshot,
+    # precomputed scenarios, and storm replay. Decision confidence honestly
+    # reports data staleness — no fabricated freshness.
+    offline_mode: bool = False
+    # Point at an in-enclave SWPC mirror/relay instead of the public internet
+    # (e.g. a one-way diode replicator or cross-domain feed proxy).
+    swpc_base_url: str = "https://services.swpc.noaa.gov"
+    # NASA CDAWeb HAPI endpoint used only by historical backfill.
+    hapi_base_url: str = "https://cdaweb.gsfc.nasa.gov/hapi"
+
     # Safety cap on route waypoints to prevent abuse
     max_route_waypoints: int = 200
 

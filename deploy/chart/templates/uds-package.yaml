@@ -1,0 +1,50 @@
+{{- if .Values.udsPackage.enabled }}
+# UDS Core integration. Pepr reconciles this CR into:
+#   • an Istio VirtualService exposing the app on the tenant gateway
+#     (https://{{ .Values.udsPackage.host }}.<uds-domain>)
+#   • default-deny NetworkPolicies with the allow rules below
+#   • (optional) a Keycloak client + authservice protection when sso is set
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: ionshield
+  namespace: {{ .Release.Namespace }}
+spec:
+  network:
+    expose:
+      - service: ionshield
+        selector:
+          app: ionshield
+        host: {{ .Values.udsPackage.host }}
+        gateway: {{ .Values.udsPackage.gateway }}
+        port: {{ .Values.service.port }}
+    allow:
+      # DNS + in-namespace traffic are handled by UDS Core defaults.
+      {{- if and .Values.udsPackage.allowInternetEgress (not .Values.config.offlineMode) }}
+      # Live ingestion: NOAA SWPC + NASA CDAWeb over HTTPS
+      - direction: Egress
+        selector:
+          app: ionshield
+        remoteGenerated: Anywhere
+        description: "NOAA SWPC + NASA HAPI space-weather feeds (443)"
+        port: 443
+      {{- end }}
+      {{- if .Values.config.cotServerHost }}
+      # CoT push to TAK server
+      - direction: Egress
+        selector:
+          app: ionshield
+        remoteGenerated: Anywhere
+        description: "CoT push to TAK server"
+        port: {{ .Values.config.cotServerPort }}
+      {{- end }}
+  {{- if .Values.udsPackage.sso.enabled }}
+  sso:
+    - name: IonShield
+      clientId: uds-package-ionshield
+      redirectUris:
+        - "https://{{ .Values.udsPackage.host }}.uds.dev/login"
+      enableAuthserviceSelector:
+        app: ionshield
+  {{- end }}
+{{- end }}

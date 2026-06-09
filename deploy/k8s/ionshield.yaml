@@ -1,0 +1,114 @@
+# IonShield — plain Kubernetes manifests (no Helm required).
+# This is the rendered equivalent of deploy/chart with default values,
+# for clusters without UDS Core. On UDS, prefer the Helm chart + Zarf package.
+#
+#   kubectl apply -f deploy/k8s/ionshield.yaml
+#
+# Reach it without an ingress:
+#   kubectl -n ionshield port-forward svc/ionshield 8000:8000
+#   open http://localhost:8000
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ionshield
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ionshield-data
+  namespace: ionshield
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ionshield
+  namespace: ionshield
+  labels:
+    app: ionshield
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ionshield
+  template:
+    metadata:
+      labels:
+        app: ionshield
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: ionshield
+          image: ghcr.io/ionshield/ionshield:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: LOG_LEVEL
+              value: INFO
+            - name: DATABASE_URL
+              value: "sqlite+aiosqlite:////data/ionshield.db"
+            # Flip to "true" for air-gapped deployment (no external fetches):
+            - name: OFFLINE_MODE
+              value: "false"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          startupProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ionshield-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ionshield
+  namespace: ionshield
+  labels:
+    app: ionshield
+spec:
+  selector:
+    app: ionshield
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

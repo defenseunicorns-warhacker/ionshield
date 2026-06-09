@@ -1,0 +1,34 @@
+# UDS Bundle: UDS Core (slim dev) + IonShield in one deployable artifact.
+#
+# This is the "demo in a box" for WarHacker: one command stands up a local
+# k3d cluster with UDS Core (Istio gateway, Pepr policy engine) and IonShield
+# exposed at https://ionshield.uds.dev.
+#
+# Prereqs: docker + uds-cli (https://github.com/defenseunicorns/uds-cli)
+#
+#   # 1. Build the IonShield zarf package first (see deploy/zarf/zarf.yaml)
+#   # 2. Create the bundle:
+#   cd deploy/uds
+#   uds create . --confirm
+#   # 3. Deploy (spins up k3d + core + ionshield):
+#   uds deploy uds-bundle-ionshield-demo-*.tar.zst --confirm
+#   # 4. Open https://ionshield.uds.dev
+kind: UDSBundle
+metadata:
+  name: ionshield-demo
+  description: "IonShield on UDS Core — local k3d demo bundle"
+  version: 0.1.0
+
+packages:
+  # Local k3d cluster + UDS Core slim (Istio + Pepr) — dev/demo only.
+  # For a real environment, drop this entry and deploy the ionshield package
+  # into the customer's existing UDS Core cluster.
+  - name: k3d-core-slim-dev
+    repository: ghcr.io/defenseunicorns/packages/uds/bundles/k3d-core-slim-dev
+    # Check https://github.com/defenseunicorns/uds-core/releases for current:
+    ref: 0.47.0
+
+  - name: ionshield
+    # Path to the created zarf package tarball, relative to this file:
+    path: ../zarf
+    ref: 0.1.0

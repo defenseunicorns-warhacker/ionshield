@@ -1,0 +1,88 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# IonShield — hardened container build for UDS / Kubernetes deployment
+#
+# Differences from the root Dockerfile (which stays optimized for Render):
+#   • Parameterized base images so the runtime stage can be swapped for an
+#     Iron Bank (registry1.dso.mil) or Chainguard image without editing this file
+#   • Pinned digests encouraged via build args
+#   • No shell-form CMD (exec form, no $PORT expansion — port is fixed at 8000
+#     and mapped by Kubernetes)
+#   • OCI labels for provenance
+#
+# Build (default, public base images):
+#   docker build -f deploy/docker/Dockerfile.hardened -t ionshield:0.1.0 .
+#
+# Build with Iron Bank base (requires registry1.dso.mil login + P1 account):
+#   docker build -f deploy/docker/Dockerfile.hardened \
+#     --build-arg RUNTIME_BASE=registry1.dso.mil/ironbank/opensource/python:v3.12 \
+#     -t ionshield:0.1.0 .
+# ══════════════════════════════════════════════════════════════════════════════
+
+ARG NODE_BASE=node:20-slim
+ARG PYTHON_BASE=python:3.12-slim
+ARG RUNTIME_BASE=python:3.12-slim
+
+# ── Stage 1: Frontend build (React + CesiumJS) ────────────────────────────────
+FROM ${NODE_BASE} AS frontend-builder
+
+WORKDIR /workspace
+
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm ci
+
+COPY frontend/ ./frontend/
+COPY app/ ./app/
+
+RUN cd frontend && npm run build
+# Built assets land in /workspace/app/static/ (assets/, cesium/, vendor/, index.html)
+
+
+# ── Stage 2: Python dependency build ──────────────────────────────────────────
+FROM ${PYTHON_BASE} AS py-builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+
+# ── Stage 3: Runtime ──────────────────────────────────────────────────────────
+FROM ${RUNTIME_BASE}
+
+LABEL org.opencontainers.image.title="IonShield" \
+      org.opencontainers.image.description="Space weather operational intelligence — mission decisions for GPS, HF, SATCOM in contested EM environments" \
+      org.opencontainers.image.vendor="IonShield" \
+      org.opencontainers.image.source="https://github.com/ionshield/ionshield-backend"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY --from=py-builder /install /usr/local
+
+COPY main.py .
+COPY app/ app/
+COPY locations.json .
+
+COPY --from=frontend-builder /workspace/app/static/ app/static/
+
+# Non-root, fixed UID/GID for Kubernetes runAsUser/fsGroup alignment.
+# Writable paths at runtime:
+#   /data                      — SQLite archive (PVC in Kubernetes)
+#   /app/app/static/scenarios  — precomputed scenario assets
+#   /app/app/models            — retrained ML artifacts (champion/challenger)
+RUN (adduser --disabled-password --gecos "" --uid 1001 appuser 2>/dev/null \
+     || useradd -m -u 1001 appuser) \
+ && mkdir -p /data \
+ && chown -R 1001:1001 /app /data
+
+USER 1001
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

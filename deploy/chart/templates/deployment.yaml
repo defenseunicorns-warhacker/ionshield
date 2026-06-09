@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ionshield
+  labels:
+    {{- include "ionshield.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  # SQLite + in-memory cache → Recreate avoids two pods sharing the PVC mid-rollout
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ionshield.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ionshield.selectorLabels" . | nindent 8 }}
+        {{- include "ionshield.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: ionshield
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: CORS_ORIGINS
+              value: {{ .Values.config.corsOrigins | quote }}
+            - name: RATE_LIMIT
+              value: {{ .Values.config.rateLimit | quote }}
+            - name: CONTACT_RATE_LIMIT
+              value: {{ .Values.config.contactRateLimit | quote }}
+            - name: REFRESH_INTERVAL_SECONDS
+              value: {{ .Values.config.refreshIntervalSeconds | quote }}
+            - name: ALERT_THRESHOLD
+              value: {{ .Values.config.alertThreshold | quote }}
+            - name: OFFLINE_MODE
+              value: {{ .Values.config.offlineMode | quote }}
+            - name: SWPC_BASE_URL
+              value: {{ .Values.config.swpcBaseUrl | quote }}
+            - name: HAPI_BASE_URL
+              value: {{ .Values.config.hapiBaseUrl | quote }}
+            {{- if .Values.persistence.enabled }}
+            - name: DATABASE_URL
+              value: "sqlite+aiosqlite:////data/ionshield.db"
+            {{- end }}
+            {{- if .Values.config.cotServerHost }}
+            - name: COT_SERVER_HOST
+              value: {{ .Values.config.cotServerHost | quote }}
+            - name: COT_SERVER_PORT
+              value: {{ .Values.config.cotServerPort | quote }}
+            - name: COT_STALE_MINUTES
+              value: {{ .Values.config.cotStaleMinutes | quote }}
+            {{- end }}
+            {{- if .Values.locations }}
+            - name: LOCATIONS_FILE
+              value: /config/locations.json
+            {{- end }}
+          {{- if .Values.auth.existingSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.auth.existingSecret }}
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+            {{- if .Values.locations }}
+            - name: locations
+              mountPath: /config
+              readOnly: true
+            {{- end }}
+          startupProbe:
+            # Initial NOAA fetch (or offline bootstrap) can take ~30 s
+            httpGet:
+              path: /api/status
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: ionshield-data
+        {{- end }}
+        {{- if .Values.locations }}
+        - name: locations
+          configMap:
+            name: ionshield-locations
+        {{- end }}
