@@ -35,10 +35,25 @@ Written for a founder, not a platform engineer. Follow top to bottom.
 
 ## 0. Install the tools (Mac)
 
+Already done on this machine (Jun 2026): helm via brew; zarf + uds as direct
+binaries in `~/.local/bin` (on PATH via .zshrc); Docker via Colima.
+
 ```bash
-brew install helm zarf defenseunicorns/tap/uds
-# Docker Desktop: https://docker.com/products/docker-desktop (open it once after install)
+brew install helm k3d colima docker docker-buildx
+mkdir -p ~/.docker/cli-plugins && ln -sf /opt/homebrew/opt/docker-buildx/bin/docker-buildx ~/.docker/cli-plugins/docker-buildx
+colima start --cpu 4 --memory 8 --disk 40
+
+# zarf + uds-cli — direct binaries (brew tap builds from source and needs
+# current Xcode CLT; the release binaries don't):
+mkdir -p ~/.local/bin
+curl -sL -o ~/.local/bin/zarf  https://github.com/zarf-dev/zarf/releases/download/v0.77.0/zarf_v0.77.0_Darwin_arm64
+curl -sL -o ~/.local/bin/uds   https://github.com/defenseunicorns/uds-cli/releases/download/v0.32.0/uds-cli_v0.32.0_Darwin_arm64
+chmod +x ~/.local/bin/zarf ~/.local/bin/uds
+export PATH="$HOME/.local/bin:$PATH"
 ```
+
+> After a reboot: `colima start` brings Docker back; `k3d cluster list`
+> shows the demo cluster.
 
 ## 1. Build the hardened image
 
@@ -74,21 +89,41 @@ platform team.
 
 Or do steps 1+2 in one shot: `./deploy/scripts/build-and-package.sh`
 
-## 3. Demo it locally — full UDS stack on your laptop
+## 3. Demo it locally — UDS stack on your laptop
+
+UDS Core ships as its own bundle (bundles can't nest), so the demo is
+two commands:
 
 ```bash
-cd deploy/uds
-uds create . --confirm
-uds deploy uds-bundle-ionshield-demo-*.tar.zst --confirm
+# 1. Local k3d cluster + UDS Core slim (Istio gateway + Pepr policy engine).
+#    Check https://github.com/defenseunicorns/uds-core/releases for latest.
+uds deploy k3d-core-slim-dev:1.6.0 --confirm
+
+# 2. IonShield into it:
+cd deploy/zarf
+zarf package deploy zarf-package-ionshield-*.tar.zst --confirm
 ```
 
-This stands up a local k3d cluster, installs UDS Core (slim), deploys
-IonShield, and exposes it through the Istio tenant gateway at:
-
-**https://ionshield.uds.dev** (resolves to localhost automatically)
+→ **https://ionshield.uds.dev** (resolves to localhost automatically)
 
 This is the WarHacker money shot: *"IonShield running on your platform,
 packaged with your tooling, deployed with one command."*
+
+### 3b. Plain k3d fallback (no UDS Core — verified working on this machine)
+
+If the UDS Core download misbehaves (large ghcr pulls can be flaky on some
+networks), the Zarf air-gap story still demos perfectly on a bare cluster:
+
+```bash
+k3d cluster create uds          # skip if it exists
+zarf init --confirm             # if the init pkg download fails, grab it from
+                                # github.com/zarf-dev/zarf/releases and re-run
+cd deploy/zarf
+zarf package deploy zarf-package-ionshield-*.tar.zst \
+  --set OFFLINE_MODE=true --set UDS_PACKAGE_ENABLED=false --confirm
+zarf tools kubectl -n ionshield port-forward svc/ionshield 8800:8000
+open http://localhost:8800/mission
+```
 
 ## 4. Deploy into an existing UDS cluster (what a customer would do)
 

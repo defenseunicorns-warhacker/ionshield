@@ -1,33 +1,31 @@
-# UDS Bundle: UDS Core (slim dev) + IonShield in one deployable artifact.
+# UDS Bundle: IonShield, deployable with uds-cli.
 #
-# This is the "demo in a box" for WarHacker: one command stands up a local
-# k3d cluster with UDS Core (Istio gateway, Pepr policy engine) and IonShield
-# exposed at https://ionshield.uds.dev.
+# NOTE: UDS Core is deployed separately — it ships as its own bundle and
+# bundles cannot nest bundles. The full local demo is two commands:
 #
-# Prereqs: docker + uds-cli (https://github.com/defenseunicorns/uds-cli)
+#   # 1. Stand up a local k3d cluster with UDS Core slim (Istio + Pepr):
+#   uds deploy k3d-core-slim-dev:1.6.0 --confirm
 #
-#   # 1. Build the IonShield zarf package first (see deploy/zarf/zarf.yaml)
-#   # 2. Create the bundle:
+#   # 2. Build + deploy IonShield into it (from deploy/zarf):
+#   zarf package create . --confirm
+#   zarf package deploy zarf-package-ionshield-*.tar.zst --confirm
+#
+#   # → https://ionshield.uds.dev
+#
+# This bundle file wraps the IonShield package for uds-cli workflows
+# (uds create / uds deploy), useful when delivering IonShield alongside
+# other mission apps as a single artifact:
+#
 #   cd deploy/uds
 #   uds create . --confirm
-#   # 3. Deploy (spins up k3d + core + ionshield):
-#   uds deploy uds-bundle-ionshield-demo-*.tar.zst --confirm
-#   # 4. Open https://ionshield.uds.dev
+#   uds deploy uds-bundle-ionshield-*.tar.zst --confirm
 kind: UDSBundle
 metadata:
-  name: ionshield-demo
-  description: "IonShield on UDS Core — local k3d demo bundle"
+  name: ionshield
+  description: "IonShield — space weather operational intelligence on UDS"
   version: 0.1.0
 
 packages:
-  # Local k3d cluster + UDS Core slim (Istio + Pepr) — dev/demo only.
-  # For a real environment, drop this entry and deploy the ionshield package
-  # into the customer's existing UDS Core cluster.
-  - name: k3d-core-slim-dev
-    repository: ghcr.io/defenseunicorns/packages/uds/bundles/k3d-core-slim-dev
-    # Check https://github.com/defenseunicorns/uds-core/releases for current:
-    ref: 0.47.0
-
   - name: ionshield
     # Path to the created zarf package tarball, relative to this file:
     path: ../zarf

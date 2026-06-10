@@ -46,3 +46,10 @@ Thumbs.db
 
 # Docs
 README.md
+
+# Build artifacts — huge, rebuilt inside the image anyway
+frontend/node_modules
+frontend/dist
+**/__pycache__
+*.pptx
+ionshield.db
