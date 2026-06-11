@@ -1714,6 +1714,13 @@ class _MissionRequestModel(_MissionBase):
         default_factory=list,
         description="Equipment ids from GET /api/v3/equipment (e.g. gps_single_freq, hf_radio)",
     )
+    scenario: str = _MissionField(
+        "",
+        description=(
+            "Empty = live data. Or a replay scenario id (e.g. gannon-2024) to run "
+            "the assessment against real recorded storm conditions, labeled REPLAY."
+        ),
+    )
 
 
 @router_v3.get("/equipment")
@@ -1778,6 +1785,17 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
             detail=f"Unknown equipment id(s): {unknown}. See GET /api/v3/equipment for the catalog.",
         )
 
+    from app.models.replay_scenarios import REPLAY_SCENARIOS
+
+    replay = None
+    if req.scenario:
+        replay = REPLAY_SCENARIOS.get(req.scenario)
+        if replay is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown scenario '{req.scenario}'. Available: {sorted(REPLAY_SCENARIOS)}.",
+            )
+
     mission = MissionRequest(
         mission_type=req.mission_type,
         gnss_dependence=req.gnss_dependence,
@@ -1795,7 +1813,36 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
     platform = _platform_from_request(
         PlatformRequest(asset_type=plat_kwargs["asset_type"], criticality=plat_kwargs["criticality"])
     )
-    env = _build_env()
+    if replay is not None:
+        # Replay env: the documented measured values of a real storm, with
+        # observations source-labeled REPLAY so provenance can't be mistaken
+        # for live telemetry.
+        from datetime import datetime, timezone
+
+        from app.models.decision import EnvironmentSnapshot, ObservationInput
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        src = f"REPLAY:{replay.id}"
+        env = EnvironmentSnapshot(
+            kp=replay.kp,
+            bz_nt=replay.bz_nt,
+            xray_flux=replay.xray_flux_wm2,
+            proton_flux_10mev=replay.proton_flux_10mev_pfu,
+            wind_speed_km_s=replay.wind_speed_km_s,
+            data_age_seconds=0,
+            feeds_available=[src],
+            feeds_unavailable=[],
+            observations=[
+                ObservationInput(src, "kp_index", replay.kp, "index", now_iso, 0),
+                ObservationInput(src, "bz_gsm_nt", replay.bz_nt, "nT", now_iso, 0),
+                ObservationInput(src, "xray_flux_wm2", replay.xray_flux_wm2, "W/m²", now_iso, 0),
+                ObservationInput(src, "proton_flux_10mev_pfu", replay.proton_flux_10mev_pfu, "pfu", now_iso, 0),
+                ObservationInput(src, "solar_wind_km_s", replay.wind_speed_km_s, "km/s", now_iso, 0),
+            ],
+            kp_forecast_24h=None,
+        )
+    else:
+        env = _build_env()
     wp_inputs = [WaypointInput(w.lat, w.lon, w.name) for w in mission.waypoints]
 
     rec, wp_decisions = _engine.route_risk(env, wp_inputs, platform)
@@ -1830,18 +1877,38 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
     # probabilities attached. Only when the request named equipment.
     equipment_assessment = None
     if mission.equipment:
-        from app.data.noaa import get_kp, get_noaa_scales, get_proton_flux_10mev, get_xray_flux
+        if replay is not None:
+            # Same recorded drivers as the engine env. Live NOAA forecast
+            # probabilities don't apply to a historical replay — omitted.
+            equipment_assessment = evaluate_equipment(
+                mission.equipment,
+                kp=replay.kp,
+                xray_flux_wm2=replay.xray_flux_wm2,
+                proton_flux_10mev_pfu=replay.proton_flux_10mev_pfu,
+            ).to_dict()
+        else:
+            from app.data.noaa import get_kp, get_noaa_scales, get_proton_flux_10mev, get_xray_flux
 
-        equipment_assessment = evaluate_equipment(
-            mission.equipment,
-            kp=get_kp(),
-            xray_flux_wm2=get_xray_flux(),
-            proton_flux_10mev_pfu=get_proton_flux_10mev(),
-            noaa_scales=get_noaa_scales(),
-        ).to_dict()
+            equipment_assessment = evaluate_equipment(
+                mission.equipment,
+                kp=get_kp(),
+                xray_flux_wm2=get_xray_flux(),
+                proton_flux_10mev_pfu=get_proton_flux_10mev(),
+                noaa_scales=get_noaa_scales(),
+            ).to_dict()
 
     assessment = assess_mission(mission, route_decision, equipment_assessment)
-    return assessment.to_dict()
+    out = assessment.to_dict()
+
+    if replay is not None:
+        from app.models.replay_scenarios import replay_note
+
+        # Replay banner: surfaced in data quality notes + inputs echo so the
+        # UI and any downstream consumer can't mistake this for live data.
+        out["inputs_echo"]["scenario"] = replay.id
+        out["inputs_echo"]["scenario_title"] = replay.title
+        out["data_quality"]["notes"] = [replay_note(replay), replay.citation] + (out["data_quality"].get("notes") or [])
+    return out
 
 
 @router_v3.post("/recommend")
@@ -1852,3 +1919,49 @@ async def recommend(request: Request, req: _MissionRequestModel) -> dict:
     time-bounded operational recommendation out.
     """
     return await mission_assess(request, req)
+
+
+@router_v3.get("/mission/overlay.kml")
+async def mission_overlay_kml(
+    request: Request,
+    lat: float,
+    lon: float,
+    radius_km: float = 25.0,
+    scenario: str = "",
+) -> Response:
+    """Time-windowed ATAK risk overlay (KML with TimeSpan zones).
+
+    Load this URL in ATAK/WinTAK as a network KML layer — no plugin needed.
+    Zones over the AO are colored by weather state per 3-hour window; the
+    ATAK time slider drives which window is visible.
+
+    Live mode (default): windows from NOAA's 3-day Kp forecast product.
+    Replay mode (?scenario=gannon-2024): windows from the storm's recorded
+    GFZ Kp timeline mapped onto today, labeled REPLAY.
+    """
+    from app.models.replay_scenarios import REPLAY_SCENARIOS
+    from app.outputs.mission_overlay import build_live_overlay_kml, build_replay_overlay_kml
+
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180 and 0.5 <= radius_km <= 500):
+        raise HTTPException(status_code=422, detail="lat/lon out of range or radius_km not in [0.5, 500]")
+
+    if scenario:
+        scn = REPLAY_SCENARIOS.get(scenario)
+        if scn is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown scenario '{scenario}'. Available: {sorted(REPLAY_SCENARIOS)}.",
+            )
+        kml = build_replay_overlay_kml(lat, lon, radius_km, scn)
+    else:
+        from app.data.noaa import cache_snapshot as _noaa_cache_snapshot
+        from app.models.forecast import parse_kp_forecast
+
+        entries = parse_kp_forecast(_noaa_cache_snapshot().get("kp_forecast") or [])
+        kml = build_live_overlay_kml(lat, lon, radius_km, entries)
+
+    return Response(
+        content=kml,
+        media_type="application/vnd.google-earth.kml+xml",
+        headers={"Content-Disposition": 'inline; filename="ionshield-mission-overlay.kml"'},
+    )

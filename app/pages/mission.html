@@ -250,6 +250,21 @@
       animation: mp-slide 1.2s ease-in-out infinite;
     }
     @keyframes mp-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+    /* ── Replay banner (WarHacker P0-3) ─────────────────────────────────── */
+    .mp-replay-banner { background: rgba(168, 85, 247, .10); border: 1px solid #a855f7;
+                        color: #c084fc; border-radius: 8px; padding: 8px 12px;
+                        font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+
+    /* ── ATAK overlay handoff (WarHacker P0-4) ──────────────────────────── */
+    .mp-atak { margin-top: 14px; border: 1px solid var(--line, #1f2a36);
+               border-radius: 10px; padding: 12px 16px; }
+    .mp-atak h4 { margin: 0 0 4px; font-size: 13px; }
+    .mp-atak-sub { color: var(--text-3); font-size: 11.5px; margin-bottom: 8px; }
+    .mp-atak-url { font-family: var(--mono, monospace); font-size: 11px;
+                   word-break: break-all; }
+    .mp-atak-url a { color: var(--blue-hi, #60a5fa); text-decoration: none; }
+    .mp-atak-url a:hover { text-decoration: underline; }
+
     /* ── Equipment profile (WarHacker P0-2) ─────────────────────────────── */
     .mp-equipment { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
     .mp-eq-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px;
@@ -307,6 +322,10 @@
     <button class="mp-scenario" data-scenario="defense-patrol">
       <span class="lbl">DEFENSE</span>
       Patrol leg · degraded HF, GPS caution
+    </button>
+    <button class="mp-scenario" data-scenario="warhacker-uas-isr">
+      <span class="lbl">STORM REPLAY</span>
+      UAS ISR under G5 conditions · May 2024 Gannon storm
     </button>
   </div>
 
@@ -466,7 +485,21 @@
       type: 'defense-patrol', gnss: 'medium', comms: 'high', tol: 'low', callsign: 'Patrol-Bravo',
       waypoints: [['Alpha', 35.7, 139.3], ['Bravo', 37.0, 140.0], ['Charlie', 38.5, 141.0]],
     },
+    // WarHacker 90-second demo: Group 1 UAS ISR run against the REAL measured
+    // conditions of the May 2024 Gannon storm (replayed server-side, labeled
+    // REPLAY in the result). AO: San Diego training area.
+    'warhacker-uas-isr': {
+      type: 'uav', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'Raven-ISR-1',
+      waypoints: [['LZ-North', 32.9, -117.1], ['OP-1', 33.1, -116.9], ['LZ-North-rtb', 32.9, -117.1]],
+      scenario: 'gannon-2024',
+      // Include SINCGARS so the readout shows the confirmed-unaffected fallback
+      equipment: ['uas_group1', 'gps_single_freq', 'sincgars_fm'],
+    },
   };
+
+  // Active replay scenario id ('' = live data). Set by loadScenario, cleared
+  // when the operator changes mission type by hand.
+  let activeScenario = '';
 
   document.querySelectorAll('.mp-scenario').forEach(btn => {
     btn.addEventListener('click', () => loadScenario(btn.dataset.scenario));
@@ -483,7 +516,14 @@
     wpRoot.innerHTML = '';
     s.waypoints.forEach(([n, la, lo]) => addWaypointRow(n, la, lo));
     // Programmatic .value set doesn't fire 'change' — re-apply equipment defaults
-    applyEquipmentDefaults(s.type);
+    if (s.equipment) {
+      const want = new Set(s.equipment);
+      document.querySelectorAll('#m-equipment input[type=checkbox]')
+        .forEach(cb => { cb.checked = want.has(cb.value); });
+    } else {
+      applyEquipmentDefaults(s.type);
+    }
+    activeScenario = s.scenario || '';
     document.getElementById('m-run').focus();
   }
 
@@ -522,7 +562,7 @@
   }
 
   document.getElementById('m-type').addEventListener('change',
-    e => applyEquipmentDefaults(e.target.value));
+    e => { applyEquipmentDefaults(e.target.value); activeScenario = ''; });
   loadEquipmentCatalog();
 
   // ── Render the result card ────────────────────────────────────────────────
@@ -564,7 +604,14 @@
     const obs  = (prov.observations_used || []).join(', ') || '—';
     const fcs  = (prov.forecasts_used    || []).join(', ') || '—';
 
+    const replayBanner = inputs.scenario ? `
+      <div class="mp-replay-banner">
+        ⟲ REPLAY · ${escapeHtml(inputs.scenario_title || inputs.scenario)} — real recorded
+        measurements, not live conditions
+      </div>` : '';
+
     root.innerHTML = `
+      ${replayBanner}
       <!-- Verdict -->
       <div class="mp-verdict ${verdictClass}">
         <div class="level">Mission risk · ${assessment.mission_risk_summary || level}</div>
@@ -618,6 +665,8 @@
       </div>` : ''}
 
       ${renderEquipmentReadout(assessment.equipment)}
+
+      ${renderAtakHandoff(assessment)}
 
       <!-- Confidence / data quality -->
       <div class="mp-conf">
@@ -706,6 +755,26 @@
       </div>`;
   }
 
+  // ── ATAK overlay handoff (WarHacker P0-4) ─────────────────────────────────
+  // Time-windowed KML risk zones over the AO — loads in ATAK/WinTAK as a
+  // network KML layer, no plugin required.
+  function renderAtakHandoff(assessment) {
+    const wps = Array.from(wpRoot.querySelectorAll('.mp-wp-row'));
+    if (!wps.length) return '';
+    const lat = parseFloat(wps[0].querySelector('.mp-wp-lat').value);
+    const lon = parseFloat(wps[0].querySelector('.mp-wp-lon').value);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+    const scn = assessment.inputs_echo?.scenario;
+    const url = `${window.location.origin}/api/v3/mission/overlay.kml?lat=${lat}&lon=${lon}&radius_km=25${scn ? `&scenario=${encodeURIComponent(scn)}` : ''}`;
+    return `
+      <div class="mp-atak">
+        <h4>ATAK overlay · time-windowed risk zones</h4>
+        <div class="mp-atak-sub">Add as a network KML layer in ATAK/WinTAK — the time slider
+        walks the ${scn ? 'replayed storm' : 'NOAA 3-day forecast'} windows over this AO.</div>
+        <div class="mp-atak-url"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(url)}</a></div>
+      </div>`;
+  }
+
   // Small HTML-escape utility — defends against rendering user-controlled
   // callsigns / mission names from inputs_echo.
   function escapeHtml(s) {
@@ -736,6 +805,7 @@
       equipment: Array.from(
         document.querySelectorAll('#m-equipment input[type=checkbox]:checked')
       ).map(cb => cb.value),
+      scenario: activeScenario,
     };
   }
 
