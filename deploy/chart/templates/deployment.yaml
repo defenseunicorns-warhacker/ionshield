@@ -56,6 +56,10 @@ spec:
             {{- if .Values.persistence.enabled }}
             - name: DATABASE_URL
               value: "sqlite+aiosqlite:////data/ionshield.db"
+            # Cache-and-carry: feed state survives restarts on the PVC, so an
+            # OFFLINE_MODE boot serves the last synced NOAA state (ADVISORY)
+            - name: STATE_CACHE_FILE
+              value: "/data/last_known_state.json"
             {{- end }}
             {{- if .Values.config.cotServerHost }}
             - name: COT_SERVER_HOST

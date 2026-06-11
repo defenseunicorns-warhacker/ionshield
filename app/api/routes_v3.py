@@ -1843,6 +1843,40 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
         )
     else:
         env = _build_env()
+
+        # Manual observation override (disconnected ops, last resort): an
+        # operator-entered Kp (+ optional flare class / proton flux) replaces
+        # those drivers, with observations relabeled OPERATOR_ENTRY. The
+        # remaining drivers stay on feed/cached values. Replay wins over
+        # manual when both are present (scenario is an explicit request).
+        from app.data import manual_obs as _manual_obs
+
+        manual = _manual_obs.get_observation()
+        if manual is not None:
+            from dataclasses import replace as _dc_replace
+            from datetime import datetime, timezone
+
+            from app.models.decision import ObservationInput
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            src = "OPERATOR_ENTRY"
+            overrides = {"kp": manual.kp}
+            obs_extra = [ObservationInput(src, "kp_index", manual.kp, "index", now_iso, 0)]
+            if manual.xray_flux_wm2() is not None:
+                overrides["xray_flux"] = manual.xray_flux_wm2()
+                obs_extra.append(ObservationInput(src, "xray_flux_wm2", manual.xray_flux_wm2(), "W/m²", now_iso, 0))
+            if manual.proton_flux_10mev_pfu is not None:
+                overrides["proton_flux_10mev"] = manual.proton_flux_10mev_pfu
+                obs_extra.append(
+                    ObservationInput(src, "proton_flux_10mev_pfu", manual.proton_flux_10mev_pfu, "pfu", now_iso, 0)
+                )
+            replaced = {o.phenomenon for o in obs_extra}
+            env = _dc_replace(
+                env,
+                **overrides,
+                feeds_available=list(env.feeds_available) + [src],
+                observations=[o for o in env.observations if o.phenomenon not in replaced] + obs_extra,
+            )
     wp_inputs = [WaypointInput(w.lat, w.lon, w.name) for w in mission.waypoints]
 
     rec, wp_decisions = _engine.route_risk(env, wp_inputs, platform)
@@ -1887,13 +1921,15 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
                 proton_flux_10mev_pfu=replay.proton_flux_10mev_pfu,
             ).to_dict()
         else:
-            from app.data.noaa import get_kp, get_noaa_scales, get_proton_flux_10mev, get_xray_flux
+            # env already carries any manual override — evaluate from env so
+            # the rule library and the physics engine agree on drivers.
+            from app.data.noaa import get_noaa_scales
 
             equipment_assessment = evaluate_equipment(
                 mission.equipment,
-                kp=get_kp(),
-                xray_flux_wm2=get_xray_flux(),
-                proton_flux_10mev_pfu=get_proton_flux_10mev(),
+                kp=env.kp,
+                xray_flux_wm2=env.xray_flux,
+                proton_flux_10mev_pfu=env.proton_flux_10mev,
                 noaa_scales=get_noaa_scales(),
             ).to_dict()
 
@@ -1908,6 +1944,24 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
         out["inputs_echo"]["scenario"] = replay.id
         out["inputs_echo"]["scenario_title"] = replay.title
         out["data_quality"]["notes"] = [replay_note(replay), replay.citation] + (out["data_quality"].get("notes") or [])
+    else:
+        # Disconnected-ops labels (honesty first): ADVISORY when running on
+        # carried (cache-and-carry) state, MANUAL when an operator-entered
+        # observation overrode drivers.
+        from app.data import manual_obs as _mo
+        from app.data import state_cache as _sc
+
+        notes = []
+        manual_active = _mo.get_observation()
+        if manual_active is not None:
+            notes.append(_mo.manual_note(manual_active))
+            out["inputs_echo"]["manual_observation"] = manual_active.to_dict()
+        advisory = _sc.advisory_note()
+        if advisory:
+            notes.append(advisory)
+            out["inputs_echo"]["advisory_mode"] = True
+        if notes:
+            out["data_quality"]["notes"] = notes + (out["data_quality"].get("notes") or [])
     return out
 
 
@@ -1965,3 +2019,57 @@ async def mission_overlay_kml(
         media_type="application/vnd.google-earth.kml+xml",
         headers={"Content-Disposition": 'inline; filename="ionshield-mission-overlay.kml"'},
     )
+
+
+# ── Manual observation entry (disconnected ops) ──────────────────────────────
+
+
+class _ManualObsRequest(_MissionBase):
+    kp: float = _MissionField(..., ge=0, le=9, description="Planetary Kp from the operator's brief (0-9)")
+    source_note: str = _MissionField(
+        ..., min_length=3, description="Where the value came from (e.g. 'S2 weather brief 0600Z')"
+    )
+    proton_flux_10mev_pfu: float | None = _MissionField(None, ge=0)
+    xray_class: str | None = _MissionField(None, description="Flare class letter: A | B | C | M | X")
+
+
+@router_v3.post("/manual-observation")
+async def set_manual_observation(request: Request, req: _ManualObsRequest) -> dict:
+    """Enter an operator-supplied observation (disconnected ops, last resort).
+
+    When no live feed and no carried cache is available, the operator enters
+    Kp from an authoritative channel (S2 weather brief, military space
+    weather officer report). Mission assessments then run the same doctrine
+    rules against it, labeled MANUAL/operator-entered in every output.
+    Entries expire after 3 hours (one Kp bin).
+    """
+    from app.data import manual_obs
+
+    if req.xray_class is not None and req.xray_class.strip().upper() not in ("A", "B", "C", "M", "X"):
+        raise HTTPException(status_code=422, detail="xray_class must be one of A, B, C, M, X")
+
+    obs = manual_obs.set_observation(
+        kp=req.kp,
+        source_note=req.source_note,
+        proton_flux_10mev_pfu=req.proton_flux_10mev_pfu,
+        xray_class=req.xray_class,
+    )
+    return {"status": "active", "observation": obs.to_dict()}
+
+
+@router_v3.get("/manual-observation")
+async def get_manual_observation(request: Request) -> dict:
+    """The active manual observation, if any (expired entries read as none)."""
+    from app.data import manual_obs
+
+    obs = manual_obs.get_observation()
+    return {"status": "active" if obs else "none", "observation": obs.to_dict() if obs else None}
+
+
+@router_v3.delete("/manual-observation")
+async def clear_manual_observation(request: Request) -> dict:
+    """Clear the manual observation — assessments return to feed data."""
+    from app.data import manual_obs
+
+    manual_obs.clear_observation()
+    return {"status": "cleared"}

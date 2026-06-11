@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # precomputed scenarios, and storm replay. Decision confidence honestly
     # reports data staleness — no fabricated freshness.
     offline_mode: bool = False
+    # Cache-and-carry: every successful fetch persists the full feed state
+    # here; an OFFLINE_MODE boot rehydrates from it, so a pre-mission sync
+    # carries real observations + the 3-day forecast into the disconnected
+    # window (ADVISORY mode). Point at the persistent volume in Kubernetes
+    # (e.g. /data/last_known_state.json). Empty string disables.
+    state_cache_file: str = "last_known_state.json"
     # Point at an in-enclave SWPC mirror/relay instead of the public internet
     # (e.g. a one-way diode replicator or cross-domain feed proxy).
     swpc_base_url: str = "https://services.swpc.noaa.gov"

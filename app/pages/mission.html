@@ -255,6 +255,20 @@
                         color: #c084fc; border-radius: 8px; padding: 8px 12px;
                         font-size: 12px; font-weight: 600; margin-bottom: 12px; }
 
+    /* ── Manual observation entry (disconnected ops) ────────────────────── */
+    .mp-manual { margin: 14px 0 0; border: 1px dashed var(--line, #1f2a36);
+                 border-radius: 10px; padding: 10px 14px; }
+    .mp-manual summary { cursor: pointer; font-size: 12.5px; color: var(--text-2); }
+    .mp-manual-body { margin-top: 10px; }
+    .mp-manual-hint { color: var(--text-3); font-size: 11.5px; margin-bottom: 8px; }
+    .mp-manual-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .mp-manual-row input { flex: 1; min-width: 0; }
+    #m-manual-kp { flex: 0 0 110px; }
+    .mp-manual-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--blue, #3b82f6);
+                     background: var(--blue, #3b82f6); color: #fff; font-size: 12px; cursor: pointer; }
+    .mp-manual-btn.ghost { background: transparent; color: var(--text-2); border-color: var(--line, #1f2a36); }
+    .mp-manual-status { font-size: 11.5px; color: var(--text-3); }
+
     /* ── ATAK overlay handoff (WarHacker P0-4) ──────────────────────────── */
     .mp-atak { margin-top: 14px; border: 1px solid var(--line, #1f2a36);
                border-radius: 10px; padding: 12px 16px; }
@@ -415,6 +429,26 @@
           <!-- populated from GET /api/v3/equipment -->
         </div>
       </div>
+
+      <details class="mp-manual">
+        <summary>Disconnected ops · manual observation entry</summary>
+        <div class="mp-manual-body">
+          <div class="mp-manual-hint">
+            No feed and no carried cache? Enter Kp from an authoritative brief
+            (S2 weather section, space weather officer). Assessments run the
+            same doctrine rules, labeled <strong>MANUAL</strong>. Expires after 3 h.
+          </div>
+          <div class="mp-manual-row">
+            <input id="m-manual-kp" type="number" min="0" max="9" step="0.1" placeholder="Kp (0–9)" />
+            <input id="m-manual-src" type="text" placeholder="Source (e.g. S2 weather brief 0600Z)" />
+          </div>
+          <div class="mp-manual-row">
+            <button type="button" class="mp-manual-btn" id="m-manual-apply">Apply</button>
+            <button type="button" class="mp-manual-btn ghost" id="m-manual-clear">Clear</button>
+            <span class="mp-manual-status" id="m-manual-status"></span>
+          </div>
+        </div>
+      </details>
 
       <div class="mp-submit-row">
         <button type="submit" class="mp-run" id="m-run">▶ Assess Mission</button>
@@ -754,6 +788,39 @@
         ${unaffected}
       </div>`;
   }
+
+  // ── Manual observation entry (disconnected ops) ───────────────────────────
+  const manualStatus = document.getElementById('m-manual-status');
+
+  async function refreshManualStatus() {
+    try {
+      const r = await fetch('/api/v3/manual-observation');
+      const b = await r.json();
+      manualStatus.textContent = b.status === 'active'
+        ? `Active: Kp ${b.observation.kp} (expires ${b.observation.expires_at.slice(11, 16)}Z)`
+        : '';
+    } catch (e) { /* status line is best-effort */ }
+  }
+
+  document.getElementById('m-manual-apply').addEventListener('click', async () => {
+    const kp = parseFloat(document.getElementById('m-manual-kp').value);
+    const src = document.getElementById('m-manual-src').value.trim();
+    if (!Number.isFinite(kp) || kp < 0 || kp > 9) { manualStatus.textContent = 'Kp must be 0–9.'; return; }
+    if (src.length < 3) { manualStatus.textContent = 'Source note required.'; return; }
+    const r = await fetch('/api/v3/manual-observation', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kp, source_note: src }),
+    });
+    manualStatus.textContent = r.ok ? 'Applied — assessments now use this value.' : `Error: HTTP ${r.status}`;
+    refreshManualStatus();
+  });
+
+  document.getElementById('m-manual-clear').addEventListener('click', async () => {
+    await fetch('/api/v3/manual-observation', { method: 'DELETE' });
+    manualStatus.textContent = 'Cleared — back to feed data.';
+  });
+
+  refreshManualStatus();
 
   // ── ATAK overlay handoff (WarHacker P0-4) ─────────────────────────────────
   // Time-windowed KML risk zones over the AO — loads in ATAK/WinTAK as a

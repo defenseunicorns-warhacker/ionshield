@@ -295,6 +295,7 @@ async def _refresh_loop() -> None:
                 results = {}
         if results:
             logger.debug("Source results: %s", results)
+        _persist_feed_state(results)
 
         with time_stage("archive"):
             await archive_snapshot()
@@ -314,6 +315,22 @@ async def _refresh_loop() -> None:
             await _fire_and_forget(_push_cot, label="cot_push")
 
 
+def _persist_feed_state(results: dict) -> None:
+    """Cache-and-carry: persist feed state after a successful live cycle.
+
+    Any source reporting success counts — partial state beats no state in a
+    later air-gapped boot. A live save also supersedes any carried state.
+    """
+    from app.data import state_cache
+
+    if settings.offline_mode or not results:
+        return
+    # run_all() returns source.name → "ok" | "skipped" | "timeout" | "error"
+    if any(status == "ok" for status in results.values()):
+        if state_cache.save_state():
+            state_cache.mark_live()
+
+
 # ── Lifespan ─────────────────────────────────────────────────────────────────
 
 
@@ -330,7 +347,17 @@ async def lifespan(app: FastAPI):
     persisted = await breaker_store.hydrate_all()
     for src in list_sources():
         src.breaker.hydrate(persisted.get(src.name))
-    await run_all()
+
+    # Cache-and-carry: rehydrate the last persisted feed state before the
+    # first fetch. In OFFLINE_MODE this is the data source (ADVISORY mode);
+    # online it bridges the gap until the first live fetch lands (which
+    # overwrites it and supersedes the carried state).
+    from app.data import state_cache
+
+    state_cache.hydrate()
+
+    results = await run_all()
+    _persist_feed_state(results)
     await archive_snapshot()
     await _fire_and_forget(_push_foundry, label="foundry_raw_initial")
     await _fire_and_forget(_push_foundry_fused, label="foundry_fused_initial")
