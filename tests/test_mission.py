@@ -407,3 +407,106 @@ def test_http_mission_assess_in_openapi():
     with TestClient(app) as client:
         schema = client.get("/openapi.json").json()
     assert "/api/v3/mission/assess" in schema["paths"]
+
+
+# ── WarHacker P0-2: military mission types + equipment readout ───────────────
+
+
+def test_military_mission_types_registered():
+    from app.models.mission import BASE_CRITICALITY_BY_MISSION_TYPE, MISSION_TYPES
+
+    for mt in ("fires-support", "sof-comms", "cas-coordination", "ground-maneuver"):
+        assert mt in MISSION_TYPES
+        assert mt in BASE_CRITICALITY_BY_MISSION_TYPE
+    # Coordinate error → rounds off target: fires missions carry top criticality
+    assert BASE_CRITICALITY_BY_MISSION_TYPE["fires-support"] == 5
+
+
+def test_default_equipment_references_real_catalog_ids():
+    from app.models.equipment import EQUIPMENT
+    from app.models.mission import DEFAULT_EQUIPMENT_BY_MISSION_TYPE
+
+    for mt, eq_ids in DEFAULT_EQUIPMENT_BY_MISSION_TYPE.items():
+        for eq in eq_ids:
+            assert eq in EQUIPMENT, f"{mt} default {eq} not in catalog"
+
+
+def test_http_equipment_catalog():
+    with TestClient(app) as client:
+        r = client.get("/api/v3/equipment")
+    assert r.status_code == 200
+    body = r.json()
+    ids = {e["id"] for e in body["equipment"]}
+    assert "gps_single_freq" in ids
+    assert "sincgars_fm" in ids
+    assert "fires-support" in body["defaults_by_mission_type"]
+
+
+def test_http_mission_assess_with_equipment_returns_findings():
+    with TestClient(app) as client:
+        r = client.post(
+            "/api/v3/mission/assess",
+            json={
+                "mission_type": "fires-support",
+                "gnss_dependence": "high",
+                "comms_dependence": "high",
+                "risk_tolerance": "low",
+                "waypoints": [{"name": "FB-1", "lat": 35.0, "lon": -117.0}],
+                "equipment": ["gps_single_freq", "counter_battery_radar", "sincgars_fm"],
+            },
+        )
+    assert r.status_code == 200
+    body = r.json()
+    eq = body["equipment"]
+    assert eq is not None
+    assert eq["weather_state"] in ("QUIET", "MODERATE", "SEVERE")
+    assert "basis: observed Kp" in eq["likelihood"]
+    found_ids = {f["equipment_id"] for f in eq["findings"]}
+    assert found_ids == {"gps_single_freq", "counter_battery_radar"}
+    assert eq["unaffected"][0]["equipment_id"] == "sincgars_fm"
+    for f in eq["findings"]:
+        assert f["citation"].strip()
+    assert body["inputs_echo"]["equipment"] == ["gps_single_freq", "counter_battery_radar", "sincgars_fm"]
+
+
+def test_http_mission_assess_without_equipment_omits_block():
+    with TestClient(app) as client:
+        r = client.post(
+            "/api/v3/mission/assess",
+            json={
+                "mission_type": "uav",
+                "waypoints": [{"name": "WP1", "lat": 40.0, "lon": -75.0}],
+            },
+        )
+    assert r.status_code == 200
+    assert r.json()["equipment"] is None
+
+
+def test_http_mission_assess_unknown_equipment_422():
+    with TestClient(app) as client:
+        r = client.post(
+            "/api/v3/mission/assess",
+            json={
+                "mission_type": "uav",
+                "waypoints": [{"name": "WP1", "lat": 40.0, "lon": -75.0}],
+                "equipment": ["flux_capacitor"],
+            },
+        )
+    assert r.status_code == 422
+    assert "flux_capacitor" in r.json()["detail"]
+
+
+def test_http_recommend_alias_matches_mission_assess():
+    payload = {
+        "mission_type": "cas-coordination",
+        "gnss_dependence": "high",
+        "waypoints": [{"name": "IP-1", "lat": 36.2, "lon": -115.0}],
+        "equipment": ["gps_single_freq", "uhf_satcom"],
+    }
+    with TestClient(app) as client:
+        r1 = client.post("/api/v3/mission/assess", json=payload)
+        r2 = client.post("/api/v3/recommend", json=payload)
+    assert r1.status_code == r2.status_code == 200
+    b1, b2 = r1.json(), r2.json()
+    assert b1["mission_risk_level"] == b2["mission_risk_level"]
+    assert b1["equipment"]["weather_state"] == b2["equipment"]["weather_state"]

@@ -1698,7 +1698,11 @@ class _MissionWaypointReq(_MissionBase):
 
 class _MissionRequestModel(_MissionBase):
     mission_type: str = _MissionField(
-        "uav", description="uav | bvlos | precision-ag | maritime | defense-patrol | surveying | autonomous-ground"
+        "uav",
+        description=(
+            "uav | bvlos | precision-ag | maritime | defense-patrol | surveying | "
+            "autonomous-ground | fires-support | sof-comms | cas-coordination | ground-maneuver"
+        ),
     )
     gnss_dependence: str = _MissionField("medium", description="low | medium | high | rtk")
     comms_dependence: str = _MissionField("medium", description="low | medium | high")
@@ -1706,6 +1710,36 @@ class _MissionRequestModel(_MissionBase):
     waypoints: list[_MissionWaypointReq] = _MissionField(default_factory=list, min_length=1)
     time_window: str = _MissionField("now", description="now | next-1h | next-6h | next-24h")
     callsign: str = ""
+    equipment: list[str] = _MissionField(
+        default_factory=list,
+        description="Equipment ids from GET /api/v3/equipment (e.g. gps_single_freq, hf_radio)",
+    )
+
+
+@router_v3.get("/equipment")
+async def equipment_catalog(request: Request) -> dict:
+    """Equipment catalog for mission profiles.
+
+    Returns every equipment id the rule library knows, with display names,
+    representative nomenclature, whether space weather affects it, and the
+    per-mission-type default selections the Mission Planner pre-checks.
+    """
+    from app.models.equipment import EQUIPMENT
+    from app.models.mission import DEFAULT_EQUIPMENT_BY_MISSION_TYPE
+
+    return {
+        "equipment": [
+            {
+                "id": e.id,
+                "display_name": e.display_name,
+                "nomenclature": e.nomenclature,
+                "affected": e.affected,
+                "why_unaffected": e.why_unaffected or None,
+            }
+            for e in EQUIPMENT.values()
+        ],
+        "defaults_by_mission_type": {k: list(v) for k, v in DEFAULT_EQUIPMENT_BY_MISSION_TYPE.items()},
+    }
 
 
 @router_v3.post("/mission/assess")
@@ -1725,14 +1759,24 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
     for a defense patrol — the engine itself doesn't know which mission
     it's serving.
     """
+    from fastapi import HTTPException
+
     from app.api.routes_v2 import _build_env, _engine, _platform_from_request, PlatformRequest
     from app.models.decision import WaypointInput
+    from app.models.equipment import EQUIPMENT, evaluate_equipment
     from app.models.mission import (
         MissionRequest,
         MissionWaypoint,
         assess_mission,
         map_to_platform_kwargs,
     )
+
+    unknown = [e for e in req.equipment if e not in EQUIPMENT]
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown equipment id(s): {unknown}. See GET /api/v3/equipment for the catalog.",
+        )
 
     mission = MissionRequest(
         mission_type=req.mission_type,
@@ -1742,6 +1786,7 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
         waypoints=[MissionWaypoint(w.name, w.lat, w.lon) for w in req.waypoints],
         time_window=req.time_window,
         callsign=req.callsign,
+        equipment=list(req.equipment),
     )
 
     # Build the engine inputs from the mission profile, run the engine, then
@@ -1780,5 +1825,30 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
         ],
     }
 
-    assessment = assess_mission(mission, route_decision)
+    # Equipment-level readout (WarHacker P0-2): run the doctrine rule library
+    # against the same live drivers the engine used, with NOAA's forecaster
+    # probabilities attached. Only when the request named equipment.
+    equipment_assessment = None
+    if mission.equipment:
+        from app.data.noaa import get_kp, get_noaa_scales, get_proton_flux_10mev, get_xray_flux
+
+        equipment_assessment = evaluate_equipment(
+            mission.equipment,
+            kp=get_kp(),
+            xray_flux_wm2=get_xray_flux(),
+            proton_flux_10mev_pfu=get_proton_flux_10mev(),
+            noaa_scales=get_noaa_scales(),
+        ).to_dict()
+
+    assessment = assess_mission(mission, route_decision, equipment_assessment)
     return assessment.to_dict()
+
+
+@router_v3.post("/recommend")
+async def recommend(request: Request, req: _MissionRequestModel) -> dict:
+    """Alias for POST /mission/assess in briefing-book vocabulary.
+
+    Same request and response shape: mission profile in, equipment-specific,
+    time-bounded operational recommendation out.
+    """
+    return await mission_assess(request, req)

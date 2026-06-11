@@ -250,6 +250,27 @@
       animation: mp-slide 1.2s ease-in-out infinite;
     }
     @keyframes mp-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+    /* ── Equipment profile (WarHacker P0-2) ─────────────────────────────── */
+    .mp-equipment { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+    .mp-eq-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px;
+                  color: var(--text-2); cursor: pointer; padding: 4px 2px; }
+    .mp-eq-item input { margin-top: 2px; accent-color: var(--blue, #3b82f6); }
+    .mp-eq-item .nom { display: block; color: var(--text-3); font-size: 11px; }
+    .mp-eq-readout { margin-top: 14px; border: 1px solid var(--line, #1f2a36);
+                     border-radius: 10px; padding: 14px 16px; }
+    .mp-eq-readout h4 { margin: 0 0 4px; font-size: 13px; }
+    .mp-eq-basis { color: var(--text-3); font-size: 11.5px; margin-bottom: 10px; }
+    .mp-eq-row { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line, #1f2a36); }
+    .mp-eq-chip { flex: 0 0 64px; text-align: center; font-size: 11px; font-weight: 700;
+                  border-radius: 6px; padding: 3px 0; height: fit-content; }
+    .mp-eq-chip.green { background: rgba(16,185,129,.12); color: var(--green); }
+    .mp-eq-chip.amber { background: rgba(245,158,11,.12); color: var(--yellow); }
+    .mp-eq-chip.red   { background: rgba(239,68,68,.14);  color: var(--red); }
+    .mp-eq-chip.unaff { background: rgba(59,130,246,.12); color: var(--blue, #3b82f6); }
+    .mp-eq-body { flex: 1; font-size: 12px; color: var(--text-2); }
+    .mp-eq-body .nm { font-weight: 600; color: var(--text-1, #e6ecf2); }
+    .mp-eq-body .act { color: var(--text-2); margin-top: 2px; }
+    .mp-eq-body .cit { color: var(--text-3); font-size: 10.5px; margin-top: 2px; font-style: italic; }
   </style>
 </head>
 <body>
@@ -306,6 +327,10 @@
           <option value="defense-patrol">Defense patrol</option>
           <option value="surveying">Surveying / construction RTK</option>
           <option value="autonomous-ground">Autonomous ground vehicle</option>
+          <option value="fires-support">Fires support (AFATDS)</option>
+          <option value="sof-comms">SOF communications</option>
+          <option value="cas-coordination">CAS coordination</option>
+          <option value="ground-maneuver">Ground maneuver</option>
         </select>
       </div>
 
@@ -362,6 +387,13 @@
         <div class="mp-field">
           <label for="m-callsign">Mission ID / callsign (optional)</label>
           <input id="m-callsign" type="text" placeholder="e.g. Vanguard-3" />
+        </div>
+      </div>
+
+      <div class="mp-field">
+        <label>Equipment profile <span style="color:var(--text-3);font-weight:400;">(drives the doctrine-rule readout)</span></label>
+        <div class="mp-equipment" id="m-equipment">
+          <!-- populated from GET /api/v3/equipment -->
         </div>
       </div>
 
@@ -450,6 +482,8 @@
     document.getElementById('m-callsign').value  = s.callsign;
     wpRoot.innerHTML = '';
     s.waypoints.forEach(([n, la, lo]) => addWaypointRow(n, la, lo));
+    // Programmatic .value set doesn't fire 'change' — re-apply equipment defaults
+    applyEquipmentDefaults(s.type);
     document.getElementById('m-run').focus();
   }
 
@@ -457,6 +491,39 @@
   // server-side in app/models/mission.py and POST /api/v3/mission/assess.
   // Client just builds the operator payload (see buildMissionPayload below)
   // and renders the response.
+
+  // ── Equipment profile (WarHacker P0-2) ────────────────────────────────────
+  // Catalog + per-mission defaults come from the server (single source of
+  // truth in app/models/equipment.py); the UI only renders checkboxes.
+  let EQUIPMENT_DEFAULTS = {};
+
+  async function loadEquipmentCatalog() {
+    try {
+      const r = await fetch('/api/v3/equipment');
+      if (!r.ok) return;
+      const cat = await r.json();
+      EQUIPMENT_DEFAULTS = cat.defaults_by_mission_type || {};
+      const root = document.getElementById('m-equipment');
+      root.innerHTML = cat.equipment.map(e => `
+        <label class="mp-eq-item">
+          <input type="checkbox" value="${e.id}" />
+          <span>${escapeHtml(e.display_name)}
+            <span class="nom">${escapeHtml(e.nomenclature)}</span>
+          </span>
+        </label>`).join('');
+      applyEquipmentDefaults(document.getElementById('m-type').value);
+    } catch (e) { /* equipment readout is additive — page works without it */ }
+  }
+
+  function applyEquipmentDefaults(missionType) {
+    const defaults = new Set(EQUIPMENT_DEFAULTS[missionType] || []);
+    document.querySelectorAll('#m-equipment input[type=checkbox]')
+      .forEach(cb => { cb.checked = defaults.has(cb.value); });
+  }
+
+  document.getElementById('m-type').addEventListener('change',
+    e => applyEquipmentDefaults(e.target.value));
+  loadEquipmentCatalog();
 
   // ── Render the result card ────────────────────────────────────────────────
   // Stage 2: consumes the server-side MissionAssessment from
@@ -550,6 +617,8 @@
         <ul>${recs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>
       </div>` : ''}
 
+      ${renderEquipmentReadout(assessment.equipment)}
+
       <!-- Confidence / data quality -->
       <div class="mp-conf">
         <span class="mp-conf-label">Data quality</span>
@@ -605,6 +674,38 @@
     `;
   }
 
+  // ── Equipment readout (WarHacker P0-2) ────────────────────────────────────
+  // Doctrine-cited per-equipment findings + always-unaffected fallbacks.
+  function renderEquipmentReadout(eq) {
+    if (!eq || (!eq.findings?.length && !eq.unaffected?.length)) return '';
+    const chipClass = { GREEN: 'green', AMBER: 'amber', RED: 'red' };
+    const findings = (eq.findings || []).map(f => `
+      <div class="mp-eq-row">
+        <span class="mp-eq-chip ${chipClass[f.risk] || 'green'}">${f.risk}</span>
+        <div class="mp-eq-body">
+          <div class="nm">${escapeHtml(f.display_name)} <span style="color:var(--text-3);font-weight:400;">· ${escapeHtml(f.nomenclature)}</span></div>
+          <div>${escapeHtml(f.effect)}</div>
+          <div class="act">→ ${escapeHtml(f.action)}</div>
+          <div class="cit">${escapeHtml(f.citation)}</div>
+        </div>
+      </div>`).join('');
+    const unaffected = (eq.unaffected || []).map(u => `
+      <div class="mp-eq-row">
+        <span class="mp-eq-chip unaff">AVAIL</span>
+        <div class="mp-eq-body">
+          <div class="nm">${escapeHtml(u.display_name)} <span style="color:var(--text-3);font-weight:400;">· ${escapeHtml(u.nomenclature)}</span></div>
+          <div>Confirmed unaffected — ${escapeHtml(u.why)}</div>
+        </div>
+      </div>`).join('');
+    return `
+      <div class="mp-eq-readout">
+        <h4>Equipment impact · ${escapeHtml(eq.weather_state || '')}</h4>
+        <div class="mp-eq-basis">${escapeHtml(eq.likelihood || '')}</div>
+        ${findings}
+        ${unaffected}
+      </div>`;
+  }
+
   // Small HTML-escape utility — defends against rendering user-controlled
   // callsigns / mission names from inputs_echo.
   function escapeHtml(s) {
@@ -632,6 +733,9 @@
       time_window:     document.getElementById('m-window').value,
       callsign:        document.getElementById('m-callsign').value,
       waypoints,
+      equipment: Array.from(
+        document.querySelectorAll('#m-equipment input[type=checkbox]:checked')
+      ).map(cb => cb.value),
     };
   }
 

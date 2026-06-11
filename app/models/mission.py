@@ -40,8 +40,10 @@ from typing import Any
 
 # ── Mission inputs ───────────────────────────────────────────────────────────
 
-# The seven mission types the planner exposes. Keep in sync with
+# The mission types the planner exposes. Keep in sync with
 # app/pages/mission.html's <select id="m-type"> options.
+# The last four are military mission profiles (WarHacker P0-2) — they speak
+# the briefing-book vocabulary (AFATDS fires, SOF comms, CAS, maneuver).
 MISSION_TYPES: tuple[str, ...] = (
     "uav",
     "bvlos",
@@ -50,7 +52,24 @@ MISSION_TYPES: tuple[str, ...] = (
     "defense-patrol",
     "surveying",
     "autonomous-ground",
+    "fires-support",
+    "sof-comms",
+    "cas-coordination",
+    "ground-maneuver",
 )
+
+# Default equipment profile per military mission type (equipment ids from
+# app.models.equipment.EQUIPMENT). The UI pre-selects these; operators can
+# adjust. Civilian mission types default to empty (equipment readout is
+# opt-in there).
+DEFAULT_EQUIPMENT_BY_MISSION_TYPE: dict[str, tuple[str, ...]] = {
+    "fires-support": ("gps_single_freq", "counter_battery_radar", "hf_radio", "sincgars_fm"),
+    "sof-comms": ("hf_radio", "uhf_satcom", "sincgars_fm", "ehf_satcom"),
+    "cas-coordination": ("gps_single_freq", "uhf_satcom", "sincgars_fm"),
+    "ground-maneuver": ("gps_single_freq", "sincgars_fm"),
+    "defense-patrol": ("gps_single_freq", "uhf_satcom", "sincgars_fm"),
+    "uav": ("uas_group1", "gps_single_freq"),
+}
 
 GNSS_DEPENDENCE_LEVELS: tuple[str, ...] = ("low", "medium", "high", "rtk")
 COMMS_DEPENDENCE_LEVELS: tuple[str, ...] = ("low", "medium", "high")
@@ -78,6 +97,9 @@ class MissionRequest:
     waypoints: list[MissionWaypoint] = field(default_factory=list)
     time_window: str = "now"  # now | next-1h | next-6h | next-24h
     callsign: str = ""
+    # Equipment ids from app.models.equipment.EQUIPMENT. Empty = no
+    # equipment-level readout (civilian missions may not need one).
+    equipment: list[str] = field(default_factory=list)
 
 
 # ── Mapping tables ───────────────────────────────────────────────────────────
@@ -102,6 +124,10 @@ BASE_CRITICALITY_BY_MISSION_TYPE: dict[str, int] = {
     "defense-patrol": 4,
     "surveying": 3,
     "autonomous-ground": 3,
+    "fires-support": 5,  # coordinate error → rounds off target
+    "sof-comms": 5,  # comms loss is mission failure
+    "cas-coordination": 5,  # danger-close coordination
+    "ground-maneuver": 3,
 }
 
 # How risk tolerance adjusts the criticality (clamped 1..5).
@@ -182,6 +208,9 @@ class MissionAssessment:
     source_labels: dict[str, str]  # which sources are measured/modeled/heuristic
     raw_decision: dict[str, Any]  # underlying decision-engine response
     generated_at: str
+    # Equipment-level readout (app.models.equipment.EquipmentAssessment
+    # .to_dict()), present when the request named equipment.
+    equipment: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -192,6 +221,7 @@ class MissionAssessment:
             "gnss": asdict(self.gnss),
             "comms": asdict(self.comms),
             "data_quality": asdict(self.data_quality),
+            "equipment": self.equipment,
             "inputs_echo": self.inputs_echo,
             "source_labels": self.source_labels,
             "raw_decision": self.raw_decision,
@@ -453,15 +483,20 @@ def build_source_labels() -> dict[str, str]:
 # ── End-to-end assess ────────────────────────────────────────────────────────
 
 
-def assess_mission(req: MissionRequest, route_decision: dict[str, Any]) -> MissionAssessment:
+def assess_mission(
+    req: MissionRequest,
+    route_decision: dict[str, Any],
+    equipment_assessment: dict[str, Any] | None = None,
+) -> MissionAssessment:
     """Glue: take the engine's route-decision output + the mission profile,
     return the operator-facing MissionAssessment.
 
     The route-decision dict is what the engine already produces (the same
     shape POST /api/v2/route-decision returns). The HTTP layer (routes_v3)
-    is responsible for actually calling the engine and passing its dict here.
-    This signature keeps the mission module testable with pure fixtures —
-    no network needed.
+    is responsible for actually calling the engine and passing its dict here,
+    and likewise for running the equipment rule library against live drivers
+    and passing its to_dict() as equipment_assessment. This signature keeps
+    the mission module testable with pure fixtures — no network needed.
     """
     waypoints = route_decision.get("waypoints") or []
     asset_type = ASSET_BY_GNSS_DEPENDENCE.get(req.gnss_dependence, "GPS_L1L2")
@@ -486,6 +521,7 @@ def assess_mission(req: MissionRequest, route_decision: dict[str, Any]) -> Missi
         "time_window": req.time_window,
         "callsign": req.callsign,
         "waypoint_count": len(req.waypoints),
+        "equipment": list(req.equipment),
         "platform_kwargs": map_to_platform_kwargs(req),
     }
 
@@ -503,4 +539,5 @@ def assess_mission(req: MissionRequest, route_decision: dict[str, Any]) -> Missi
         source_labels=build_source_labels(),
         raw_decision=route_decision,
         generated_at=datetime.now(timezone.utc).isoformat(),
+        equipment=equipment_assessment,
     )
