@@ -41,6 +41,10 @@ NOAA_ENDPOINTS: dict[str, str] = {
     "proton": f"{_SWPC}/json/goes/primary/integral-protons-3-day.json",
     # 3-day Kp forecast: header row + [time_tag, kp, observed|predicted, noaa_scale] rows
     "kp_forecast": f"{_SWPC}/products/noaa-planetary-k-index-forecast.json",
+    # NOAA R/S/G scales: key "0" = current observed, "1"-"3" = forecast days
+    # with forecaster-issued probabilities (R MinorProb/MajorProb, S Prob).
+    # This is a dict product, not a list like the others.
+    "scales": f"{_SWPC}/products/noaa-scales.json",
 }
 
 # Conservative quiet-time fallback values used when feeds are unavailable.
@@ -64,6 +68,7 @@ _cache: dict = {
     "mag": None,
     "proton": None,
     "kp_forecast": None,  # NOAA 3-day Kp forecast (list with header row)
+    "scales": None,  # NOAA R/S/G scales + forecast probabilities (dict)
     "last_fetch": None,
     "fetch_status": {},  # key → "ok" | "timeout" | "http_NNN" | "error"
     "fetch_source": "startup",  # "live" | "fallback" | "startup"
@@ -82,11 +87,16 @@ async def fetch_noaa(timeout: float = 10.0) -> None:
                 r.raise_for_status()
                 data = r.json()
                 # wind, mag, and kp_forecast use a header row + tuple rows
-                # (ASCII-style products); others are arrays of dicts.
-                header_row_feeds = {"kp_forecast", "wind", "mag"}
-                min_len = 2 if key in header_row_feeds else 1
-                if not isinstance(data, list) or len(data) < min_len:
-                    raise ValueError(f"Unexpected payload shape for {key}")
+                # (ASCII-style products); scales is a dict keyed "0"-"3";
+                # others are arrays of dicts.
+                if key == "scales":
+                    if not isinstance(data, dict) or "0" not in data:
+                        raise ValueError(f"Unexpected payload shape for {key}")
+                else:
+                    header_row_feeds = {"kp_forecast", "wind", "mag"}
+                    min_len = 2 if key in header_row_feeds else 1
+                    if not isinstance(data, list) or len(data) < min_len:
+                        raise ValueError(f"Unexpected payload shape for {key}")
                 _cache[key] = data
                 _cache["fetch_status"][key] = "ok"
                 logger.debug("NOAA %s: %d records", key, len(data))
@@ -141,6 +151,62 @@ def get_xray_flux() -> float:
     except Exception:
         logger.debug("get_xray_flux: parse error, using fallback")
     return FALLBACK["xray_flux"]
+
+
+def get_noaa_scales() -> dict | None:
+    """NOAA forecaster-issued R/S/G scales — observed + 3-day probabilities.
+
+    Normalizes the noaa-scales.json product:
+      {"observed": {"r_scale": int, "s_scale": int, "g_scale": int,
+                    "date": "YYYY-MM-DD", "time": "HH:MM:SS"},
+       "forecast": [{"day": 1, "date": ..., "r_minor_prob": float|None,
+                     "r_major_prob": float|None, "s1_prob": float|None,
+                     "g_predicted": int|None}, ...]}
+
+    Returns None when the feed has never loaded — callers must not invent
+    probabilities in that case.
+    """
+    raw = _cache.get("scales")
+    if not isinstance(raw, dict) or "0" not in raw:
+        return None
+
+    def _num(v) -> float | None:
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    try:
+        obs = raw["0"]
+        out: dict = {
+            "observed": {
+                "r_scale": int(_num(obs.get("R", {}).get("Scale")) or 0),
+                "s_scale": int(_num(obs.get("S", {}).get("Scale")) or 0),
+                "g_scale": int(_num(obs.get("G", {}).get("Scale")) or 0),
+                "date": obs.get("DateStamp"),
+                "time": obs.get("TimeStamp"),
+            },
+            "forecast": [],
+        }
+        for day in ("1", "2", "3"):
+            d = raw.get(day)
+            if not isinstance(d, dict):
+                continue
+            g_pred = _num(d.get("G", {}).get("Scale"))
+            out["forecast"].append(
+                {
+                    "day": int(day),
+                    "date": d.get("DateStamp"),
+                    "r_minor_prob": _num(d.get("R", {}).get("MinorProb")),
+                    "r_major_prob": _num(d.get("R", {}).get("MajorProb")),
+                    "s1_prob": _num(d.get("S", {}).get("Prob")),
+                    "g_predicted": int(g_pred) if g_pred is not None else None,
+                }
+            )
+        return out
+    except Exception:
+        logger.debug("get_noaa_scales: parse error", exc_info=True)
+        return None
 
 
 def get_xray_class() -> str:
