@@ -86,32 +86,49 @@ def parse_kp_forecast(raw: list) -> list[dict]:
     """
     Parse NOAA noaa-planetary-k-index-forecast.json.
 
-    Format:
-      Row 0: ["time_tag", "kp", "observed", "noaa_scale"]  ← header
-      Row N: ["2026-04-21 00:00:00", "2.33", "observed", ""]
-             ["2026-04-22 12:00:00", "4.00", "predicted", "G1"]
+    NOAA serves this product as an **array of dicts** (no header row):
+      {"time_tag": "2026-06-07T00:00:00", "kp": 2.67,
+       "observed": "observed"|"predicted", "noaa_scale": "G1"|null}
 
-    All timestamps are UTC. 'observed' = measured; 'predicted' = NOAA forecast.
+    A legacy header-row + array-of-arrays layout is also accepted for
+    resilience:
+      ["time_tag", "kp", "observed", "noaa_scale"]   ← header
+      ["2026-04-21 00:00:00", "2.33", "observed", ""]
+
+    All timestamps are UTC. observed = measured; predicted = NOAA forecast.
     """
-    if not raw or len(raw) < 2:
+    if not raw:
         return []
 
+    def _parse_time(v) -> datetime:
+        s = str(v).strip().replace(" ", "T")
+        if "+" not in s and not s.endswith("Z"):
+            s += "+00:00"
+        return datetime.fromisoformat(s)
+
     entries: list[dict] = []
-    for row in raw[1:]:  # skip header row
-        if not isinstance(row, (list, tuple)) or len(row) < 3:
-            continue
+    for row in raw:
         try:
-            time_str = str(row[0]).strip().replace(" ", "T")
-            if "+" not in time_str and not time_str.endswith("Z"):
-                time_str += "+00:00"
-            ts = datetime.fromisoformat(time_str)
-            kp = round(float(row[1]), 2)
-            is_forecast = str(row[2]).strip().lower() in ("predicted", "estimated")
+            if isinstance(row, dict):
+                # Native array-of-dicts format.
+                if "time_tag" not in row or row.get("kp") is None:
+                    continue
+                ts = _parse_time(row["time_tag"])
+                kp = round(float(row["kp"]), 2)
+                kind = str(row.get("observed", "")).strip().lower()
+            elif isinstance(row, (list, tuple)) and len(row) >= 3:
+                # Legacy header+arrays format — the header row (col names) and
+                # any non-numeric kp cell are skipped by the float() guard.
+                ts = _parse_time(row[0])
+                kp = round(float(row[1]), 2)
+                kind = str(row[2]).strip().lower()
+            else:
+                continue
             entries.append(
                 {
                     "time": ts,
                     "kp": kp,
-                    "type": "forecast" if is_forecast else "observed",
+                    "type": "forecast" if kind in ("predicted", "estimated") else "observed",
                     "risk_level": _kp_to_risk(kp),
                 }
             )

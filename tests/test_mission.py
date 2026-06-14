@@ -664,7 +664,7 @@ def test_http_overlay_kml_live_mode_reads_forecast_from_cache():
     from app.data import noaa
 
     saved = noaa._cache.get("kp_forecast")
-    # header row + future-dated predicted bins (UTC, "YYYY-MM-DD HH:MM:SS")
+    # The REAL NOAA product shape: array of dicts, no header row, ISO time_tag.
     future = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=3)
     f2 = future + timedelta(hours=3)
     try:
@@ -672,9 +672,14 @@ def test_http_overlay_kml_live_mode_reads_forecast_from_cache():
             # Seed AFTER startup — the lifespan's initial fetch would overwrite
             # anything set before the client context opens.
             noaa._cache["kp_forecast"] = [
-                ["time_tag", "kp", "observed", "noaa_scale"],
-                [future.strftime("%Y-%m-%d %H:%M:%S"), "5.67", "predicted", "G1"],
-                [f2.strftime("%Y-%m-%d %H:%M:%S"), "7.33", "predicted", "G3"],
+                {"time_tag": "2026-06-07T00:00:00", "kp": 2.67, "observed": "observed", "noaa_scale": None},
+                {
+                    "time_tag": future.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "kp": 5.67,
+                    "observed": "predicted",
+                    "noaa_scale": "G1",
+                },
+                {"time_tag": f2.strftime("%Y-%m-%dT%H:%M:%S"), "kp": 7.33, "observed": "predicted", "noaa_scale": "G3"},
             ]
             r = client.get("/api/v3/mission/overlay.kml?lat=38.8&lon=-104.5")
         assert r.status_code == 200
