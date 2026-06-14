@@ -31,9 +31,7 @@ RULE = HexColor("#c9d2da")
 
 S_TITLE = ParagraphStyle("t", fontName="Helvetica-Bold", fontSize=17, textColor=INK, spaceAfter=1)
 S_SUB = ParagraphStyle("s", fontName="Helvetica", fontSize=8.5, textColor=MUTED, spaceAfter=6)
-S_H = ParagraphStyle(
-    "h", fontName="Helvetica-Bold", fontSize=9.5, textColor=ACCENT, spaceBefore=7, spaceAfter=2
-)
+S_H = ParagraphStyle("h", fontName="Helvetica-Bold", fontSize=9.5, textColor=ACCENT, spaceBefore=7, spaceAfter=2)
 S_BODY = ParagraphStyle("b", fontName="Helvetica", fontSize=8.2, leading=10.6, textColor=INK)
 S_SMALL = ParagraphStyle("sm", fontName="Helvetica", fontSize=7.4, leading=9.4, textColor=MUTED)
 S_CELL = ParagraphStyle("c", fontName="Helvetica", fontSize=7.6, leading=9.6, textColor=INK)
@@ -82,7 +80,10 @@ inputs = Table(
     [
         [
             Paragraph("<b>Kp index</b> — global geomagnetic disturbance, 0–9 (NOAA/GFZ magnetometers)", S_CELL),
-            Paragraph("<b>IMF B<sub>z</sub></b> — solar-wind field N–S component, DSCOVR @ L1. Sustained southward (&lt; −10 nT) reconnects with the geomagnetic field: the storm trigger", S_CELL),
+            Paragraph(
+                "<b>IMF B<sub>z</sub></b> — solar-wind field N–S component, DSCOVR @ L1. Sustained southward (&lt; −10 nT) reconnects with the geomagnetic field: the storm trigger",
+                S_CELL,
+            ),
         ],
         [
             Paragraph("<b>GOES X-ray flux</b> (1–8 Å) — flare class A/B/C/M/X is log-scale flux", S_CELL),
@@ -90,7 +91,10 @@ inputs = Table(
         ],
         [
             Paragraph("<b>GloTEC</b> — measured global Total Electron Content map", S_CELL),
-            Paragraph("<b>Solar wind speed/density, F10.7</b>, NOAA 3-day Kp forecast + forecaster R/S/G probabilities", S_CELL),
+            Paragraph(
+                "<b>Solar wind speed/density, F10.7</b>, NOAA 3-day Kp forecast + forecaster R/S/G probabilities",
+                S_CELL,
+            ),
         ],
     ],
     colWidths=[3.65 * inch, 3.75 * inch],
