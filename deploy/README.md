@@ -17,6 +17,41 @@ Written for a founder, not a platform engineer. Follow top to bottom.
 | `zarf/zarf.yaml` | Zarf package — bundles image + chart into one air-gap-portable tarball |
 | `uds/uds-bundle.yaml` | UDS bundle — k3d + UDS Core + IonShield, the "demo in a box" |
 | `scripts/build-and-package.sh` | One command: build image → create Zarf package |
+| `scripts/demo-preflight.sh` | Idempotent up + self-heal + PASS/FAIL report (run before any demo) |
+| `scripts/install-autoheal.sh` | Installs the LaunchAgent that runs preflight on login + every 5 min |
+
+## Keeping it always-up (laptop sleep / reboot)
+
+The local UDS stack runs inside Colima (a VM). When the laptop sleeps or
+reboots, a few things break — and `demo-preflight.sh` heals all of them
+idempotently:
+
+1. **Colima VM stopped** → `colima start`
+2. **k3d cluster stopped** → `k3d cluster start uds`
+3. **CoreDNS dead upstream** → k3s falls back to an unreachable `8.8.8.8`
+   because the node resolver is loopback; the script repoints it at Colima's
+   reachable resolver `192.168.5.1`. (Only affects *live* data — offline,
+   cache-and-carry keeps serving.)
+4. **Istio mesh certs expired** (gateway 503 after ~24 h idle) → restart the
+   tenant gateway + app pod
+5. **Tripped NOAA circuit breaker** → self-heals once DNS is back
+
+**Automatic:** `install-autoheal.sh` registers a macOS LaunchAgent that runs
+the preflight at login and every 5 minutes (the interval catches wake-from-
+sleep). When healthy it's a fast no-op; it only heals what's actually down.
+A full cold start (Colima off → all green, 7/7 live feeds) takes ~60 s.
+
+```bash
+./deploy/scripts/install-autoheal.sh        # one-time setup
+bash ~/.ionshield/demo-preflight.sh         # force a run / verify before a demo
+tail -f /tmp/ionshield-preflight.log        # watch the heartbeat
+./deploy/scripts/install-autoheal.sh --remove   # uninstall
+```
+
+Honest limits: a laptop dev cluster is not cloud HA. On wake or after a
+break it can take up to the 5-minute interval to self-heal — so **before a
+live demo, run `demo-preflight.sh` by hand** for an instant green. The agent
+only runs while you're logged in.
 
 ## The mental model (30 seconds)
 

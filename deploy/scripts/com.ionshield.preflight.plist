@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  IonShield UDS auto-heal LaunchAgent.
+
+  Runs demo-preflight.sh at login (RunAtLoad) and every 5 minutes
+  (StartInterval) — the interval catches wake-from-sleep, since macOS does
+  not fire a login event on wake. When the stack is already healthy the run
+  is a fast no-op (a few local curls); it only heals when something is down.
+
+  Install:
+    cp deploy/scripts/com.ionshield.preflight.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.ionshield.preflight.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.ionshield.preflight.plist
+    rm ~/Library/LaunchAgents/com.ionshield.preflight.plist
+
+  Watch it:  tail -f /tmp/ionshield-preflight.log
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ionshield.preflight</string>
+
+  <!-- Runs from ~/.ionshield (NOT the Desktop — macOS TCC blocks launchd from
+       executing scripts inside Desktop/Documents/Downloads). The installer
+       copies demo-preflight.sh there. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jacobewest/.ionshield/demo-preflight.sh</string>
+    <string>--quiet</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StartInterval</key>
+  <integer>300</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/ionshield-preflight.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/ionshield-preflight.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/jacobewest/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/jacobewest</string>
+  </dict>
+</dict>
+</plist>
