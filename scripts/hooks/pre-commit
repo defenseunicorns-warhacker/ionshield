@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# IonShield pre-commit hook: auto-format staged Python with ruff, then lint.
+#
+# Mirrors CI exactly (ruff format + ruff check) so a style miss can never
+# reach GitHub again. Auto-formats and re-stages; fails the commit only on a
+# real lint error you must fix by hand.
+#
+# Install (one time):  ./scripts/hooks/install.sh
+# Bypass once:         git commit --no-verify
+set -uo pipefail
+
+# Find ruff: PATH first, then the pinned framework python, then `python -m`.
+RUFF=""
+if command -v ruff >/dev/null 2>&1; then
+  RUFF="ruff"
+else
+  for p in /Library/Frameworks/Python.framework/Versions/*/bin/ruff "$HOME/.local/bin/ruff"; do
+    [ -x "$p" ] && RUFF="$p" && break
+  done
+fi
+if [ -z "$RUFF" ]; then
+  for py in python3 python; do
+    if command -v "$py" >/dev/null 2>&1 && "$py" -m ruff --version >/dev/null 2>&1; then
+      RUFF="$py -m ruff"; break
+    fi
+  done
+fi
+if [ -z "$RUFF" ]; then
+  echo "pre-commit: ruff not found — skipping (install: pip install ruff==0.8.6)" >&2
+  exit 0
+fi
+
+# Staged Python files (added/copied/modified). Newline-split is fine — Python
+# source filenames don't contain newlines. Kept bash-3.2 compatible (macOS).
+PYFILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
+[ -z "$PYFILES" ] && exit 0
+
+# 1. Auto-format and re-stage anything ruff touched.
+# shellcheck disable=SC2086
+$RUFF format $PYFILES >/dev/null 2>&1
+CHANGED=0
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
+    git add -- "$f"; CHANGED=1
+  fi
+done <<EOF
+$PYFILES
+EOF
+[ "$CHANGED" = 1 ] && echo "pre-commit: ruff formatted + re-staged staged Python file(s)"
+
+# 2. Lint — block the commit on real errors.
+# shellcheck disable=SC2086
+if ! $RUFF check $PYFILES; then
+  echo "pre-commit: ruff check failed — fix the above, then re-commit." >&2
+  exit 1
+fi
+exit 0
