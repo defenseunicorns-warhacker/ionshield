@@ -655,6 +655,35 @@ def test_http_overlay_kml_live_mode_empty_forecast_is_valid_kml():
     assert "<kml xmlns=" in r.text
 
 
+def test_http_overlay_kml_live_mode_reads_forecast_from_cache():
+    # Regression: the endpoint must read raw forecast rows from noaa._cache,
+    # NOT cache_snapshot() (which carries only metadata). Seed the cache with
+    # the real NOAA forecast product shape and assert zones are produced.
+    from datetime import datetime, timedelta, timezone
+
+    from app.data import noaa
+
+    saved = noaa._cache.get("kp_forecast")
+    # header row + future-dated predicted bins (UTC, "YYYY-MM-DD HH:MM:SS")
+    future = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=3)
+    f2 = future + timedelta(hours=3)
+    try:
+        with TestClient(app) as client:
+            # Seed AFTER startup — the lifespan's initial fetch would overwrite
+            # anything set before the client context opens.
+            noaa._cache["kp_forecast"] = [
+                ["time_tag", "kp", "observed", "noaa_scale"],
+                [future.strftime("%Y-%m-%d %H:%M:%S"), "5.67", "predicted", "G1"],
+                [f2.strftime("%Y-%m-%d %H:%M:%S"), "7.33", "predicted", "G3"],
+            ]
+            r = client.get("/api/v3/mission/overlay.kml?lat=38.8&lon=-104.5")
+        assert r.status_code == 200
+        assert r.text.count("<Placemark>") >= 2
+        assert "NOAA SWPC 3-day Kp forecast" in r.text
+    finally:
+        noaa._cache["kp_forecast"] = saved
+
+
 def test_http_overlay_kml_validation():
     with TestClient(app) as client:
         r1 = client.get("/api/v3/mission/overlay.kml?lat=99&lon=0")

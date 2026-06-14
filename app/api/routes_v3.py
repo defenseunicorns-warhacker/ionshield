@@ -2008,10 +2008,12 @@ async def mission_overlay_kml(
             )
         kml = build_replay_overlay_kml(lat, lon, radius_km, scn)
     else:
-        from app.data.noaa import cache_snapshot as _noaa_cache_snapshot
+        # Raw forecast rows live in the feed cache itself; cache_snapshot()
+        # only carries metadata (timestamps/status), so read _cache directly.
+        from app.data.noaa import _cache as _noaa_cache
         from app.models.forecast import parse_kp_forecast
 
-        entries = parse_kp_forecast(_noaa_cache_snapshot().get("kp_forecast") or [])
+        entries = parse_kp_forecast(_noaa_cache.get("kp_forecast") or [])
         kml = build_live_overlay_kml(lat, lon, radius_km, entries)
 
     return Response(
