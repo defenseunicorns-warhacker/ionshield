@@ -7,7 +7,7 @@ autonomy-dependent missions. This directory takes it from "runs on Render" to
 
 Written for a founder, not a platform engineer. Follow top to bottom.
 
-> **Current deployed image tag:** `0.1.3` (mission-assurance UI reframe). Bump
+> **Current deployed image tag:** `0.1.4` (no-cache headers + mission-assurance reframe). Bump
 > this on every backend or UI change — see *Updating a running deployment* below.
 
 ---

@@ -479,6 +479,17 @@ def create_app() -> FastAPI:
         response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
         # HSTS: only set when behind TLS (PaaS platforms handle TLS termination)
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+        # Cache policy. HTML pages and the un-hashed nav.js must always
+        # revalidate so a redeploy is visible immediately (no stale framing /
+        # no hard-refresh required). Content-hashed build assets
+        # (/static/assets/*, /static/cesium/*) keep their long immutable cache.
+        ct = response.headers.get("content-type", "")
+        path = request.url.path
+        if ct.startswith("text/html") or path.endswith("/nav.js"):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        elif path.startswith("/static/assets/") or path.startswith("/static/cesium/"):
+            response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
         return response
 
     # Phase 1: audit log — record every /api/v3/* request with resolved tenant.

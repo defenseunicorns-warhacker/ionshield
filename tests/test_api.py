@@ -39,6 +39,16 @@ def test_dashboard_serves_html():
     assert r.headers["content-type"].startswith("text/html")
 
 
+def test_html_and_navjs_force_revalidation():
+    # HTML pages + nav.js must not be cached stale — a redeploy must show up
+    # without a hard refresh.
+    for path in ("/", "/mission", "/dashboard", "/static/nav.js"):
+        r = client.get(path)
+        assert "no-cache" in (r.headers.get("cache-control") or ""), path
+    # API responses are not forced to no-cache by this rule.
+    assert "no-cache" not in (client.get("/api/status").headers.get("cache-control") or "")
+
+
 # ── /api/status ───────────────────────────────────────────────────────────────
 
 
