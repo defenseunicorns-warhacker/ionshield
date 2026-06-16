@@ -1,9 +1,14 @@
 # Deploying IonShield on UDS (Defense Unicorns)
 
-This directory contains everything needed to take IonShield from "runs on
-Render" to "deploys on UDS / Kubernetes / air-gapped enclaves."
+IonShield is **PNT & communications mission assurance**: it translates real-time
+space weather into go / modify / delay decisions for GPS-, communications-, and
+autonomy-dependent missions. This directory takes it from "runs on Render" to
+"deploys on UDS / Kubernetes / air-gapped enclaves."
 
 Written for a founder, not a platform engineer. Follow top to bottom.
+
+> **Current deployed image tag:** `0.1.3` (mission-assurance UI reframe). Bump
+> this on every backend or UI change — see *Updating a running deployment* below.
 
 ---
 
@@ -90,11 +95,32 @@ export PATH="$HOME/.local/bin:$PATH"
 > After a reboot: `colima start` brings Docker back; `k3d cluster list`
 > shows the demo cluster.
 
+## Updating a running deployment (after a code or UI change)
+
+A redeploy with the **same** image tag will NOT roll the pod — UDS/Zarf rewrites
+images to its internal registry, and the Deployment spec doesn't change, so the
+old pod keeps running. Always **bump the tag** for any code/UI change:
+
+```bash
+# 1. Bump the tag in BOTH places (e.g. 0.1.3 → 0.1.4):
+#      deploy/chart/values.yaml   image.tag
+#      deploy/zarf/zarf.yaml      IMAGE_TAG constant + images[] entry
+# 2. Rebuild, repackage, redeploy (remove+deploy guarantees a clean pull):
+docker build -f deploy/docker/Dockerfile.hardened -t ghcr.io/ionshield/ionshield:<tag> .
+cd deploy/zarf && zarf package create . --confirm
+zarf package remove   zarf-package-ionshield-*.tar.zst --confirm
+zarf package deploy   zarf-package-ionshield-*.tar.zst --confirm
+# 3. Refresh the Istio mesh cert (gateway 503s after ~24h idle or a pod roll):
+zarf tools kubectl -n istio-tenant-gateway rollout restart deploy/tenant-ingressgateway
+# 4. Verify:
+bash ~/.ionshield/demo-preflight.sh
+```
+
 ## 1. Build the hardened image
 
 ```bash
 # from the repo root
-docker build -f deploy/docker/Dockerfile.hardened -t ghcr.io/ionshield/ionshield:0.1.0 .
+docker build -f deploy/docker/Dockerfile.hardened -t ghcr.io/ionshield/ionshield:0.1.3 .
 ```
 
 For a real defense deployment, swap the runtime base for an Iron Bank image
