@@ -43,7 +43,7 @@
           </div>
           <div>
             <div class="mkt-brand">IonShield</div>
-            <div class="mkt-brand-sub">Space Weather Intelligence</div>
+            <div class="mkt-brand-sub">PNT &amp; Comms Mission Assurance</div>
           </div>
         </a>
         <div class="mkt-nav-links">${navLinks}</div>
@@ -69,7 +69,7 @@
             </div>
             <div style="margin-left:8px;"><div class="mkt-brand">IonShield</div></div>
           </a>
-          <p>Operational space weather intelligence for GPS, HF comms, and route risk assessment. Built on real-time NOAA SWPC data with physics-based models.</p>
+          <p>PNT &amp; communications mission assurance for GPS-, communications-, and autonomy-dependent missions. Space weather translated into decision-ready operational intelligence — built on real-time NOAA SWPC data with physics-based models.</p>
         </div>
         <div class="mkt-footer-col">
           <h4>Product</h4>
@@ -77,7 +77,7 @@
           <a href="/demo">Live Demo</a>
           <a href="/pricing">Pricing & Pilot</a>
           <a href="/mission">Mission Planner</a>
-          <a href="/dashboard">Scientific dashboard</a>
+          <a href="/dashboard">Technical / scientific view</a>
         </div>
         <div class="mkt-footer-col">
           <h4>Resources</h4>

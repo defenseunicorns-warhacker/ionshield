@@ -27,6 +27,8 @@
 
     /* Scenario chips row */
     .mp-scenarios { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 24px; }
+    .mp-scenarios-alt { margin: -12px 0 24px; align-items: center; }
+    .mp-scenarios-altlabel { font-size: 11px; color: var(--text-3); margin-right: 4px; }
     .mp-scenario {
       background: var(--bg-2); border: 1px solid var(--border);
       border-radius: 8px; padding: 9px 12px; cursor: pointer;
@@ -300,6 +302,53 @@
     .mp-eq-body .nm { font-weight: 600; color: var(--text-1, #e6ecf2); }
     .mp-eq-body .act { color: var(--text-2); margin-top: 2px; }
     .mp-eq-body .cit { color: var(--text-3); font-size: 10.5px; margin-top: 2px; font-style: italic; }
+
+    /* ── Decision verdict + Mission Consequences (operator-first) ───────── */
+    .mp-verdict .level { letter-spacing: .3px; }
+    .mp-primary-rec { font-size: 13px; color: var(--text-1); margin: 6px 0 4px; line-height: 1.45; }
+    .mp-primary-rec-k { color: var(--text-3); font-weight: 700; text-transform: uppercase;
+                        font-size: 10.5px; letter-spacing: .4px; margin-right: 4px; }
+    .mp-cons { margin: 14px 0; border: 1px solid var(--line, #1f2a36); border-left: 3px solid var(--blue, #3b82f6);
+               border-radius: 10px; padding: 12px 14px; background: rgba(59,130,246,.04); }
+    .mp-cons h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-1, #e6ecf2); }
+    .mp-cons ul { list-style: none; padding: 0; margin: 0; }
+    .mp-cons li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line, #1f2a36); }
+    .mp-cons li:first-child { border-top: none; }
+    .mp-cons-chip { flex: 0 0 52px; text-align: center; font-size: 10px; font-weight: 700;
+                    border-radius: 5px; padding: 2px 0; height: fit-content; }
+    .mp-cons-chip.red   { background: rgba(239,68,68,.14);  color: var(--red); }
+    .mp-cons-chip.amber { background: rgba(245,158,11,.14); color: var(--yellow); }
+    .mp-cons-chip.green { background: rgba(16,185,129,.13); color: var(--green); }
+    .mp-cons-body { flex: 1; font-size: 12px; }
+    .mp-cons-fn { font-weight: 600; color: var(--text-1, #e6ecf2); }
+    .mp-cons-fail { color: var(--text-2); margin-top: 2px; line-height: 1.45; }
+    .mp-cons-none { font-size: 12px; color: var(--text-2); }
+    .mp-cons-foot { font-size: 10.5px; color: var(--text-3); margin-top: 9px; font-style: italic; }
+
+    /* ── Disconnected-mode hero callout ─────────────────────────────────── */
+    .mp-manual-hero { background: rgba(16,185,129,.08); border: 1px solid var(--green, #10b981);
+                      border-radius: 8px; padding: 9px 11px; color: var(--text-1, #e6ecf2);
+                      line-height: 1.5; margin-bottom: 10px; }
+
+    /* ── Roadmap / future-capability cards ──────────────────────────────── */
+    .mp-future { display: grid; gap: 18px; margin-top: 24px; grid-template-columns: 1fr; }
+    @media (min-width: 940px) { .mp-future { grid-template-columns: 1fr 1fr; } }
+    .mp-future-card { border: 1px dashed var(--line, #1f2a36); border-radius: 12px; padding: 16px 18px;
+                      background: rgba(255,255,255,.015); }
+    .mp-future-card h3 { margin: 8px 0 6px; font-size: 15px; color: var(--text-1, #e6ecf2); }
+    .mp-future-card p { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin: 0; }
+    .mp-future-sub { color: var(--text-3) !important; margin-bottom: 10px !important; }
+    .mp-future-tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .5px;
+                     text-transform: uppercase; color: var(--blue-hi, #60a5fa);
+                     background: rgba(96,165,250,.12); border-radius: 5px; padding: 3px 8px; }
+    .mp-future-tag.amber { color: var(--yellow, #f59e0b); background: rgba(245,158,11,.12); }
+    .mp-aar { display: flex; flex-direction: column; gap: 8px; opacity: .65; }
+    .mp-aar-q { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+                font-size: 12px; color: var(--text-2); }
+    .mp-aar-opts { display: flex; gap: 6px; }
+    .mp-aar-opts button { font-size: 11px; padding: 3px 10px; border-radius: 6px;
+                          border: 1px solid var(--line, #1f2a36); background: transparent;
+                          color: var(--text-3); cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -311,35 +360,51 @@
     <div>
       <h1>Mission Planner</h1>
       <p>
-        Define your mission. Get an operational reliability score, a plain-English
-        explanation of what space weather is driving the risk, and a recommended
-        action — backed by the live IonShield decision engine.
+        Define your mission. Get a clear mission-risk decision — go, modify, or
+        delay — the mission functions at risk, and the recommended operator
+        action. Space weather is the threat; IonShield translates it into a
+        decision. Backed by the live IonShield decision engine.
       </p>
     </div>
-    <a class="alt-link" href="/dashboard">View scientific dashboard →</a>
+    <a class="alt-link" href="/dashboard">Technical / scientific view →</a>
   </div>
 
-  <!-- ── Demo scenarios row ──────────────────────────────────────── -->
-  <div class="mp-scenarios" aria-label="Pre-baked demo scenarios">
-    <button class="mp-scenario" data-scenario="uav-polar">
-      <span class="lbl">UAV</span>
-      Polar inspection · GPS-degraded
+  <!-- ── Demo scenarios — defense/operator first ─────────────────── -->
+  <div class="mp-scenarios" aria-label="Operator demo scenarios">
+    <button class="mp-scenario" data-scenario="warhacker-uas-isr">
+      <span class="lbl">UAS ISR</span>
+      UAS ISR Patrol — GPS-Degraded Window
+    </button>
+    <button class="mp-scenario" data-scenario="sof-comms">
+      <span class="lbl">SOF COMMS</span>
+      SOF Comms Plan — HF Degradation
+    </button>
+    <button class="mp-scenario" data-scenario="atak-ground-team">
+      <span class="lbl">ATAK</span>
+      ATAK Ground Team — Position Confidence Risk
+    </button>
+    <button class="mp-scenario" data-scenario="fires-afatds">
+      <span class="lbl">FIRES</span>
+      Fires Support — AFATDS Coordinate Verification
+    </button>
+    <button class="mp-scenario" data-scenario="disconnected-ops">
+      <span class="lbl">DISCONNECTED</span>
+      Disconnected Ops — Manual Kp Entry
+    </button>
+  </div>
+  <div class="mp-scenarios mp-scenarios-alt" aria-label="Commercial demo scenarios">
+    <span class="mp-scenarios-altlabel">Commercial / dual-use:</span>
+    <button class="mp-scenario" data-scenario="bvls-corridor">
+      <span class="lbl">BVLOS</span>
+      Pipeline corridor flight
     </button>
     <button class="mp-scenario" data-scenario="ag-rtk">
       <span class="lbl">AG</span>
       RTK autosteer during planting
     </button>
-    <button class="mp-scenario" data-scenario="bvls-corridor">
-      <span class="lbl">BVLOS</span>
-      Pipeline corridor flight · elevated GPS uncertainty
-    </button>
-    <button class="mp-scenario" data-scenario="defense-patrol">
-      <span class="lbl">DEFENSE</span>
-      Patrol leg · degraded HF, GPS caution
-    </button>
-    <button class="mp-scenario" data-scenario="warhacker-uas-isr">
-      <span class="lbl">STORM REPLAY</span>
-      UAS ISR under G5 conditions · May 2024 Gannon storm
+    <button class="mp-scenario" data-scenario="uav-polar">
+      <span class="lbl">UAV</span>
+      Polar inspection · GPS-degraded
     </button>
   </div>
 
@@ -433,10 +498,15 @@
       <details class="mp-manual">
         <summary>Disconnected ops · manual observation entry</summary>
         <div class="mp-manual-body">
+          <div class="mp-manual-hint mp-manual-hero">
+            <strong>Disconnected Mode.</strong> If live feeds are unavailable, operators
+            can enter values from an approved weather brief or cached mission package.
+            The same local decision rules still run — no internet access required.
+          </div>
           <div class="mp-manual-hint">
-            No feed and no carried cache? Enter Kp from an authoritative brief
-            (S2 weather section, space weather officer). Assessments run the
-            same doctrine rules, labeled <strong>MANUAL</strong>. Expires after 3 h.
+            Enter Kp from an authoritative source (S2 weather section, space weather
+            officer brief). Assessments run the same doctrine rules, labeled
+            <strong>MANUAL</strong>. Expires after 3 h.
           </div>
           <div class="mp-manual-row">
             <input id="m-manual-kp" type="number" min="0" max="9" step="0.1" placeholder="Kp (0–9)" />
@@ -463,12 +533,43 @@
         <div class="ttl">No assessment yet</div>
         <div class="sub">
           Fill the mission profile on the left (or click a scenario above) and
-          press <strong>Assess Mission</strong>. The output shows your mission
-          risk level, reliability scores, and recommended action.
+          press <strong>Assess Mission</strong>. You'll get a mission-risk
+          decision (go / modify / delay), the mission consequences, and the
+          recommended operator action.
         </div>
       </div>
     </div>
 
+  </div>
+
+  <!-- ── Roadmap / future-capability framing ─────────────────────── -->
+  <div class="mp-future">
+    <div class="mp-future-card">
+      <div class="mp-future-tag">Future capability</div>
+      <h3>Customer-Specific Learning</h3>
+      <p>
+        Future versions of IonShield will learn from each unit's equipment,
+        mission history, and observed outcomes. The same environmental
+        conditions may generate different recommendations for different users
+        based on platform behavior, mission tolerance, and historical
+        performance.
+      </p>
+    </div>
+    <div class="mp-future-card">
+      <div class="mp-future-tag amber">Feedback loop prototype / coming next</div>
+      <h3>After Action Feedback</h3>
+      <p class="mp-future-sub">Closes the learning loop after the mission. Not yet wired.</p>
+      <div class="mp-aar" aria-disabled="true">
+        <label class="mp-aar-q"><span>Did GPS degrade as expected?</span>
+          <span class="mp-aar-opts"><button type="button" disabled>Yes</button><button type="button" disabled>No</button></span></label>
+        <label class="mp-aar-q"><span>Did comms degrade as expected?</span>
+          <span class="mp-aar-opts"><button type="button" disabled>Yes</button><button type="button" disabled>No</button></span></label>
+        <label class="mp-aar-q"><span>Was the recommendation useful?</span>
+          <span class="mp-aar-opts"><button type="button" disabled>Yes</button><button type="button" disabled>No</button></span></label>
+        <label class="mp-aar-q"><span>Mission outcome</span>
+          <span class="mp-aar-opts"><button type="button" disabled>Success</button><button type="button" disabled>Degraded</button><button type="button" disabled>Failed</button></span></label>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -502,7 +603,44 @@
   addWaypointRow('WP01', 38.8, -104.5);
 
   // ── Scenario presets ─────────────────────────────────────────────────────
+  // The defense/operator scenarios replay the REAL measured conditions of the
+  // May 2024 Gannon storm (scenario: 'gannon-2024', labeled REPLAY server-side)
+  // so the same storm is shown through different mission lenses — different
+  // equipment, different consequences. That contrast is the product thesis.
   const SCENARIOS = {
+    'warhacker-uas-isr': {
+      type: 'uav', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'Raven-ISR-1',
+      waypoints: [['LZ-North', 32.9, -117.1], ['OP-1', 33.1, -116.9], ['LZ-North-rtb', 32.9, -117.1]],
+      scenario: 'gannon-2024',
+      equipment: ['uas_group1', 'gps_single_freq', 'sincgars_fm'],
+    },
+    'sof-comms': {
+      type: 'sof-comms', gnss: 'medium', comms: 'high', tol: 'low', callsign: 'ODA-7231',
+      waypoints: [['ODA-Split', 36.2, -115.0], ['Relay-1', 36.8, -114.5]],
+      scenario: 'gannon-2024',
+      equipment: ['hf_radio', 'uhf_satcom', 'sincgars_fm', 'ehf_satcom'],
+    },
+    'atak-ground-team': {
+      type: 'ground-maneuver', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'Ground-Team-Alpha',
+      waypoints: [['TM-Lead', 34.5, -116.0], ['OP-2', 34.7, -115.8]],
+      scenario: 'gannon-2024',
+      equipment: ['gps_single_freq', 'sincgars_fm'],
+    },
+    'fires-afatds': {
+      type: 'fires-support', gnss: 'high', comms: 'high', tol: 'low', callsign: 'Steel-Rain-FDC',
+      waypoints: [['FB-Steel', 35.0, -117.0], ['TGT-1', 35.2, -116.8]],
+      scenario: 'gannon-2024',
+      equipment: ['gps_single_freq', 'counter_battery_radar', 'hf_radio', 'sincgars_fm'],
+    },
+    // Disconnected ops: no live feed — open the manual Kp entry panel so the
+    // operator enters a value from an approved brief. No replay.
+    'disconnected-ops': {
+      type: 'ground-maneuver', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'FOB-Apache',
+      waypoints: [['FOB-Apache', 34.9, -116.5]],
+      equipment: ['gps_single_freq', 'hf_radio', 'sincgars_fm'],
+      manual: true,
+    },
+    // ── Commercial / dual-use ────────────────────────────────────────────────
     'uav-polar': {
       type: 'uav', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'Polar-Insp-1',
       waypoints: [['WP01', 64.7, -147.1], ['WP02', 68.4, -149.2], ['WP03', 70.0, -149.0]],
@@ -514,20 +652,6 @@
     'bvls-corridor': {
       type: 'bvlos', gnss: 'high', comms: 'high', tol: 'low', callsign: 'BVLOS-Pipeline-A',
       waypoints: [['Start', 41.0, -104.5], ['Mid-1', 43.5, -106.0], ['Mid-2', 46.0, -107.5], ['End', 48.5, -109.0]],
-    },
-    'defense-patrol': {
-      type: 'defense-patrol', gnss: 'medium', comms: 'high', tol: 'low', callsign: 'Patrol-Bravo',
-      waypoints: [['Alpha', 35.7, 139.3], ['Bravo', 37.0, 140.0], ['Charlie', 38.5, 141.0]],
-    },
-    // WarHacker 90-second demo: Group 1 UAS ISR run against the REAL measured
-    // conditions of the May 2024 Gannon storm (replayed server-side, labeled
-    // REPLAY in the result). AO: San Diego training area.
-    'warhacker-uas-isr': {
-      type: 'uav', gnss: 'high', comms: 'medium', tol: 'low', callsign: 'Raven-ISR-1',
-      waypoints: [['LZ-North', 32.9, -117.1], ['OP-1', 33.1, -116.9], ['LZ-North-rtb', 32.9, -117.1]],
-      scenario: 'gannon-2024',
-      // Include SINCGARS so the readout shows the confirmed-unaffected fallback
-      equipment: ['uas_group1', 'gps_single_freq', 'sincgars_fm'],
     },
   };
 
@@ -558,7 +682,16 @@
       applyEquipmentDefaults(s.type);
     }
     activeScenario = s.scenario || '';
-    document.getElementById('m-run').focus();
+    // Disconnected-ops scenario: surface the manual Kp entry panel so the
+    // operator can enter a value from an approved brief.
+    if (s.manual) {
+      const panel = document.querySelector('.mp-manual');
+      if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      const kp = document.getElementById('m-manual-kp');
+      if (kp) kp.focus();
+    } else {
+      document.getElementById('m-run').focus();
+    }
   }
 
   // Stage 2 note: mission-language → decision-engine mapping lives
@@ -599,10 +732,86 @@
     e => { applyEquipmentDefaults(e.target.value); activeScenario = ''; });
   loadEquipmentCatalog();
 
+  // ── Decision framing (presentation only — backend verdict unchanged) ──────
+  // Engine mission_risk_level → operator-facing risk label + decision verb.
+  const RISK_DISPLAY = {
+    CLEAR:     { label: 'CLEAR',    decision: 'GO',             cls: 'go' },
+    CAUTION:   { label: 'CAUTION',  decision: 'MODIFY',         cls: 'advisory' },
+    HIGH_RISK: { label: 'WARNING',  decision: 'MODIFY / DELAY', cls: 'caution' },
+    DELAY:     { label: 'CRITICAL', decision: 'DELAY / ABORT',  cls: 'no_go' },
+  };
+
+  // Map equipment id → the mission function it supports (operator language).
+  const FUNCTION_BY_EQUIPMENT = {
+    gps_single_freq:       'Navigation / waypoint & target accuracy',
+    uas_group1:            'Autonomous flight / position hold',
+    hf_radio:              'HF reachback / beyond-line-of-sight comms',
+    uhf_satcom:            'UHF SATCOM / TACSAT C2',
+    counter_battery_radar: 'Counter-battery detection',
+  };
+
+  // Build operator-facing "what could fail / what function / what decision"
+  // bullets strictly from the real assessment (equipment findings + scores).
+  function deriveConsequences(a, gnss, comms) {
+    const out = [];
+    const eq = a.equipment || {};
+    for (const f of (eq.findings || [])) {
+      if (f.risk === 'GREEN') continue;
+      out.push({
+        risk: f.risk,
+        fn: FUNCTION_BY_EQUIPMENT[f.equipment_id] || f.display_name,
+        fail: f.effect,
+      });
+    }
+    const tol = Number(gnss.tolerance_m ?? 0), worst = Number(gnss.worst_error_m ?? 0);
+    if (tol > 0 && worst > tol) {
+      out.push({
+        risk: worst > tol * 2 ? 'RED' : 'AMBER',
+        fn: 'Position confidence / blue-force tracking',
+        fail: `GPS uncertainty ~${worst.toFixed(1)} m exceeds this mission's ${tol.toFixed(1)} m tolerance — waypoint, target, and reported-position confidence may degrade.`,
+      });
+    }
+    const totalLegs = Number(comms.total_legs ?? 0), hfLegs = Number(comms.hf_viable_legs ?? 0);
+    if (comms.pca_active || (totalLegs > 0 && hfLegs < totalLegs)) {
+      out.push({
+        risk: (totalLegs > 0 && hfLegs === 0) || comms.pca_active ? 'RED' : 'AMBER',
+        fn: 'HF reachback / comms continuity',
+        fail: `HF reachback may be unreliable during the mission window (${hfLegs}/${totalLegs} legs viable${comms.pca_active ? ', polar-cap absorption active' : ''}).`,
+      });
+    }
+    return out;
+  }
+
+  // One-sentence mission consequence for the verdict header.
+  function consequenceSentence(cons) {
+    if (!cons.length) return 'No significant mission impact expected from current space-weather conditions.';
+    const red = cons.find(c => c.risk === 'RED');
+    return (red || cons[0]).fail;
+  }
+
+  // Primary recommendation. The engine sometimes leads its action list with a
+  // generic "all clear" line even when the mission verdict escalates (e.g. an
+  // RTK mission delayed by tight tolerance under calm space weather). For any
+  // non-GO decision, lead with the first *substantive* action so the headline
+  // stays coherent with the verdict.
+  function primaryRecommendation(recs, decision) {
+    const list = recs || [];
+    const generic = /^(No significant|Standard)\b/i;
+    const substantive = list.filter(r => !generic.test(String(r).trim()));
+    if (decision !== 'GO' && substantive.length) return substantive[0];
+    if (list.length) return list[0];
+    return {
+      'GO': 'Proceed as planned. Continue normal monitoring.',
+      'MODIFY': 'Modify the plan: add operator oversight or shift timing where flexible.',
+      'MODIFY / DELAY': 'Increase operator oversight; delay time-sensitive autonomous operations if timing allows.',
+      'DELAY / ABORT': 'Delay or abort the mission until conditions improve, or shift to unaffected systems.',
+    }[decision] || 'Review mission consequences below.';
+  }
+
   // ── Render the result card ────────────────────────────────────────────────
-  // Stage 2: consumes the server-side MissionAssessment from
-  // POST /api/v3/mission/assess. Scoring + verdict are now derived
-  // server-side and mission-aware; the UI is purely presentation.
+  // Consumes the server-side MissionAssessment from POST /api/v3/mission/assess.
+  // Scoring + verdict are derived server-side; the UI prioritizes the operator
+  // decision, then mission consequences, then technical detail + audit trail.
   function renderResult(assessment) {
     const root = document.getElementById('m-result');
     if (!assessment) {
@@ -635,6 +844,13 @@
     const commsScore = Number(comms.score || 0);
     const recs = assessment.recommended_actions || [];
 
+    // Operator decision framing + derived mission consequences.
+    const disp = RISK_DISPLAY[level] || RISK_DISPLAY.CLEAR;
+    const consequences = deriveConsequences(assessment, gnss, comms);
+    const primaryRec = primaryRecommendation(recs, disp.decision);
+    const oneLineConsequence = consequenceSentence(consequences);
+    const consChip = { RED: 'red', AMBER: 'amber', GREEN: 'green' };
+
     const obs  = (prov.observations_used || []).join(', ') || '—';
     const fcs  = (prov.forecasts_used    || []).join(', ') || '—';
 
@@ -646,10 +862,27 @@
 
     root.innerHTML = `
       ${replayBanner}
-      <!-- Verdict -->
-      <div class="mp-verdict ${verdictClass}">
-        <div class="level">Mission risk · ${assessment.mission_risk_summary || level}</div>
-        <div class="summary">${assessment.plain_explanation || 'No explanation provided.'}</div>
+      <!-- Decision verdict (operator-first) -->
+      <div class="mp-verdict ${disp.cls}">
+        <div class="level">MISSION RISK: ${disp.label} — ${disp.decision}</div>
+        <div class="mp-primary-rec"><span class="mp-primary-rec-k">Primary recommendation:</span> ${escapeHtml(primaryRec)}</div>
+        <div class="summary">${escapeHtml(oneLineConsequence)}</div>
+      </div>
+
+      <!-- Mission Consequences (operator-facing, above technical detail) -->
+      <div class="mp-cons">
+        <h4>Mission Consequences</h4>
+        ${consequences.length ? `
+        <ul>${consequences.map(c => `
+          <li>
+            <span class="mp-cons-chip ${consChip[c.risk] || 'amber'}">${c.risk}</span>
+            <div class="mp-cons-body">
+              <div class="mp-cons-fn">${escapeHtml(c.fn)}</div>
+              <div class="mp-cons-fail">${escapeHtml(c.fail)}</div>
+            </div>
+          </li>`).join('')}</ul>` : `
+        <div class="mp-cons-none">No significant mission functions affected by current conditions.</div>`}
+        <div class="mp-cons-foot">What could fail → which mission function → drives the decision above. Technical detail and audit trail below.</div>
       </div>
 
       <!-- Reliability scores -->
@@ -712,9 +945,9 @@
         </span>
       </div>
 
-      <!-- Provenance (collapsible) -->
+      <!-- Inputs & Provenance / Audit Trail (collapsible, de-emphasized) -->
       <details class="mp-prov">
-        <summary>Inputs &amp; provenance</summary>
+        <summary>Inputs &amp; Provenance / Audit Trail</summary>
         <div class="mp-prov-body">
           <div class="mp-prov-row">
             <span class="mp-prov-k">Mission</span>
