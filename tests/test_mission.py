@@ -695,3 +695,42 @@ def test_http_overlay_kml_validation():
         r2 = client.get("/api/v3/mission/overlay.kml?lat=0&lon=0&scenario=nope")
     assert r1.status_code == 422
     assert r2.status_code == 422
+
+
+# ── Data completeness resilience (transient poll failure) ────────────────────
+
+
+def test_recent_cache_keeps_completeness_high_after_failed_poll():
+    """A single failed NOAA poll must NOT zero data completeness when recent
+    real data is still cached — freshness/staleness handles the age signal."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.api.routes_v2 import _build_env
+    from app.data import noaa
+
+    saved = {k: noaa._cache.get(k) for k in ("fetch_status", "kp", "kp_forecast", "last_fetch")}
+    try:
+        noaa._cache["fetch_status"] = {
+            k: "error" for k in ("kp", "xray", "wind", "mag", "proton", "kp_forecast", "scales")
+        }
+        noaa._cache["kp"] = [{"kp_index": 1.0}]
+        noaa._cache["kp_forecast"] = [
+            {"time_tag": "2026-06-16T00:00:00", "kp": 1.0, "observed": "predicted", "noaa_scale": None}
+        ]
+        # last successful fetch 4 minutes ago → still usable
+        noaa._cache["last_fetch"] = (datetime.now(timezone.utc) - timedelta(minutes=4)).isoformat()
+        env = _build_env()
+        total = len(env.feeds_available) + len(env.feeds_unavailable)
+        completeness = len(env.feeds_available) / total if total else 1.0
+        assert completeness > 0.8, f"recent cache should stay usable, got {completeness}"
+        assert "kp_forecast" not in (set(env.feeds_available) & set(env.feeds_unavailable))
+
+        # Genuinely stale (90 min, repeated failures) → completeness honestly drops
+        noaa._cache["last_fetch"] = (datetime.now(timezone.utc) - timedelta(minutes=90)).isoformat()
+        env2 = _build_env()
+        total2 = len(env2.feeds_available) + len(env2.feeds_unavailable)
+        comp2 = len(env2.feeds_available) / total2 if total2 else 1.0
+        assert comp2 == 0.0
+    finally:
+        for k, v in saved.items():
+            noaa._cache[k] = v

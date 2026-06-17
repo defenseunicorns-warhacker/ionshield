@@ -129,16 +129,25 @@ def _build_env() -> EnvironmentSnapshot:
     """
     snap = cache_snapshot()
     feed_status: dict[str, str] = snap["fetch_status"]
+    age = snap["data_age_seconds"]
 
-    feeds_available = [k for k, v in feed_status.items() if v == "ok"]
-    feeds_unavailable = [k for k, v in feed_status.items() if v != "ok"]
+    # Data completeness reflects whether we hold USABLE data, not whether the
+    # single latest poll succeeded. A feed counts as available if its last poll
+    # was OK, or it failed transiently but we still hold recent cached data
+    # (age within the usable window). Otherwise a single missed refresh would
+    # read as "0% data / LOW quality" even with real, minutes-old data in hand
+    # — the freshness/staleness penalty separately accounts for the age.
+    USABLE_CACHE_WINDOW_S = 1800  # 30 min — Kp/forecast stay decision-useful well past this
+    have_recent_cache = age is not None and age <= USABLE_CACHE_WINDOW_S
+
+    feeds_available = [k for k, v in feed_status.items() if v == "ok" or have_recent_cache]
+    feeds_unavailable = [k for k, v in feed_status.items() if v != "ok" and not have_recent_cache]
 
     kp_val = get_kp()
     bz_val = get_bz()
     xray_val = get_xray_flux()
     proton_val = get_proton_flux_10mev()
     wind_val = get_wind_speed()
-    age = snap["data_age_seconds"]
     now_iso = datetime.now(timezone.utc).isoformat()
 
     observations = [
@@ -185,7 +194,7 @@ def _build_env() -> EnvironmentSnapshot:
         except Exception as exc:
             logger.debug("kp_forecast parse failed: %s", exc)
 
-    if kp_forecast_24h is None and "kp_forecast" not in feeds_unavailable:
+    if kp_forecast_24h is None and "kp_forecast" not in feeds_available and "kp_forecast" not in feeds_unavailable:
         feeds_unavailable.append("kp_forecast")
 
     return EnvironmentSnapshot(
