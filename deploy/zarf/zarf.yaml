@@ -23,7 +23,7 @@ metadata:
 
 constants:
   - name: IMAGE_TAG
-    value: "0.1.7"
+    value: "0.1.8"
 
 variables:
   - name: OFFLINE_MODE
@@ -49,7 +49,7 @@ components:
     images:
       # Zarf pulls this at package-create time and embeds it in the tarball.
       # Point at wherever you pushed the hardened image.
-      - "ghcr.io/ionshield/ionshield:0.1.7"
+      - "ghcr.io/ionshield/ionshield:0.1.8"
     actions:
       onDeploy:
         after:

@@ -7,7 +7,7 @@ autonomy-dependent missions. This directory takes it from "runs on Render" to
 
 Written for a founder, not a platform engineer. Follow top to bottom.
 
-> **Current deployed image tag:** `0.1.7` (operational feeds: D-RAP, live GPS
+> **Current deployed image tag:** `0.1.8` (operational feeds: D-RAP, live GPS
 > availability via CelesTrak GPS-ops, NASA DONKI, OVATION aurora, local WMM). Bump
 > this on every backend or UI change — see *Updating a running deployment* below.
 >
