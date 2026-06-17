@@ -2,6 +2,7 @@
 # ###ZARF_VAR_x### tokens are replaced by Zarf at deploy time.
 config:
   offlineMode: ###ZARF_VAR_OFFLINE_MODE###
+  nasaApiKey: "###ZARF_VAR_NASA_API_KEY###"
 
 udsPackage:
   enabled: ###ZARF_VAR_UDS_PACKAGE_ENABLED###
