@@ -2060,12 +2060,20 @@ def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
     if nanu_used:
         const = _nanu.constellation_status()
         advs = _nanu.active_advisories()
-        if const and const["degraded"]:
-            # Live operational-constellation signal from CelesTrak GPS-ops.
+        degraded = bool(const and const["degraded"])
+        if const and degraded:
+            # Healthy constellation below the nominal operational baseline.
             fail = (
-                f"CelesTrak GPS-ops: {const['operational_count']} operational SVs vs nominal "
+                f"NAVCEN GPS almanac: {const['operational_count']} healthy SVs vs nominal "
                 f"{const['nominal']} — reduced GPS constellation availability degrades "
                 "navigation confidence and DOP."
+            )
+        elif const and const.get("unhealthy"):
+            # Nominal count met, but specific SVs are set unhealthy/unusable now.
+            prns = ", ".join(f"PRN-{p}" for p in const["unhealthy"])
+            fail = (
+                f"NAVCEN GPS almanac: {prns} set unhealthy/unusable; {const['operational_count']} of "
+                f"{const['nominal']} nominal SVs healthy — localized DOP/availability impact possible."
             )
         else:
             fail = (
@@ -2077,12 +2085,14 @@ def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
         if mission.mission_type == "precision-ag" or mission.gnss_dependence == "rtk":
             rec = "RTK/autosteer readiness impact — " + rec + " Delay precision operations if tolerance is low."
         feed_recs.append(rec)
-        if mission.gnss_dependence in ("high", "rtk"):
+        # Only escalate the verdict when the healthy count is actually below
+        # nominal — a single unhealthy SV with 31 healthy is informational.
+        if degraded and mission.gnss_dependence in ("high", "rtk"):
             floor = _max_risk(floor, "CAUTION")
     nanu_block = {
         **nanu_snap,
         "used_in_assessment": nanu_used,
-        "feed_label": _label(nanu_snap, ("NANU feed", "CelesTrak GPS-ops")),
+        "feed_label": _label(nanu_snap, ("NANU feed", "NAVCEN GPS almanac")),
     }
 
     # ── DONKI: space-weather event log (cause-of-risk / timeline) ─────────────

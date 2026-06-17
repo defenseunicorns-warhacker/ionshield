@@ -1471,12 +1471,14 @@
     const drapDetail = d.route_hf_risk
       ? `HF absorbed below ~${d.route_hf_risk.absorbed_to_mhz} MHz (${d.route_hf_risk.level})`
       : (d.global_max_mhz != null ? `global max ${d.global_max_mhz} MHz` : '');
-    // NANU detail: live constellation count (CelesTrak) or advisory count (NANU mirror/demo)
-    const nanuDetail = (n.constellation
-      ? `${n.constellation.operational_count}/${n.constellation.nominal} operational GPS SVs`
-        + (n.constellation.degraded ? ' — below nominal' : ' — nominal')
+    // NANU detail: live constellation health (NAVCEN) or advisory count (NANU mirror/demo)
+    const nc = n.constellation;
+    const nanuDetail = (nc
+      ? `${nc.operational_count}/${nc.nominal} healthy GPS SVs`
+        + (nc.degraded ? ' — below nominal' : ' — nominal')
+        + ((nc.unhealthy && nc.unhealthy.length) ? ` · unhealthy: ${nc.unhealthy.map(p=>'PRN-'+p).join(', ')}` : '')
       : (n.advisory_count ? `${n.advisory_count} advisory(ies) active` : 'no active outage'));
-    const nanuName = n.source === 'CelesTrak GPS-ops' ? 'GPS availability — CelesTrak' : 'NANU — GPS outages';
+    const nanuName = n.source === 'NAVCEN GPS almanac' ? 'GPS availability — NAVCEN' : 'NANU — GPS outages';
     const donkiDetail = (k.drivers && k.drivers.length)
       ? k.drivers.slice(0, 2).join('; ')
       : (k.event_count ? `${k.event_count} notices, no significant drivers` : 'no recent events');

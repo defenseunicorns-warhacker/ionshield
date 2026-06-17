@@ -5,18 +5,20 @@ NANUs are GPS satellite scheduled/unscheduled outage advisories. They drive
 PNT availability: a degraded constellation hurts navigation confidence,
 RTK/autosteer readiness, and any GPS-dependent mission.
 
-LIVE DATA — HONEST sourcing. There is no public machine-readable NANU-text
-API (NAVCEN publishes HTML). IonShield gets real, live GPS-availability data
+LIVE DATA — HONEST sourcing. IonShield gets real, live GPS-availability data
 in three tiers, best first:
 
   1. NANU_URL — an enclave / .mil NANU mirror (true per-SV outage advisories).
      This is the right source for a deployed unit; configure it and you get
-     authoritative NANUs.
-  2. CelesTrak GPS-ops (default, public, real) — the live operational GPS
-     constellation catalog. The operational SV count + PRN set is a genuine
-     PNT-availability signal: below the ~31-SV nominal baseline means reduced
-     constellation availability. Source-labeled honestly as "CelesTrak
-     GPS-ops constellation status" — not claimed to be NANU outage text.
+     authoritative NANU text.
+  2. NAVCEN GPS almanac (default, public, authoritative) — the U.S. Coast
+     Guard Navigation Center's current YUMA almanac. NAVCEN is the official
+     U.S. authority for GPS status and NANUs. The almanac carries a per-PRN
+     Health field (000 = healthy), so we derive the real operational
+     constellation: how many SVs are healthy vs the ~31-SV nominal baseline,
+     and exactly which PRNs are set unhealthy/unusable right now. Reachable
+     from data-center egress (unlike CelesTrak, which IP-blocks cloud hosts).
+     Source-labeled "NAVCEN GPS almanac".
   3. DEMO fixture for WarHacker (labeled DEMO).
 
 Follows the existing feed pattern: module _cache, async fetch(),
@@ -35,14 +37,15 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Public, machine-readable operational GPS constellation (CelesTrak GP API).
-CELESTRAK_GPS_OPS = "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=json"
+# Authoritative, machine-readable GPS constellation health (USCG NAVCEN YUMA).
+NAVCEN_YUMA_ALMANAC = "https://www.navcen.uscg.gov/sites/default/files/gps/almanac/current_yuma.alm"
+_FEED_UA = "IonShield/1.0 (space-weather mission assurance; +https://ionshield.io)"
 NOMINAL_OPERATIONAL_SVS = 31  # USAF commits to >=31 operational; baseline
 
 _cache: dict = {
     "advisories": [],  # [{svn, prn, type, summary, start, end}] (NANU_URL/DEMO)
-    "constellation": None,  # {operational_count, nominal, prns} (CelesTrak)
-    "source": None,  # "NANU feed" | "CelesTrak GPS-ops" | "DEMO" | None
+    "constellation": None,  # {operational_count, nominal, prns, unhealthy} (NAVCEN)
+    "source": None,  # "NANU feed" | "NAVCEN GPS almanac" | "DEMO" | None
     "last_fetch": None,
     "fetch_status": {},  # {"nanu": "ok"|"unavailable"|"timeout"|"error"}
 }
@@ -61,12 +64,12 @@ def _normalize(obj: dict, idx: int) -> dict:
 
 
 async def fetch_nanu(timeout: float = 10.0) -> None:
-    """Live GPS-availability ingest. NANU_URL mirror first, else CelesTrak."""
+    """Live GPS-availability ingest. NANU_URL mirror first, else NAVCEN."""
     url = (settings.nanu_url or "").strip()
     if url:
         await _fetch_nanu_mirror(url, timeout)
     else:
-        await _fetch_celestrak_gps_ops(timeout)
+        await _fetch_navcen_almanac(timeout)
 
 
 async def _fetch_nanu_mirror(url: str, timeout: float) -> None:
@@ -93,32 +96,49 @@ async def _fetch_nanu_mirror(url: str, timeout: float) -> None:
         _cache["fetch_status"]["nanu"] = "error"
 
 
-async def _fetch_celestrak_gps_ops(timeout: float) -> None:
-    """CelesTrak operational GPS catalog → live constellation availability."""
+def _parse_yuma_almanac(text: str) -> tuple[list[int], list[int]]:
+    """Parse a YUMA almanac → (healthy_prns, unhealthy_prns). Health 000 = OK."""
+    blocks = re.split(r"\*+\s*Week\s+\d+\s+almanac for PRN-?0*(\d+)\s*\*+", text)
+    healthy: list[int] = []
+    unhealthy: list[int] = []
+    it = iter(blocks[1:])  # blocks[0] is the pre-amble before the first PRN
+    for prn, body in zip(it, it):
+        m = re.search(r"Health:\s*(\d+)", body)
+        if m is None:
+            continue
+        (healthy if int(m.group(1)) == 0 else unhealthy).append(int(prn))
+    return sorted(healthy), sorted(unhealthy)
+
+
+async def _fetch_navcen_almanac(timeout: float) -> None:
+    """NAVCEN YUMA almanac → live, authoritative constellation health."""
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            r = await client.get(CELESTRAK_GPS_OPS)
+        async with httpx.AsyncClient(
+            timeout=timeout, follow_redirects=True, headers={"User-Agent": _FEED_UA}
+        ) as client:
+            r = await client.get(NAVCEN_YUMA_ALMANAC)
             r.raise_for_status()
-            data = r.json()
-        if not isinstance(data, list) or not data:
-            raise ValueError("Unexpected CelesTrak payload shape")
-        prns = sorted(int(m.group(1)) for x in data if (m := re.search(r"PRN\s*(\d+)", x.get("OBJECT_NAME", ""))))
+            healthy, unhealthy = _parse_yuma_almanac(r.text)
+        if not healthy and not unhealthy:
+            raise ValueError("No PRN blocks found in NAVCEN almanac")
         _cache["constellation"] = {
-            "operational_count": len(data),
+            "operational_count": len(healthy),
+            "total_tracked": len(healthy) + len(unhealthy),
             "nominal": NOMINAL_OPERATIONAL_SVS,
-            "prns": prns,
+            "prns": healthy,
+            "unhealthy": unhealthy,
         }
         _cache["advisories"] = []
-        _cache["source"] = "CelesTrak GPS-ops"
+        _cache["source"] = "NAVCEN GPS almanac"
         _cache["last_fetch"] = datetime.now(timezone.utc).isoformat()
         _cache["fetch_status"]["nanu"] = "ok"
-        logger.debug("NANU/CelesTrak: %d operational GPS SVs", len(data))
+        logger.debug("NANU/NAVCEN: %d healthy, %d unhealthy SVs", len(healthy), len(unhealthy))
     except httpx.TimeoutException:
         _cache["fetch_status"]["nanu"] = "timeout"
     except httpx.HTTPStatusError as exc:
         _cache["fetch_status"]["nanu"] = f"http_{exc.response.status_code}"
     except Exception as exc:
-        logger.warning("NANU/CelesTrak fetch error: %s", exc)
+        logger.warning("NANU/NAVCEN fetch error: %s", exc)
         _cache["fetch_status"]["nanu"] = "error"
 
 
@@ -130,27 +150,30 @@ def active_advisories() -> list[dict]:
 
 
 def constellation_status() -> dict | None:
-    """Live operational GPS constellation availability (CelesTrak), or None."""
+    """Live operational GPS constellation health (NAVCEN almanac), or None."""
     c = _cache.get("constellation")
     if not c:
         return None
     op, nom = c["operational_count"], c["nominal"]
+    unhealthy = list(c.get("unhealthy") or [])
     return {
         "operational_count": op,
+        "total_tracked": c.get("total_tracked", op),
         "nominal": nom,
         "degraded": op < nom,
         "prns": list(c.get("prns") or []),
         "prn_count": len(c.get("prns") or []),
+        "unhealthy": unhealthy,
     }
 
 
 def has_active_outage() -> bool:
-    """True if a NANU advisory marks an outage OR the live constellation is
-    below the nominal operational baseline."""
+    """True if a NANU advisory marks an outage, the healthy constellation is
+    below the nominal operational baseline, or an SV is set unhealthy."""
     if any(a.get("type") in ("OUTAGE", "UNUSABLE", "FCSTDV", "FCSTUUFN") for a in active_advisories()):
         return True
     c = constellation_status()
-    return bool(c and c["degraded"])
+    return bool(c and (c["degraded"] or c["unhealthy"]))
 
 
 def available() -> bool:

@@ -162,8 +162,14 @@ def test_nanu_demo_outage_flags_pnt():
 
 
 def test_no_demo_means_feeds_not_driving():
-    # Clean state: NANU unavailable, no demo → nanu not used, no fake claims
-    nanu.clear()
-    with TestClient(app) as c:
-        b = c.post("/api/v3/mission/assess", json=_payload()).json()
-    assert b["operational_feeds"]["nanu"]["used_in_assessment"] is False
+    # With no NANU data at all (cleared after startup, no demo), the feed must
+    # not drive the assessment or fabricate an outage. Clear inside the client
+    # context so the startup live fetch can't repopulate before the request.
+    try:
+        with TestClient(app) as c:
+            nanu.clear()
+            b = c.post("/api/v3/mission/assess", json=_payload()).json()
+        assert b["operational_feeds"]["nanu"]["used_in_assessment"] is False
+        assert b["operational_feeds"]["nanu"]["feed_label"] == "unavailable"
+    finally:
+        nanu.clear()

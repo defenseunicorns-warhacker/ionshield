@@ -1,6 +1,6 @@
 """
 Tests for the DONKI (event log), OVATION (aurora), and WMM (magnetic
-declination) feeds, the live CelesTrak GPS-ops NANU workaround, and their
+declination) feeds, the live NAVCEN GPS-almanac NANU workaround, and their
 additive effect on mission assessment.
 """
 
@@ -10,23 +10,74 @@ from app.data import donki, nanu, ovation, wmm
 from app.main import app
 
 
-# ── NANU live CelesTrak constellation workaround ──────────────────────────────
+# ── NANU live NAVCEN GPS-almanac workaround ───────────────────────────────────
+
+YUMA_SAMPLE = """******** Week 375 almanac for PRN-01 ********
+ID:                         01
+Health:                     000
+week:                        375
+
+******** Week 375 almanac for PRN-13 ********
+ID:                         13
+Health:                     063
+week:                        375
+
+******** Week 375 almanac for PRN-22 ********
+ID:                         22
+Health:                     000
+week:                        375
+"""
 
 
-def test_nanu_constellation_nominal_no_outage():
+def test_yuma_parser_splits_healthy_and_unhealthy():
+    healthy, unhealthy = nanu._parse_yuma_almanac(YUMA_SAMPLE)
+    assert healthy == [1, 22]
+    assert unhealthy == [13]
+
+
+def test_nanu_constellation_full_no_outage():
     nanu.clear()
     nanu._cache.update(
         {
-            "constellation": {"operational_count": 32, "nominal": 31, "prns": list(range(1, 33))},
-            "source": "CelesTrak GPS-ops",
+            "constellation": {
+                "operational_count": 31,
+                "total_tracked": 31,
+                "nominal": 31,
+                "prns": list(range(1, 32)),
+                "unhealthy": [],
+            },
+            "source": "NAVCEN GPS almanac",
         }
     )
     try:
         c = nanu.constellation_status()
-        assert c["operational_count"] == 32 and c["degraded"] is False
+        assert c["operational_count"] == 31 and c["degraded"] is False
         assert nanu.has_active_outage() is False
         snap = nanu.cache_snapshot()
-        assert snap["source"] == "CelesTrak GPS-ops" and snap["available"] is True
+        assert snap["source"] == "NAVCEN GPS almanac" and snap["available"] is True
+    finally:
+        nanu.clear()
+
+
+def test_nanu_unhealthy_sv_flags_outage_without_degrade():
+    # 31 healthy + 1 unhealthy → nominal met (not degraded) but a real outage
+    nanu.clear()
+    nanu._cache.update(
+        {
+            "constellation": {
+                "operational_count": 31,
+                "total_tracked": 32,
+                "nominal": 31,
+                "prns": list(range(1, 32)),
+                "unhealthy": [13],
+            },
+            "source": "NAVCEN GPS almanac",
+        }
+    )
+    try:
+        c = nanu.constellation_status()
+        assert c["degraded"] is False and c["unhealthy"] == [13]
+        assert nanu.has_active_outage() is True
     finally:
         nanu.clear()
 
@@ -35,8 +86,14 @@ def test_nanu_constellation_degraded_flags_outage():
     nanu.clear()
     nanu._cache.update(
         {
-            "constellation": {"operational_count": 28, "nominal": 31, "prns": list(range(1, 29))},
-            "source": "CelesTrak GPS-ops",
+            "constellation": {
+                "operational_count": 28,
+                "total_tracked": 28,
+                "nominal": 31,
+                "prns": list(range(1, 29)),
+                "unhealthy": [],
+            },
+            "source": "NAVCEN GPS almanac",
         }
     )
     try:
