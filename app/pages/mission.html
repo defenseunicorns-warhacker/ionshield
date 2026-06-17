@@ -345,6 +345,22 @@
     .mp-route-k { color: var(--text-3); }
     .mp-route-v { color: var(--text-1, #e6ecf2); font-weight: 600; }
 
+    /* ── Operational Feeds status ───────────────────────────────────────── */
+    .mp-feeds { margin: 14px 0; border: 1px solid var(--line, #1f2a36); border-radius: 10px; padding: 12px 14px; }
+    .mp-feeds h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-1, #e6ecf2); }
+    .mp-feed-row { padding: 7px 0; border-top: 1px solid var(--line, #1f2a36); display: grid;
+                   grid-template-columns: auto auto 1fr; gap: 4px 8px; align-items: center; }
+    .mp-feed-row:first-of-type { border-top: none; }
+    .mp-feed-name { font-weight: 600; font-size: 12px; color: var(--text-1, #e6ecf2); }
+    .mp-feed-pill { font-size: 9.5px; font-weight: 700; letter-spacing: .4px; border-radius: 5px; padding: 2px 7px; text-align: center; }
+    .mp-feed-pill.auth   { background: rgba(16,185,129,.13); color: var(--green); }
+    .mp-feed-pill.cached { background: rgba(96,165,250,.13); color: var(--blue-hi, #60a5fa); }
+    .mp-feed-pill.demo   { background: rgba(168,85,247,.13); color: #c084fc; }
+    .mp-feed-pill.na     { background: rgba(139,151,166,.13); color: var(--text-3); }
+    .mp-feed-used { font-size: 10.5px; color: var(--text-3); text-align: right; }
+    .mp-feed-detail { grid-column: 1 / -1; font-size: 10.5px; color: var(--text-3); }
+    .mp-feeds-foot { font-size: 10px; color: var(--text-3); margin-top: 9px; font-style: italic; }
+
     /* ── Decision verdict + Mission Consequences (operator-first) ───────── */
     .mp-verdict .level { letter-spacing: .3px; }
     .mp-primary-rec { font-size: 13px; color: var(--text-1); margin: 6px 0 4px; line-height: 1.45; }
@@ -917,7 +933,8 @@
 
     // Operator decision framing + derived mission consequences.
     const disp = RISK_DISPLAY[level] || RISK_DISPLAY.CLEAR;
-    const consequences = deriveConsequences(assessment, gnss, comms);
+    const consequences = deriveConsequences(assessment, gnss, comms)
+      .concat(assessment.feed_consequences || []);  // append authoritative-feed consequences
     const primaryRec = primaryRecommendation(recs, disp.decision);
     const oneLineConsequence = consequenceSentence(consequences);
     const consChip = { RED: 'red', AMBER: 'amber', GREEN: 'green' };
@@ -1007,6 +1024,8 @@
       ${renderEquipmentReadout(assessment.equipment)}
 
       ${renderAtakHandoff(assessment)}
+
+      ${renderOperationalFeeds(assessment)}
 
       <!-- Confidence / data quality -->
       <div class="mp-conf">
@@ -1426,6 +1445,46 @@
     rdr.onerror = () => setImportStatus('Could not read file.', true);
     rdr.readAsText(f);
   });
+
+  // ── Operational Feeds (authoritative source status: D-RAP, NANU, NOAA) ─────
+  function renderOperationalFeeds(assessment) {
+    const feeds = assessment.operational_feeds;
+    if (!feeds) return '';
+    const dq = assessment.data_quality || {};
+    const noaaCached = (dq.notes || []).some(n => /ADVISORY|cached/i.test(n));
+    // status pill text + class from a feed block's label/availability
+    const pill = (label) => ({
+      authoritative: ['LIVE', 'auth'], demo: ['DEMO', 'demo'],
+      unavailable: ['UNAVAILABLE', 'na'], cached: ['CACHED', 'cached'],
+    }[label] || ['UNAVAILABLE', 'na']);
+    const row = (name, purpose, label, updated, used, detail) => {
+      const [txt, cls] = pill(label);
+      return `<div class="mp-feed-row">
+        <span class="mp-feed-name">${escapeHtml(name)}</span>
+        <span class="mp-feed-pill ${cls}">${txt}</span>
+        <span class="mp-feed-used">${used ? 'used in this assessment' : 'not driving this assessment'}</span>
+        <div class="mp-feed-detail">${escapeHtml(purpose)}${detail ? ' · ' + escapeHtml(detail) : ''}${updated ? ' · updated ' + escapeHtml(String(updated).slice(0,16).replace('T',' ')) + 'Z' : ''}</div>
+      </div>`;
+    };
+    const d = feeds.drap || {}, n = feeds.nanu || {};
+    const drapDetail = d.route_hf_risk
+      ? `HF absorbed below ~${d.route_hf_risk.absorbed_to_mhz} MHz (${d.route_hf_risk.level})`
+      : (d.global_max_mhz != null ? `global max ${d.global_max_mhz} MHz` : '');
+    const nanuDetail = n.advisory_count ? `${n.advisory_count} advisory(ies) active` : 'no active outage';
+    return `
+      <div class="mp-feeds">
+        <h4>Operational Feeds</h4>
+        ${row('NOAA / SWPC', 'Geomagnetic + solar drivers (modeled HF/GPS estimates)',
+              noaaCached ? 'cached' : 'authoritative', dq && assessment.generated_at, true,
+              'data quality ' + (dq.label || '—'))}
+        ${row('D-RAP — HF absorption', 'Authoritative HF blackout (replaces X-ray proxy)',
+              d.feed_label, d.valid_at || d.last_fetch, d.used_in_assessment, drapDetail)}
+        ${row('NANU — GPS outages', 'GPS satellite outage advisories (PNT availability)',
+              n.feed_label, n.last_fetch, n.used_in_assessment, nanuDetail)}
+        <div class="mp-feeds-foot">DONKI, OVATION aurora, and World Magnetic Model are planned next. Each output is labeled
+          authoritative feed / modeled estimate / cached / demo / unavailable.</div>
+      </div>`;
+  }
 
   // ── Route insights (post-assessment, derived from per-waypoint results) ────
   function renderRouteInsights(assessment) {

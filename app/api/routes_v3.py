@@ -1721,6 +1721,10 @@ class _MissionRequestModel(_MissionBase):
             "the assessment against real recorded storm conditions, labeled REPLAY."
         ),
     )
+    feeds_demo: list[str] = _MissionField(
+        default_factory=list,
+        description="Demo fixtures (labeled DEMO): drap_blackout, nanu_outage. WarHacker use only.",
+    )
 
 
 @router_v3.get("/equipment")
@@ -1962,7 +1966,112 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
             out["inputs_echo"]["advisory_mode"] = True
         if notes:
             out["data_quality"]["notes"] = notes + (out["data_quality"].get("notes") or [])
+
+    # ── Operational feeds layer (additive — D-RAP HF, NANU GPS) ───────────────
+    # Authoritative feeds that refine HF/PNT guidance. Never downgrades the
+    # base verdict; only escalates (monotonic) and adds consequences/recs.
+    out["operational_feeds"] = _apply_operational_feeds(out, mission, list(req.feeds_demo or []))
+
     return out
+
+
+_RISK_ORDER = ["CLEAR", "CAUTION", "HIGH_RISK", "DELAY"]
+
+
+def _max_risk(a: str | None, b: str | None) -> str | None:
+    """Return the higher of two mission_risk_level values (monotonic floor)."""
+    vals = [x for x in (a, b) if x in _RISK_ORDER]
+    if not vals:
+        return a or b
+    return max(vals, key=_RISK_ORDER.index)
+
+
+def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
+    """Layer D-RAP + NANU effects onto a completed assessment (additive).
+
+    Returns the operational_feeds status block; mutates out in place to add
+    feed-driven recommendations, consequences, and a monotonic verdict floor.
+    """
+    from app.data import drap as _drap
+    from app.data import nanu as _nanu
+
+    # Demo fixtures (clearly labeled DEMO; honest — never a fake live claim).
+    if "drap_blackout" in feeds_demo:
+        _drap.set_demo_blackout()
+    if "nanu_outage" in feeds_demo:
+        _nanu.set_demo_outage()
+
+    wps = [{"name": w.name, "lat": w.lat, "lon": w.lon} for w in mission.waypoints]
+    feed_recs: list[str] = []
+    feed_cons: list[dict] = []
+    floor: str | None = None
+
+    def _label(snap: dict, live_src: str) -> str:
+        s = snap.get("source")
+        if s == live_src:
+            return "authoritative"
+        if s == "DEMO":
+            return "demo"
+        if snap.get("fetch_status", {}):  # tried but no usable data
+            return "unavailable"
+        return "unavailable"
+
+    # ── D-RAP: authoritative HF absorption ────────────────────────────────────
+    drap_snap = _drap.cache_snapshot()
+    drap_hf = _drap.route_hf_risk(wps) if _drap.available() else None
+    drap_used = drap_hf is not None
+    if drap_hf and drap_hf["level"] in ("MODERATE", "SEVERE"):
+        sev = drap_hf["level"] == "SEVERE"
+        feed_cons.append(
+            {
+                "risk": "RED" if sev else "AMBER",
+                "fn": "HF reachback / BLOS comms",
+                "fail": f"D-RAP: HF absorbed below ~{drap_hf['absorbed_to_mhz']:.0f} MHz near "
+                f"{drap_hf.get('at') or 'the AO'} — HF reachback may be unreliable.",
+            }
+        )
+        feed_recs.append(
+            "HF risk elevated (authoritative D-RAP absorption feed): use SATCOM/VHF backup "
+            "or shift to higher HF frequencies / adjust the comms plan."
+        )
+        if mission.comms_dependence == "high":
+            floor = _max_risk(floor, "HIGH_RISK" if sev else "CAUTION")
+    drap_block = {
+        **drap_snap,
+        "used_in_assessment": drap_used,
+        "route_hf_risk": drap_hf,
+        "feed_label": _label(drap_snap, "NOAA SWPC D-RAP"),
+    }
+
+    # ── NANU: GPS outage advisories (prototype) ───────────────────────────────
+    nanu_snap = _nanu.cache_snapshot()
+    nanu_used = _nanu.has_active_outage()
+    if nanu_used:
+        advs = _nanu.active_advisories()
+        feed_cons.append(
+            {
+                "risk": "AMBER",
+                "fn": "GPS constellation availability",
+                "fail": f"NANU: {len(advs)} GPS outage advisory(ies) active — reduced constellation "
+                "availability may affect navigation confidence.",
+            }
+        )
+        rec = "Verify receiver constellation availability; use multi-GNSS / backup navigation."
+        if mission.mission_type == "precision-ag" or mission.gnss_dependence == "rtk":
+            rec = "RTK/autosteer readiness impact — " + rec + " Delay precision operations if tolerance is low."
+        feed_recs.append(rec)
+        if mission.gnss_dependence in ("high", "rtk"):
+            floor = _max_risk(floor, "CAUTION")
+    nanu_block = {**nanu_snap, "used_in_assessment": nanu_used, "feed_label": _label(nanu_snap, "NANU feed")}
+
+    if feed_recs:
+        out["recommended_actions"] = (out.get("recommended_actions") or []) + feed_recs
+    if feed_cons:
+        out["feed_consequences"] = feed_cons
+    if floor:
+        out["mission_risk_level"] = _max_risk(out["mission_risk_level"], floor)
+
+    return {"drap": drap_block, "nanu": nanu_block}
 
 
 @router_v3.post("/recommend")

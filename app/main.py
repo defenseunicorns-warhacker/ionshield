@@ -225,6 +225,8 @@ def _register_default_sources() -> None:
 
     from app.data.noaa import cache_snapshot as _noaa_status
     from app.data.ustec import cache_snapshot as _iono_status
+    from app.data import drap as _drap
+    from app.data import nanu as _nanu
 
     register(
         DataSource(
@@ -242,6 +244,28 @@ def _register_default_sources() -> None:
             cadence_seconds=settings.refresh_interval_seconds,
             fetch_async=lambda timeout: fetch_ionosphere(timeout=timeout),
             status_async=_iono_status,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # Authoritative HF absorption (replaces the X-ray-flux proxy where live).
+    register(
+        DataSource(
+            name="drap",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _drap.fetch_drap(timeout=timeout),
+            status_async=_drap.cache_snapshot,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # GPS outage advisories (prototype — only polls when NANU_URL is set).
+    register(
+        DataSource(
+            name="nanu",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _nanu.fetch_nanu(timeout=timeout),
+            status_async=_nanu.cache_snapshot,
             timeout_seconds=settings.noaa_timeout_seconds,
             breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
         )

@@ -29,11 +29,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.config import settings
-from app.data import noaa, ustec
+from app.data import drap, nanu, noaa, ustec
 
 logger = logging.getLogger(__name__)
 
-STATE_VERSION = 1
+# v2 adds drap + nanu feeds to the carried state.
+STATE_VERSION = 2
 
 # Forecast horizon of the carried state: NOAA's Kp forecast product covers
 # 3 days from issue. Past saved_at + 72h the advisory window is over.
@@ -63,6 +64,8 @@ def save_state() -> bool:
         "saved_at": datetime.now(timezone.utc).isoformat(),
         "noaa": {k: v for k, v in noaa._cache.items()},
         "ionosphere": {k: v for k, v in ustec._cache.items()},
+        "drap": {k: v for k, v in drap._cache.items()},
+        "nanu": {k: v for k, v in nanu._cache.items()},
     }
     try:
         fd, tmp = tempfile.mkstemp(dir=str(path.parent) or ".", suffix=".tmp")
@@ -101,7 +104,7 @@ def hydrate() -> bool:
     if state is None:
         return False
 
-    for module, key in ((noaa, "noaa"), (ustec, "ionosphere")):
+    for module, key in ((noaa, "noaa"), (ustec, "ionosphere"), (drap, "drap"), (nanu, "nanu")):
         saved = state.get(key) or {}
         for k, v in saved.items():
             if k in module._cache:

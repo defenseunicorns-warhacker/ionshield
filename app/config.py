@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     swpc_base_url: str = "https://services.swpc.noaa.gov"
     # NASA CDAWeb HAPI endpoint used only by historical backfill.
     hapi_base_url: str = "https://cdaweb.gsfc.nasa.gov/hapi"
+    # Optional NANU (GPS outage advisory) JSON endpoint. There is no public
+    # machine-readable NANU API, so this is empty by default → NANU reports
+    # "unavailable" (honest). Point at an internal/enclave NANU mirror to
+    # enable live ingest. (D-RAP uses SWPC_BASE_URL automatically.)
+    nanu_url: str = ""
 
     # Safety cap on route waypoints to prevent abuse
     max_route_waypoints: int = 200
