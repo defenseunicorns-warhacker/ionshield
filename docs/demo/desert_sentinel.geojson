@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "name": "OPERATION DESERT SENTINEL — UAS ISR Patrol",
+  "features": [
+    { "type": "Feature", "properties": { "name": "LP-1 SENTINEL", "type": "Launch/Recovery", "seq": 1, "desc": "Launch & recovery point — forward UAS site on southern range road" }, "geometry": { "type": "Point", "coordinates": [-110.3800, 31.4700] } },
+    { "type": "Feature", "properties": { "name": "OP-1 HAWKEYE", "type": "Observation Post", "seq": 2, "desc": "Ridge OP overlooking western approach / canyon mouth" }, "geometry": { "type": "Point", "coordinates": [-110.3950, 31.4480] } },
+    { "type": "Feature", "properties": { "name": "NAI-1 WASH ALPHA", "type": "Named Area of Interest", "seq": 3, "desc": "Dry-wash junction — primary infiltration-route NAI" }, "geometry": { "type": "Point", "coordinates": [-110.3820, 31.4280] } },
+    { "type": "Feature", "properties": { "name": "OP-2 RAPTOR", "type": "Observation Post", "seq": 4, "desc": "Overwatch of trail/road junction feeding the corridor" }, "geometry": { "type": "Point", "coordinates": [-110.4050, 31.4150] } },
+    { "type": "Feature", "properties": { "name": "AOI BORDER APPROACH", "type": "Area of Interest", "seq": 5, "desc": "Decisive observation — southern reservation boundary approach" }, "geometry": { "type": "Point", "coordinates": [-110.3700, 31.4050] } },
+    { "type": "Feature", "properties": { "name": "OP-3 FALCONER", "type": "Observation Post", "seq": 6, "desc": "Egress overwatch covering exfil route to base" }, "geometry": { "type": "Point", "coordinates": [-110.3600, 31.4350] } },
+    { "type": "Feature", "properties": { "name": "RTB SENTINEL", "type": "Return-to-Base", "seq": 7, "desc": "Return to launch — autonomous RTH to LP-1" }, "geometry": { "type": "Point", "coordinates": [-110.3800, 31.4700] } },
+    { "type": "Feature", "properties": { "name": "DESERT SENTINEL route", "type": "Route", "stroke": "#e8b04a", "stroke-width": 3 }, "geometry": { "type": "LineString", "coordinates": [
+      [-110.3800, 31.4700],
+      [-110.3950, 31.4480],
+      [-110.3820, 31.4280],
+      [-110.4050, 31.4150],
+      [-110.3700, 31.4050],
+      [-110.3600, 31.4350],
+      [-110.3800, 31.4700]
+    ] } }
+  ]
+}
