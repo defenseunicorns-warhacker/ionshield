@@ -7,8 +7,16 @@ autonomy-dependent missions. This directory takes it from "runs on Render" to
 
 Written for a founder, not a platform engineer. Follow top to bottom.
 
-> **Current deployed image tag:** `0.1.6` (mission file import + data-quality + reframe). Bump
+> **Current deployed image tag:** `0.1.7` (operational feeds: D-RAP, live GPS
+> availability via CelesTrak GPS-ops, NASA DONKI, OVATION aurora, local WMM). Bump
 > this on every backend or UI change — see *Updating a running deployment* below.
+>
+> **Optional env — `NASA_API_KEY`:** the DONKI event feed defaults to NASA's
+> shared `DEMO_KEY`, which is heavily rate-limited (you will see `http_429` and
+> the feed will fall back to last-good cache). For a real quota, get a free key
+> at <https://api.nasa.gov> and set `NASA_API_KEY` in the deployment env. All
+> other feeds (D-RAP, CelesTrak, OVATION, WMM) need no key; WMM is computed
+> locally and works fully air-gapped.
 
 ---
 

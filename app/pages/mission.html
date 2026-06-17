@@ -1466,11 +1466,26 @@
         <div class="mp-feed-detail">${escapeHtml(purpose)}${detail ? ' · ' + escapeHtml(detail) : ''}${updated ? ' · updated ' + escapeHtml(String(updated).slice(0,16).replace('T',' ')) + 'Z' : ''}</div>
       </div>`;
     };
-    const d = feeds.drap || {}, n = feeds.nanu || {};
+    const d = feeds.drap || {}, n = feeds.nanu || {}, k = feeds.donki || {},
+          o = feeds.ovation || {}, w = feeds.wmm || {};
     const drapDetail = d.route_hf_risk
       ? `HF absorbed below ~${d.route_hf_risk.absorbed_to_mhz} MHz (${d.route_hf_risk.level})`
       : (d.global_max_mhz != null ? `global max ${d.global_max_mhz} MHz` : '');
-    const nanuDetail = n.advisory_count ? `${n.advisory_count} advisory(ies) active` : 'no active outage';
+    // NANU detail: live constellation count (CelesTrak) or advisory count (NANU mirror/demo)
+    const nanuDetail = (n.constellation
+      ? `${n.constellation.operational_count}/${n.constellation.nominal} operational GPS SVs`
+        + (n.constellation.degraded ? ' — below nominal' : ' — nominal')
+      : (n.advisory_count ? `${n.advisory_count} advisory(ies) active` : 'no active outage'));
+    const nanuName = n.source === 'CelesTrak GPS-ops' ? 'GPS availability — CelesTrak' : 'NANU — GPS outages';
+    const donkiDetail = (k.drivers && k.drivers.length)
+      ? k.drivers.slice(0, 2).join('; ')
+      : (k.event_count ? `${k.event_count} notices, no significant drivers` : 'no recent events');
+    const ovDetail = o.route_aurora_risk
+      ? `${o.route_aurora_risk.prob_pct}% aurora prob (${o.route_aurora_risk.level})`
+      : (o.max_prob != null ? `global max ${o.max_prob}%` : '');
+    const wmmDetail = w.declination
+      ? `${Math.abs(w.declination.declination_deg)}°${w.declination.direction} declination, compass ${(w.declination.route_compass_reliability || w.declination.compass_reliability || '').toLowerCase()}`
+      : '';
     return `
       <div class="mp-feeds">
         <h4>Operational Feeds</h4>
@@ -1479,10 +1494,16 @@
               'data quality ' + (dq.label || '—'))}
         ${row('D-RAP — HF absorption', 'Authoritative HF blackout (replaces X-ray proxy)',
               d.feed_label, d.valid_at || d.last_fetch, d.used_in_assessment, drapDetail)}
-        ${row('NANU — GPS outages', 'GPS satellite outage advisories (PNT availability)',
+        ${row(nanuName, 'Live GPS constellation availability (PNT readiness)',
               n.feed_label, n.last_fetch, n.used_in_assessment, nanuDetail)}
-        <div class="mp-feeds-foot">DONKI, OVATION aurora, and World Magnetic Model are planned next. Each output is labeled
-          authoritative feed / modeled estimate / cached / demo / unavailable.</div>
+        ${row('DONKI — event drivers', 'NASA space-weather event log (cause of risk / timeline)',
+              k.feed_label, k.last_fetch, k.used_in_assessment, donkiDetail)}
+        ${row('OVATION — aurora', 'High-latitude GNSS scintillation + comms fades',
+              o.feed_label, o.observation_time || o.last_fetch, o.used_in_assessment, ovDetail)}
+        ${row('WMM — magnetic declination', 'Compass reliability + grid/magnetic azimuth (local model)',
+              w.feed_label, null, w.used_in_assessment, wmmDetail)}
+        <div class="mp-feeds-foot">Each output is labeled authoritative feed / modeled estimate / cached / demo / unavailable.
+          The World Magnetic Model is computed locally — no connectivity required, so it stays available in the air gap.</div>
       </div>`;
   }
 

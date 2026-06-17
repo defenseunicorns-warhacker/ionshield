@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # "unavailable" (honest). Point at an internal/enclave NANU mirror to
     # enable live ingest. (D-RAP uses SWPC_BASE_URL automatically.)
     nanu_url: str = ""
+    # NASA DONKI (space-weather event notifications) API key. "DEMO_KEY" works
+    # but is heavily rate-limited; set a free api.nasa.gov key for real quota.
+    # DONKI goes direct to api.nasa.gov (not SWPC); in a strict air-gap it
+    # falls back to cache-and-carry like every other feed.
+    nasa_api_key: str = "DEMO_KEY"
 
     # Safety cap on route waypoints to prevent abuse
     max_route_waypoints: int = 200

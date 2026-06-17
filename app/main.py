@@ -225,8 +225,10 @@ def _register_default_sources() -> None:
 
     from app.data.noaa import cache_snapshot as _noaa_status
     from app.data.ustec import cache_snapshot as _iono_status
+    from app.data import donki as _donki
     from app.data import drap as _drap
     from app.data import nanu as _nanu
+    from app.data import ovation as _ovation
 
     register(
         DataSource(
@@ -259,13 +261,36 @@ def _register_default_sources() -> None:
             breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
         )
     )
-    # GPS outage advisories (prototype — only polls when NANU_URL is set).
+    # GPS availability: live constellation status from CelesTrak GPS-ops, or a
+    # NANU mirror when NANU_URL is set.
     register(
         DataSource(
             name="nanu",
             cadence_seconds=settings.refresh_interval_seconds,
             fetch_async=lambda timeout: _nanu.fetch_nanu(timeout=timeout),
             status_async=_nanu.cache_snapshot,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # NASA DONKI — space-weather event log (cause-of-risk / timeline).
+    register(
+        DataSource(
+            name="donki",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _donki.fetch_donki(timeout=timeout),
+            status_async=_donki.cache_snapshot,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # OVATION aurora — high-latitude GNSS/comms scintillation indicator.
+    register(
+        DataSource(
+            name="ovation",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _ovation.fetch_ovation(timeout=timeout),
+            status_async=_ovation.cache_snapshot,
             timeout_seconds=settings.noaa_timeout_seconds,
             breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
         )

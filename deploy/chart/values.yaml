@@ -3,7 +3,7 @@
 
 image:
   repository: ghcr.io/ionshield/ionshield
-  tag: 0.1.6
+  tag: 0.1.7
   # Always: we iterate on the same tag during WarHacker prep; a redeploy must
   # pick up the freshly pushed image, not the node's cached layers.
   pullPolicy: Always

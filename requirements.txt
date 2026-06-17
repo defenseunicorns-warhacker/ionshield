@@ -17,3 +17,6 @@ aiosmtplib==3.0.1
 # CI doesn't rely on pyarrow's transitive numpy install.
 numpy>=1.26,<3
 pyarrow==18.0.0
+# World Magnetic Model — magnetic declination + compass-reliability zones,
+# computed locally from bundled coefficients (no network → air-gap native).
+pygeomag==1.1.0

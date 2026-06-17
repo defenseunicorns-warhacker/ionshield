@@ -1723,7 +1723,10 @@ class _MissionRequestModel(_MissionBase):
     )
     feeds_demo: list[str] = _MissionField(
         default_factory=list,
-        description="Demo fixtures (labeled DEMO): drap_blackout, nanu_outage. WarHacker use only.",
+        description=(
+            "Demo fixtures (labeled DEMO): drap_blackout, nanu_outage, "
+            "donki_events, aurora_storm. WarHacker use only."
+        ),
     )
 
 
@@ -1987,33 +1990,41 @@ def _max_risk(a: str | None, b: str | None) -> str | None:
 
 
 def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
-    """Layer D-RAP + NANU effects onto a completed assessment (additive).
+    """Layer the operational feeds onto a completed assessment (additive).
 
-    Returns the operational_feeds status block; mutates out in place to add
-    feed-driven recommendations, consequences, and a monotonic verdict floor.
+    Covers D-RAP (HF absorption), NANU/CelesTrak (GPS availability), DONKI
+    (event cause-of-risk), OVATION (auroral GNSS/comms), and WMM (magnetic
+    declination / compass reliability). Returns the operational_feeds status
+    block; mutates out in place to add feed-driven recommendations,
+    consequences, and a monotonic verdict floor.
     """
+    from app.data import donki as _donki
     from app.data import drap as _drap
     from app.data import nanu as _nanu
+    from app.data import ovation as _ovation
+    from app.data import wmm as _wmm
 
     # Demo fixtures (clearly labeled DEMO; honest — never a fake live claim).
     if "drap_blackout" in feeds_demo:
         _drap.set_demo_blackout()
     if "nanu_outage" in feeds_demo:
         _nanu.set_demo_outage()
+    if "donki_events" in feeds_demo:
+        _donki.set_demo_events()
+    if "aurora_storm" in feeds_demo:
+        _ovation.set_demo_aurora()
 
     wps = [{"name": w.name, "lat": w.lat, "lon": w.lon} for w in mission.waypoints]
     feed_recs: list[str] = []
     feed_cons: list[dict] = []
     floor: str | None = None
 
-    def _label(snap: dict, live_src: str) -> str:
+    def _label(snap: dict, live_srcs) -> str:
         s = snap.get("source")
-        if s == live_src:
+        if s in (live_srcs if isinstance(live_srcs, (set, tuple, list)) else (live_srcs,)):
             return "authoritative"
         if s == "DEMO":
             return "demo"
-        if snap.get("fetch_status", {}):  # tried but no usable data
-            return "unavailable"
         return "unavailable"
 
     # ── D-RAP: authoritative HF absorption ────────────────────────────────────
@@ -2043,26 +2054,106 @@ def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
         "feed_label": _label(drap_snap, "NOAA SWPC D-RAP"),
     }
 
-    # ── NANU: GPS outage advisories (prototype) ───────────────────────────────
+    # ── NANU / CelesTrak: GPS availability ────────────────────────────────────
     nanu_snap = _nanu.cache_snapshot()
     nanu_used = _nanu.has_active_outage()
     if nanu_used:
+        const = _nanu.constellation_status()
         advs = _nanu.active_advisories()
-        feed_cons.append(
-            {
-                "risk": "AMBER",
-                "fn": "GPS constellation availability",
-                "fail": f"NANU: {len(advs)} GPS outage advisory(ies) active — reduced constellation "
-                "availability may affect navigation confidence.",
-            }
-        )
+        if const and const["degraded"]:
+            # Live operational-constellation signal from CelesTrak GPS-ops.
+            fail = (
+                f"CelesTrak GPS-ops: {const['operational_count']} operational SVs vs nominal "
+                f"{const['nominal']} — reduced GPS constellation availability degrades "
+                "navigation confidence and DOP."
+            )
+        else:
+            fail = (
+                f"NANU: {len(advs)} GPS outage advisory(ies) active — reduced constellation "
+                "availability may affect navigation confidence."
+            )
+        feed_cons.append({"risk": "AMBER", "fn": "GPS constellation availability", "fail": fail})
         rec = "Verify receiver constellation availability; use multi-GNSS / backup navigation."
         if mission.mission_type == "precision-ag" or mission.gnss_dependence == "rtk":
             rec = "RTK/autosteer readiness impact — " + rec + " Delay precision operations if tolerance is low."
         feed_recs.append(rec)
         if mission.gnss_dependence in ("high", "rtk"):
             floor = _max_risk(floor, "CAUTION")
-    nanu_block = {**nanu_snap, "used_in_assessment": nanu_used, "feed_label": _label(nanu_snap, "NANU feed")}
+    nanu_block = {
+        **nanu_snap,
+        "used_in_assessment": nanu_used,
+        "feed_label": _label(nanu_snap, ("NANU feed", "CelesTrak GPS-ops")),
+    }
+
+    # ── DONKI: space-weather event log (cause-of-risk / timeline) ─────────────
+    donki_snap = _donki.cache_snapshot()
+    donki_drivers = _donki.drivers_summary() if _donki.available() else []
+    donki_used = bool(donki_drivers)
+    if donki_used:
+        # Explanatory only — DONKI never escalates the verdict by itself; it
+        # tells the operator WHY the measured conditions look the way they do.
+        feed_recs.append("Space-weather drivers (NASA DONKI): " + "; ".join(donki_drivers) + ".")
+        out["event_drivers"] = donki_drivers
+    donki_block = {
+        **donki_snap,
+        "used_in_assessment": donki_used,
+        "drivers": donki_drivers,
+        "feed_label": _label(donki_snap, "NASA DONKI"),
+    }
+
+    # ── OVATION: auroral GNSS/comms scintillation (high latitude) ─────────────
+    ovation_snap = _ovation.cache_snapshot()
+    aurora = _ovation.route_aurora_risk(wps) if _ovation.available() else None
+    ovation_used = bool(aurora and aurora["level"] in ("ELEVATED", "HIGH"))
+    if ovation_used:
+        high = aurora["level"] == "HIGH"
+        feed_cons.append(
+            {
+                "risk": "RED" if high else "AMBER",
+                "fn": "GNSS carrier-phase / HF & SATCOM links",
+                "fail": f"OVATION: {aurora['prob_pct']:.0f}% aurora probability near "
+                f"{aurora.get('at') or 'the route'} — auroral scintillation can scramble GNSS "
+                "carrier phase (RTK/PPP) and degrade HF/SATCOM at high latitude.",
+            }
+        )
+        feed_recs.append(
+            "Auroral activity over the route (NOAA OVATION): expect GNSS scintillation and "
+            "high-latitude comms fades — plan redundant PNT and comms windows."
+        )
+        if mission.gnss_dependence in ("high", "rtk") or mission.comms_dependence == "high":
+            floor = _max_risk(floor, "HIGH_RISK" if high else "CAUTION")
+    ovation_block = {
+        **ovation_snap,
+        "used_in_assessment": ovation_used,
+        "route_aurora_risk": aurora,
+        "feed_label": _label(ovation_snap, "NOAA SWPC OVATION"),
+    }
+
+    # ── WMM: magnetic declination / compass reliability (local model) ─────────
+    wmm_decl = _wmm.route_declination(wps) if _wmm.available() else None
+    wmm_used = wmm_decl is not None
+    if wmm_decl:
+        feed_recs.append("Navigation reference (World Magnetic Model): " + wmm_decl["guidance"] + ".")
+        worst = wmm_decl.get("route_compass_reliability")
+        if worst in ("CAUTION", "BLACKOUT"):
+            feed_cons.append(
+                {
+                    "risk": "RED" if worst == "BLACKOUT" else "AMBER",
+                    "fn": "Magnetic compass / magnetic heading",
+                    "fail": "WMM: magnetic compass "
+                    + ("unreliable (polar blackout zone)" if worst == "BLACKOUT" else "degraded near the pole")
+                    + " along the route — rely on GPS/grid/celestial for heading.",
+                }
+            )
+            if worst == "BLACKOUT":
+                floor = _max_risk(floor, "CAUTION")
+    wmm_block = {
+        "source": "World Magnetic Model (local)",
+        "available": _wmm.available(),
+        "used_in_assessment": wmm_used,
+        "declination": wmm_decl,
+        "feed_label": "authoritative" if wmm_used else "unavailable",
+    }
 
     if feed_recs:
         out["recommended_actions"] = (out.get("recommended_actions") or []) + feed_recs
@@ -2071,7 +2162,13 @@ def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
     if floor:
         out["mission_risk_level"] = _max_risk(out["mission_risk_level"], floor)
 
-    return {"drap": drap_block, "nanu": nanu_block}
+    return {
+        "drap": drap_block,
+        "nanu": nanu_block,
+        "donki": donki_block,
+        "ovation": ovation_block,
+        "wmm": wmm_block,
+    }
 
 
 @router_v3.post("/recommend")
