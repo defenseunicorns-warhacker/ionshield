@@ -351,10 +351,17 @@ def test_cot_event_well_formed():
     root = ET.fromstring(xml_str)
     assert root.tag == "event"
     assert root.attrib["uid"] == "IONSHIELD-test"
-    assert root.attrib["type"] == "a-u-G"
+    # Risk drives the affiliation so the marker renders the right color in TAK:
+    # NOMINAL -> neutral (green), DEGRADED/SEVERE -> hostile (red).
+    assert root.attrib["type"] == "a-n-G"
     point = root.find("point")
     assert point is not None
     assert float(point.attrib["lat"]) == pytest.approx(38.8, abs=1e-4)
+
+    loc_red = {**loc, "alert": {"active": True, "risk_level": "DEGRADED"}}
+    red = ET.fromstring(build_cot_event(loc_red))
+    assert red.attrib["type"] == "a-h-G"  # red marker for a degraded asset
+    assert red.find("detail/archive") is not None  # stays a selectable map item
 
 
 def test_cot_argb_values():

@@ -18,6 +18,8 @@ services:
       # in active alert — so markers always appear (quiet space weather would
       # otherwise mean zero alerts → nothing on the map).
       COT_PUSH_ALL: "true"
+      # Color the markers off the May 2024 Gannon G5 storm (demo). Empty = live.
+      COT_SCENARIO: "gannon-2024"
       # Snappier demo loop: push/refresh every 2 min instead of 5.
       REFRESH_INTERVAL_SECONDS: "120"
     depends_on:

@@ -91,8 +91,17 @@ async def _push_cot() -> None:
     continuous regardless of alert state (the markers carry the live risk
     colour and an ⚠ALERT flag in remarks when a site is actually alerting).
     """
-    from app.data.locations import get_all
+    from app.data.locations import assess_all, get_all
     from app.outputs.cot import push_cot_to_server
+
+    # Optional: color markers off a replay storm (e.g. gannon-2024) for a demo.
+    scenario = (settings.cot_scenario or "").strip()
+    if scenario:
+        from app.models.replay_scenarios import REPLAY_SCENARIOS
+
+        scn = REPLAY_SCENARIOS.get(scenario)
+        if scn is not None:
+            assess_all(scn.kp)  # re-assess all sites under the storm's Kp
 
     locations = get_all() if settings.cot_push_all else get_active_alerts()
     if locations:

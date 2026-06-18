@@ -21,10 +21,19 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
-# CoT type: a-u-G = atom · unknown affiliation · ground track
-# 'unknown' (u) rather than 'friendly' (f) because these are monitored sites,
-# not confirmed friendly tactical elements.
-_COT_TYPE = "a-u-G"
+# Risk → CoT affiliation. TAK colors a marker by the affiliation letter in its
+# type, and honors that reliably (unlike the <color> detail, which ATAK/iTAK
+# ignore for generic atoms). Mapping risk to affiliation gives green / yellow /
+# red markers that render correctly AND stay tappable:
+#   n = neutral  → GREEN    f = friendly → BLUE
+#   u = unknown  → YELLOW   h = hostile  → RED
+_RISK_COT_TYPE = {
+    "NOMINAL": "a-n-G",  # green — nominal
+    "ELEVATED": "a-u-G",  # yellow — watch
+    "DEGRADED": "a-h-G",  # red — degraded
+    "SEVERE": "a-h-G",  # red — severe
+}
+_COT_TYPE = "a-u-G"  # fallback
 
 
 def _argb(r: int, g: int, b: int) -> int:
@@ -67,13 +76,14 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
     kp_val = assessment.get("kp_current", "?")
 
     uid = f"IONSHIELD-{location['id']}"
-    callsign = f"IS-{location['name'][:16]}"  # ATAK callsign length limit ≈ 16-32
+    callsign = f"IS {location['name'][:20]}"  # ATAK callsign length limit ≈ 16-32
     argb = _RISK_ARGB.get(risk_level, _RISK_ARGB["NOMINAL"])
+    cot_type = _RISK_COT_TYPE.get(risk_level, _COT_TYPE)
 
-    alert_flag = " ⚠ALERT" if location.get("alert", {}).get("active") else ""
+    alert_flag = " *ALERT*" if location.get("alert", {}).get("active") else ""
     remarks = (
         f"IonShield{alert_flag} | Risk: {risk_level} ({risk_score}/100) | "
-        f"GPS ±{gps_error:.1f}m | Kp: {kp_val} | "
+        f"GPS +/-{gps_error:.1f}m | Kp: {kp_val} | "
         f"Asset: {location.get('asset_type', 'GPS_L1')}"
     )
 
@@ -82,20 +92,22 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
         {
             "version": "2.0",
             "uid": uid,
-            "type": _COT_TYPE,
+            "type": cot_type,
             "time": _cot_ts(now),
             "start": _cot_ts(now),
             "stale": _cot_ts(stale),
             "how": "m-g",
         },
     )
+    # hae 0.0 (not the 9999999 sentinel — some clients mishandle it) and a
+    # finite CE so the marker is placed cleanly and stays selectable.
     ET.SubElement(
         event,
         "point",
         {
             "lat": str(round(location["lat"], 6)),
             "lon": str(round(location["lon"], 6)),
-            "hae": "9999999.0",
+            "hae": "0.0",
             "ce": "9999999.0",
             "le": "9999999.0",
         },
@@ -104,7 +116,10 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
     ET.SubElement(detail, "contact", {"callsign": callsign})
     ET.SubElement(detail, "remarks").text = remarks
     ET.SubElement(detail, "color", {"argb": str(argb)})
-    ET.SubElement(detail, "precisionlocation", {"geopointsrc": "??", "altsrc": "??"})
+    # archive => ATAK persists it as a normal selectable map item; precisionlocation
+    # with valid sources keeps the marker fully interactive (radial menu on tap).
+    ET.SubElement(detail, "archive")
+    ET.SubElement(detail, "precisionlocation", {"geopointsrc": "USER", "altsrc": "DTED0"})
 
     return ET.tostring(event, encoding="unicode", xml_declaration=False)
 
