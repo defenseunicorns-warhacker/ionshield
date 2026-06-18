@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>OPERATION DESERT SENTINEL — UAS ISR Patrol</name>
+    <description>Group 1 UAS (RQ-11B Raven) ISR patrol, Fort Huachuca AZ southern range. Approx 19 km. Unclassified demonstration scenario for IonShield.</description>
+
+    <Style id="wp"><IconStyle><color>ff4ac9e6</color><scale>1.1</scale></IconStyle></Style>
+    <Style id="route"><LineStyle><color>ff4ab0e8</color><width>3</width></LineStyle></Style>
+
+    <Placemark><name>LP-1 SENTINEL</name><styleUrl>#wp</styleUrl>
+      <description>Launch &amp; recovery point — forward UAS site on southern range road</description>
+      <Point><coordinates>-110.3800,31.4700,0</coordinates></Point></Placemark>
+    <Placemark><name>OP-1 HAWKEYE</name><styleUrl>#wp</styleUrl>
+      <description>Ridge OP overlooking western approach / canyon mouth</description>
+      <Point><coordinates>-110.3950,31.4480,0</coordinates></Point></Placemark>
+    <Placemark><name>NAI-1 WASH ALPHA</name><styleUrl>#wp</styleUrl>
+      <description>Dry-wash junction — primary infiltration-route NAI</description>
+      <Point><coordinates>-110.3820,31.4280,0</coordinates></Point></Placemark>
+    <Placemark><name>OP-2 RAPTOR</name><styleUrl>#wp</styleUrl>
+      <description>Overwatch of trail/road junction feeding the corridor</description>
+      <Point><coordinates>-110.4050,31.4150,0</coordinates></Point></Placemark>
+    <Placemark><name>AOI BORDER APPROACH</name><styleUrl>#wp</styleUrl>
+      <description>Decisive observation — southern reservation boundary approach</description>
+      <Point><coordinates>-110.3700,31.4050,0</coordinates></Point></Placemark>
+    <Placemark><name>OP-3 FALCONER</name><styleUrl>#wp</styleUrl>
+      <description>Egress overwatch covering exfil route to base</description>
+      <Point><coordinates>-110.3600,31.4350,0</coordinates></Point></Placemark>
+    <Placemark><name>RTB SENTINEL</name><styleUrl>#wp</styleUrl>
+      <description>Return to launch — autonomous RTH to LP-1</description>
+      <Point><coordinates>-110.3800,31.4700,0</coordinates></Point></Placemark>
+
+    <Placemark><name>DESERT SENTINEL route</name><styleUrl>#route</styleUrl>
+      <LineString><tessellate>1</tessellate><coordinates>
+        -110.3800,31.4700,0
+        -110.3950,31.4480,0
+        -110.3820,31.4280,0
+        -110.4050,31.4150,0
+        -110.3700,31.4050,0
+        -110.3600,31.4350,0
+        -110.3800,31.4700,0
+      </coordinates></LineString></Placemark>
+  </Document>
+</kml>

@@ -21,10 +21,30 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
-# CoT type: a-u-G = atom · unknown affiliation · ground track
-# 'unknown' (u) rather than 'friendly' (f) because these are monitored sites,
-# not confirmed friendly tactical elements.
-_COT_TYPE = "a-u-G"
+# Risk → CoT affiliation. TAK colors a marker by the affiliation letter in its
+# type, and honors that reliably (unlike the <color> detail, which ATAK/iTAK
+# ignore for generic atoms). Mapping risk to affiliation gives green / yellow /
+# red markers that render correctly AND stay tappable:
+#   n = neutral  → GREEN    f = friendly → BLUE
+#   u = unknown  → YELLOW   h = hostile  → RED
+# Use the Ground-Unit-Combat dimension (…-G-U-C) so iTAK treats the marker as
+# a selectable contact (full detail card with remarks), not a bare spot atom.
+# The affiliation letter still drives the colour.
+_RISK_COT_TYPE = {
+    "NOMINAL": "a-n-G-U-C",  # green — nominal
+    "ELEVATED": "a-u-G-U-C",  # yellow — watch
+    "DEGRADED": "a-h-G-U-C",  # red — degraded
+    "SEVERE": "a-h-G-U-C",  # red — severe
+}
+_COT_TYPE = "a-u-G-U-C"  # fallback
+
+# ATAK __group team colour per risk — also tints the contact marker.
+_RISK_GROUP = {
+    "NOMINAL": "Green",
+    "ELEVATED": "Yellow",
+    "DEGRADED": "Red",
+    "SEVERE": "Red",
+}
 
 
 def _argb(r: int, g: int, b: int) -> int:
@@ -67,13 +87,14 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
     kp_val = assessment.get("kp_current", "?")
 
     uid = f"IONSHIELD-{location['id']}"
-    callsign = f"IS-{location['name'][:16]}"  # ATAK callsign length limit ≈ 16-32
+    callsign = f"IS {location['name'][:20]}"  # ATAK callsign length limit ≈ 16-32
     argb = _RISK_ARGB.get(risk_level, _RISK_ARGB["NOMINAL"])
+    cot_type = _RISK_COT_TYPE.get(risk_level, _COT_TYPE)
 
-    alert_flag = " ⚠ALERT" if location.get("alert", {}).get("active") else ""
+    alert_flag = " *ALERT*" if location.get("alert", {}).get("active") else ""
     remarks = (
         f"IonShield{alert_flag} | Risk: {risk_level} ({risk_score}/100) | "
-        f"GPS ±{gps_error:.1f}m | Kp: {kp_val} | "
+        f"GPS +/-{gps_error:.1f}m | Kp: {kp_val} | "
         f"Asset: {location.get('asset_type', 'GPS_L1')}"
     )
 
@@ -82,29 +103,41 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
         {
             "version": "2.0",
             "uid": uid,
-            "type": _COT_TYPE,
+            "type": cot_type,
             "time": _cot_ts(now),
             "start": _cot_ts(now),
             "stale": _cot_ts(stale),
             "how": "m-g",
         },
     )
+    # hae 0.0 (not the 9999999 sentinel — some clients mishandle it) and a
+    # finite CE so the marker is placed cleanly and stays selectable.
     ET.SubElement(
         event,
         "point",
         {
             "lat": str(round(location["lat"], 6)),
             "lon": str(round(location["lon"], 6)),
-            "hae": "9999999.0",
+            "hae": "0.0",
             "ce": "9999999.0",
             "le": "9999999.0",
         },
     )
+    group = _RISK_GROUP.get(risk_level, "White")
     detail = ET.SubElement(event, "detail")
-    ET.SubElement(detail, "contact", {"callsign": callsign})
+    # endpoint marks this as a contact → iTAK opens the full detail card on tap
+    # (the same card the scenario markers show), where <remarks> is displayed.
+    ET.SubElement(detail, "contact", {"callsign": callsign, "endpoint": "*:-1:stcp"})
+    # __group team colour also tints the contact marker to match the risk.
+    ET.SubElement(detail, "__group", {"name": group, "role": "Team Member"})
+    # takv + track make iTAK treat it as a live SA contact (selectable card).
+    ET.SubElement(detail, "takv", {"device": "IonShield", "platform": "IonShield", "os": "0", "version": "1.0"})
+    ET.SubElement(detail, "track", {"course": "0.0", "speed": "0.0"})
+    ET.SubElement(detail, "status", {"battery": "100"})
     ET.SubElement(detail, "remarks").text = remarks
     ET.SubElement(detail, "color", {"argb": str(argb)})
-    ET.SubElement(detail, "precisionlocation", {"geopointsrc": "??", "altsrc": "??"})
+    ET.SubElement(detail, "archive")
+    ET.SubElement(detail, "precisionlocation", {"geopointsrc": "USER", "altsrc": "DTED0"})
 
     return ET.tostring(event, encoding="unicode", xml_declaration=False)
 
@@ -137,34 +170,45 @@ async def push_cot_to_server(
     """
     Push CoT events to a TAK server over TCP (standard port 8087).
 
-    TAK Server expects newline-terminated CoT XML strings on the TCP stream.
-    This function is best-effort — any exception is logged and swallowed so
-    the caller's event loop is never disrupted.
+    One event per TCP connection. FreeTAKServer's stream parser rejects
+    multiple ``<event>`` documents concatenated on a single connection
+    (it tries to wrap them as ``multiEvent`` and fails with a tag mismatch),
+    so each event is sent on its own short-lived connection — which both
+    TAK Server and FreeTAKServer accept. The server then broadcasts each
+    event to connected clients (ATAK/iTAK/WinTAK), which hold the marker
+    until its stale time.
+
+    Best-effort: a connection-level failure aborts the batch (the server is
+    down); a per-event error is logged and the batch continues. Nothing
+    propagates to the caller's event loop.
     """
     if not locations:
         return
 
-    xml_events = [build_cot_event(loc, stale_minutes) for loc in locations]
-
-    try:
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port),
-            timeout=connect_timeout,
-        )
-        for xml in xml_events:
+    sent = 0
+    for loc in locations:
+        xml = build_cot_event(loc, stale_minutes)
+        try:
+            _reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port),
+                timeout=connect_timeout,
+            )
             writer.write((xml + "\n").encode("utf-8"))
-        await writer.drain()
-        writer.close()
-        await writer.wait_closed()
-        logger.info(
-            "CoT push: sent %d event(s) to %s:%d",
-            len(xml_events),
-            host,
-            port,
-        )
-    except asyncio.TimeoutError:
-        logger.warning("CoT push: connection to %s:%d timed out", host, port)
-    except OSError as exc:
-        logger.warning("CoT push: connection to %s:%d failed — %s", host, port, exc)
-    except Exception as exc:
-        logger.warning("CoT push: unexpected error — %s", exc)
+            await writer.drain()
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:  # server may reset on close — event already sent
+                pass
+            sent += 1
+        except asyncio.TimeoutError:
+            logger.warning("CoT push: connection to %s:%d timed out", host, port)
+            break
+        except OSError as exc:
+            logger.warning("CoT push: connection to %s:%d failed — %s", host, port, exc)
+            break
+        except Exception as exc:
+            logger.warning("CoT push: error pushing %s — %s", loc.get("id"), exc)
+
+    if sent:
+        logger.info("CoT push: sent %d event(s) to %s:%d (one conn/event)", sent, host, port)

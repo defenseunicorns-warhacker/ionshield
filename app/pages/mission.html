@@ -315,6 +315,64 @@
     .mp-eq-body .act { color: var(--text-2); margin-top: 2px; }
     .mp-eq-body .cit { color: var(--text-3); font-size: 10.5px; margin-top: 2px; font-style: italic; }
 
+    /* ── Mission File Import ────────────────────────────────────────────── */
+    .mp-import { border: 1px solid var(--line, #1f2a36); border-radius: 12px; padding: 14px 16px;
+                 margin-bottom: 18px; background: rgba(78,201,230,.03); }
+    .mp-import summary { cursor: pointer; font-size: 14px; font-weight: 700; color: var(--text-1, #e6ecf2);
+                         list-style: none; display: flex; align-items: center; gap: 8px; }
+    .mp-import summary::-webkit-details-marker { display: none; }
+    .mp-import summary::before { content: '▸'; color: var(--text-3); }
+    .mp-import[open] summary::before { content: '▾'; }
+    .mp-import-sub { font-size: 11.5px; color: var(--text-3); margin: 6px 0 12px 18px; line-height: 1.5; }
+    .mp-import-body { margin-top: 12px; }
+    .mp-import-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .mp-import textarea { width: 100%; min-height: 90px; box-sizing: border-box; font-family: ui-monospace, monospace;
+                          font-size: 12px; padding: 9px 11px; border-radius: 8px;
+                          border: 1px solid var(--line, #1f2a36); background: var(--bg-2, #0f1620);
+                          color: var(--text-1, #e6ecf2); resize: vertical; }
+    .mp-import-btn { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--blue, #3b82f6);
+                     background: var(--blue, #3b82f6); color: #fff; font-size: 12.5px; cursor: pointer; }
+    .mp-import-btn.ghost { background: transparent; color: var(--text-2); border-color: var(--line, #1f2a36); }
+    .mp-import-file { font-size: 12px; color: var(--text-2); }
+    .mp-import-status { font-size: 11.5px; color: var(--text-3); }
+    .mp-import-err { color: var(--red, #ef4444); }
+    .mp-import-future { font-size: 10.5px; color: var(--text-3); margin-top: 10px; font-style: italic; }
+
+    /* Mission Import Review card */
+    .mp-review { margin-top: 14px; border: 1px solid var(--blue, #3b82f6); border-radius: 10px;
+                 padding: 14px 16px; background: rgba(59,130,246,.05); }
+    .mp-review h4 { margin: 0 0 4px; font-size: 13px; color: var(--text-1, #e6ecf2); }
+    .mp-review-src { font-size: 10.5px; color: var(--text-3); margin-bottom: 10px; }
+    .mp-review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 16px; font-size: 12px; }
+    .mp-review-k { color: var(--text-3); }
+    .mp-review-v { color: var(--text-1, #e6ecf2); font-weight: 600; }
+    .mp-review-missing { margin-top: 10px; font-size: 11.5px; color: var(--yellow, #f59e0b); }
+    .mp-review-actions { margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+
+    /* Route insights (post-assessment) */
+    .mp-route { margin: 14px 0; border: 1px solid var(--line, #1f2a36); border-left: 3px solid var(--blue-hi, #60a5fa);
+                border-radius: 10px; padding: 12px 14px; }
+    .mp-route h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-1, #e6ecf2); }
+    .mp-route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12px; }
+    .mp-route-k { color: var(--text-3); }
+    .mp-route-v { color: var(--text-1, #e6ecf2); font-weight: 600; }
+
+    /* ── Operational Feeds status ───────────────────────────────────────── */
+    .mp-feeds { margin: 14px 0; border: 1px solid var(--line, #1f2a36); border-radius: 10px; padding: 12px 14px; }
+    .mp-feeds h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-1, #e6ecf2); }
+    .mp-feed-row { padding: 7px 0; border-top: 1px solid var(--line, #1f2a36); display: grid;
+                   grid-template-columns: auto auto 1fr; gap: 4px 8px; align-items: center; }
+    .mp-feed-row:first-of-type { border-top: none; }
+    .mp-feed-name { font-weight: 600; font-size: 12px; color: var(--text-1, #e6ecf2); }
+    .mp-feed-pill { font-size: 9.5px; font-weight: 700; letter-spacing: .4px; border-radius: 5px; padding: 2px 7px; text-align: center; }
+    .mp-feed-pill.auth   { background: rgba(16,185,129,.13); color: var(--green); }
+    .mp-feed-pill.cached { background: rgba(96,165,250,.13); color: var(--blue-hi, #60a5fa); }
+    .mp-feed-pill.demo   { background: rgba(168,85,247,.13); color: #c084fc; }
+    .mp-feed-pill.na     { background: rgba(139,151,166,.13); color: var(--text-3); }
+    .mp-feed-used { font-size: 10.5px; color: var(--text-3); text-align: right; }
+    .mp-feed-detail { grid-column: 1 / -1; font-size: 10.5px; color: var(--text-3); }
+    .mp-feeds-foot { font-size: 10px; color: var(--text-3); margin-top: 9px; font-style: italic; }
+
     /* ── Decision verdict + Mission Consequences (operator-first) ───────── */
     .mp-verdict .level { letter-spacing: .3px; }
     .mp-primary-rec { font-size: 13px; color: var(--text-1); margin: 6px 0 4px; line-height: 1.45; }
@@ -334,7 +392,15 @@
     .mp-cons-body { flex: 1; font-size: 12px; }
     .mp-cons-fn { font-weight: 600; color: var(--text-1, #e6ecf2); }
     .mp-cons-fail { color: var(--text-2); margin-top: 2px; line-height: 1.45; }
-    .mp-cons-none { font-size: 12px; color: var(--text-2); }
+    .mp-cons-profile { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px;
+                       margin: 0 0 8px; font-weight: 700; }
+    .mp-cons-intro { font-size: 12px; color: var(--text-2); margin: 0 0 8px; line-height: 1.45; }
+    .mp-cons-intro strong { color: var(--text-1); }
+    .mp-cons-none { font-size: 12px; color: var(--text-2); background: rgba(16,185,129,.06);
+                    border: 1px solid rgba(16,185,129,.3); border-radius: 8px; padding: 10px 12px; }
+    .mp-cons-none-title { color: var(--green, #10b981); font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .mp-cons-none-body { color: var(--text-2); line-height: 1.5; }
+    .mp-cons-none-watch { color: var(--text-3); font-size: 11px; margin-top: 6px; line-height: 1.45; }
     .mp-cons-foot { font-size: 10.5px; color: var(--text-3); margin-top: 9px; font-style: italic; }
 
     /* ── Disconnected-mode hero callout ─────────────────────────────────── */
@@ -400,8 +466,8 @@
       Fires Support — AFATDS Coordinate Verification
     </button>
     <button class="mp-scenario" data-scenario="disconnected-ops">
-      <span class="lbl">DISCONNECTED</span>
-      Disconnected Ops — Manual Kp Entry
+      <span class="lbl">AIR-GAP</span>
+      Disconnected Ops — upload mission file(s) + manual Kp
     </button>
   </div>
   <div class="mp-scenarios mp-scenarios-alt" aria-label="Commercial demo scenarios">
@@ -419,6 +485,39 @@
       Polar inspection · GPS-degraded
     </button>
   </div>
+
+  <!-- ── Mission File Import (import layer over the manual planner) ─── -->
+  <details class="mp-import" id="m-import">
+    <summary>Import mission file(s) or a pasted route</summary>
+    <div class="mp-import-sub">
+      Already have a mission plan from somewhere else? Upload or paste it — IonShield
+      extracts the route and mission context, pre-fills the planner below, and runs the
+      same assessment. You can select <strong>multiple files</strong> at once (routes +
+      overlays are merged). You review and edit before it runs.<br>
+      <strong>Works fully air-gapped:</strong> the translation engine runs entirely
+      in-browser — no internet, no server round-trip. Pair an uploaded mission with a
+      manual Kp from your weather brief (below) for a complete offline assessment.
+      <strong>Manual entry still works exactly as before.</strong>
+    </div>
+    <div class="mp-import-body">
+      <div class="mp-import-row">
+        <input type="file" id="m-import-file" class="mp-import-file" multiple
+               accept=".json,.geojson,.kml,.txt,application/json,application/geo+json,application/vnd.google-earth.kml+xml" />
+      </div>
+      <textarea id="m-import-text" placeholder="…or paste a JSON mission, GeoJSON, KML, or a coordinate list (one per line: name, lat, lon  — or just  lat, lon)"></textarea>
+      <div class="mp-import-row" style="margin-top:10px;">
+        <button type="button" class="mp-import-btn" id="m-import-parse">Parse mission</button>
+        <button type="button" class="mp-import-btn ghost" id="m-import-clear">Clear</button>
+        <span class="mp-import-status" id="m-import-status"></span>
+      </div>
+      <div id="m-import-review"></div>
+      <div class="mp-import-future">
+        Roadmap: direct ingest of map.army exports, ATAK/TAK overlays, UAS mission-planning
+        files, and unit-specific mission packages. IonShield ingests plans made elsewhere —
+        it does not replace your map or planning tools.
+      </div>
+    </div>
+  </details>
 
   <!-- ── Form + result ───────────────────────────────────────────── -->
   <div class="mp-grid">
@@ -756,13 +855,16 @@
       applyEquipmentDefaults(s.type);
     }
     activeScenario = s.scenario || '';
-    // Disconnected-ops scenario: surface the manual Kp entry panel so the
-    // operator can enter a value from an approved brief.
+    // Disconnected/air-gap scenario: open BOTH the mission-file import (upload
+    // your route/overlay files — runs fully offline) and the manual Kp panel
+    // (enter a value from an approved brief). Together they give a complete
+    // assessment with no connectivity.
     if (s.manual) {
+      const imp = document.getElementById('m-import');
+      if (imp) imp.open = true;
       const panel = document.querySelector('.mp-manual');
-      if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-      const kp = document.getElementById('m-manual-kp');
-      if (kp) kp.focus();
+      if (panel) panel.open = true;
+      if (imp) imp.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
       document.getElementById('m-run').focus();
     }
@@ -878,6 +980,51 @@
     return (red || cons[0]).fail;
   }
 
+  // Human-readable mission profile from the echoed inputs, so the consequences
+  // section is framed by THIS mission's parameters.
+  const MISSION_TYPE_LABEL = {
+    'uav': 'UAV', 'bvlos': 'BVLOS UAS', 'precision-ag': 'Precision-ag', 'maritime': 'Maritime / SAR',
+    'defense-patrol': 'Defense patrol', 'surveying': 'Survey', 'autonomous-ground': 'Autonomous ground',
+    'fires-support': 'Fires support', 'sof-comms': 'SOF comms', 'cas-coordination': 'CAS coordination',
+    'ground-maneuver': 'Ground maneuver',
+  };
+  function missionProfile(inputs) {
+    const type = MISSION_TYPE_LABEL[inputs.mission_type] || inputs.mission_type || 'Mission';
+    const win = { 'now': 'live', 'next-1h': 'next 1 h', 'next-6h': 'next 6 h', 'next-24h': 'next 24 h' }[inputs.time_window] || inputs.time_window;
+    const parts = [];
+    if (inputs.gnss_dependence) parts.push(`${inputs.gnss_dependence} GPS`);
+    if (inputs.comms_dependence) parts.push(`${inputs.comms_dependence} comms`);
+    if (inputs.risk_tolerance) parts.push(`${inputs.risk_tolerance} risk tolerance`);
+    if (win) parts.push(`${win} window`);
+    return { type, detail: parts.join(' · ') };
+  }
+
+  // Characterize current space weather from the live operational feeds, so the
+  // empty state can state plainly that no significant event is active.
+  function spaceWeatherSummary(a) {
+    const f = a.operational_feeds || {};
+    const drivers = (a.event_drivers && a.event_drivers.length ? a.event_drivers : ((f.donki || {}).drivers || []));
+    const clear = [], active = [];
+    const d = f.drap || {};
+    if (d.route_hf_risk && d.route_hf_risk.level !== 'MINIMAL') active.push(`HF absorption ${String(d.route_hf_risk.level).toLowerCase()} (D-RAP)`);
+    else if (d.available) clear.push('HF absorption minimal');
+    const nc = (f.nanu || {}).constellation;
+    if (nc) {
+      // Only a below-nominal count is a driver; a single unhealthy SV with the
+      // constellation still at nominal is informational, not mission-driving.
+      if (nc.degraded) active.push(`GPS ${nc.operational_count}/${nc.nominal} healthy SVs (below nominal)`);
+      else {
+        const bad = (nc.unhealthy && nc.unhealthy.length) ? ` (PRN-${nc.unhealthy.join(', PRN-')} unhealthy)` : '';
+        clear.push(`GPS constellation nominal (${nc.operational_count}/${nc.nominal} SVs${bad})`);
+      }
+    }
+    const o = f.ovation || {};
+    if (o.route_aurora_risk && o.route_aurora_risk.level !== 'MINIMAL') active.push(`aurora ${o.route_aurora_risk.prob_pct}% over route`);
+    else if (o.available) clear.push('no auroral activity over route');
+    if (drivers.length) active.push(...drivers); else clear.push('no significant solar events (DONKI)');
+    return { drivers, clear, active, quiet: active.length === 0 };
+  }
+
   // Primary recommendation. The engine sometimes leads its action list with a
   // generic "all clear" line even when the mission verdict escalates (e.g. an
   // RTK mission delayed by tight tolerance under calm space weather). For any
@@ -935,10 +1082,14 @@
 
     // Operator decision framing + derived mission consequences.
     const disp = RISK_DISPLAY[level] || RISK_DISPLAY.CLEAR;
-    const consequences = deriveConsequences(assessment, gnss, comms);
+    const consequences = deriveConsequences(assessment, gnss, comms)
+      .concat(assessment.feed_consequences || []);  // append authoritative-feed consequences
     const primaryRec = primaryRecommendation(recs, disp.decision);
     const oneLineConsequence = consequenceSentence(consequences);
     const consChip = { RED: 'red', AMBER: 'amber', GREEN: 'green' };
+    const profile = missionProfile(inputs);
+    const sw = spaceWeatherSummary(assessment);
+    const drivenBy = sw.active.length ? `, driven by ${sw.active.slice(0, 3).join('; ')}` : '';
 
     const obs  = (prov.observations_used || []).join(', ') || '—';
     const fcs  = (prov.forecasts_used    || []).join(', ') || '—';
@@ -966,7 +1117,9 @@
       <!-- Mission Consequences (operator-facing, above technical detail) -->
       <div class="mp-cons">
         <h4>Mission Consequences</h4>
+        <div class="mp-cons-profile">${escapeHtml(profile.type)} mission${profile.detail ? ` · ${escapeHtml(profile.detail)}` : ''}</div>
         ${consequences.length ? `
+        <div class="mp-cons-intro">What could fail on <strong>this</strong> mission${escapeHtml(drivenBy)}:</div>
         <ul>${consequences.map(c => `
           <li>
             <span class="mp-cons-chip ${consChip[c.risk] || 'amber'}">${c.risk}</span>
@@ -975,7 +1128,14 @@
               <div class="mp-cons-fail">${escapeHtml(c.fail)}</div>
             </div>
           </li>`).join('')}</ul>` : `
-        <div class="mp-cons-none">No significant mission functions affected by current conditions.</div>`}
+        <div class="mp-cons-none">
+          <div class="mp-cons-none-title">✓ No active mission consequences</div>
+          <div class="mp-cons-none-body">No significant space-weather event is active, and this mission's
+            ${escapeHtml(inputs.gnss_dependence || '')} GPS and ${escapeHtml(inputs.comms_dependence || '')} comms
+            dependencies are within tolerance — nothing is currently degrading mission functions.</div>
+          ${sw.clear.length ? `<div class="mp-cons-none-watch">Current conditions: ${escapeHtml(sw.clear.join(' · '))}.</div>` : ''}
+          <div class="mp-cons-none-watch">IonShield keeps monitoring — consequences will appear here the moment conditions degrade.</div>
+        </div>`}
         <div class="mp-cons-foot">What could fail → which mission function → drives the decision above. Technical detail and audit trail below.</div>
       </div>
 
@@ -1025,9 +1185,13 @@
         <ul>${recs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>
       </div>` : ''}
 
+      ${renderRouteInsights(assessment)}
+
       ${renderEquipmentReadout(assessment.equipment)}
 
       ${renderAtakHandoff(assessment)}
+
+      ${renderOperationalFeeds(assessment)}
 
       <!-- Confidence / data quality -->
       <div class="mp-conf">
@@ -1176,6 +1340,413 @@
     return String(s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MISSION FILE IMPORT  (import layer over the existing manual planner)
+  //  Parse a mission file / pasted route → normalize → review card →
+  //  "Use Imported Mission" pre-fills the SAME fields and runs the SAME
+  //  assessment. No backend changes; manual entry is unaffected.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Allowed enums (match the form <select> option values).
+  const MISSION_TYPES = ['uav','bvlos','precision-ag','maritime','defense-patrol','surveying',
+                         'autonomous-ground','fires-support','sof-comms','cas-coordination','ground-maneuver'];
+  const GNSS_LEVELS = ['low','medium','high','rtk'];
+  const COMMS_LEVELS = ['low','medium','high'];
+  const RISK_LEVELS = ['low','medium','high'];
+  const WINDOWS = ['now','next-1h','next-6h','next-24h'];
+  const EQUIP_IDS = ['gps_single_freq','uas_group1','hf_radio','uhf_satcom',
+                     'counter_battery_radar','sincgars_fm','ehf_satcom'];
+
+  let importedMission = null;  // last successfully parsed mission
+
+  const importStatus = document.getElementById('m-import-status');
+  const importReview = document.getElementById('m-import-review');
+
+  function setImportStatus(msg, isErr) {
+    importStatus.textContent = msg || '';
+    importStatus.className = 'mp-import-status' + (isErr ? ' mp-import-err' : '');
+  }
+
+  // ── Coordinate helpers ────────────────────────────────────────────────────
+  function haversineKm(a, b) {
+    const R = 6371, toR = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * toR, dLon = (b.lon - a.lon) * toR;
+    const la1 = a.lat * toR, la2 = b.lat * toR;
+    const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function routeDistanceKm(wps) {
+    let d = 0;
+    for (let i = 1; i < wps.length; i++) d += haversineKm(wps[i-1], wps[i]);
+    return d;
+  }
+
+  // ── Normalizers: map loose inputs onto the planner's vocabulary ───────────
+  function matchEnum(val, allowed) {
+    if (val == null) return null;
+    const v = String(val).toLowerCase().trim().replace(/\s+/g, '-');
+    if (allowed.includes(v)) return v;
+    // light synonyms
+    const syn = { 'rtk-critical':'rtk', 'cm':'rtk', 'sole-source':'high', 'isr':'uav',
+                  'uas':'uav', 'drone':'uav', 'patrol':'defense-patrol', 'fires':'fires-support',
+                  'afatds':'fires-support', 'sof':'sof-comms', 'cas':'cas-coordination' };
+    return syn[v] && allowed.includes(syn[v]) ? syn[v] : null;
+  }
+  function matchEquipment(list) {
+    if (!Array.isArray(list)) return [];
+    const out = new Set();
+    for (const raw of list) {
+      const s = String(raw).toLowerCase();
+      if (s.includes('gps') || s.includes('dagr') || s.includes('l1')) out.add('gps_single_freq');
+      if (s.includes('uas') || s.includes('raven') || s.includes('skydio') || s.includes('group 1') || s.includes('group1') || s.includes('uav')) out.add('uas_group1');
+      if (/\bhf\b/.test(s) || s.includes('prc-150') || s.includes('prc-160')) out.add('hf_radio');
+      if (s.includes('satcom') || s.includes('tacsat') || s.includes('prc-117') || s.includes('uhf')) out.add('uhf_satcom');
+      if (s.includes('tpq') || s.includes('counter-battery') || s.includes('radar')) out.add('counter_battery_radar');
+      if (s.includes('sincgars') || s.includes('prc-119') || s.includes('1523')) out.add('sincgars_fm');
+      if (s.includes('ehf') || s.includes('smart-t') || s.includes('aehf')) out.add('ehf_satcom');
+      if (EQUIP_IDS.includes(raw)) out.add(raw);  // already an id
+    }
+    return [...out];
+  }
+
+  // ── Waypoint extraction from a loose array ────────────────────────────────
+  function coerceWaypoint(w, idx) {
+    let lat, lon, name;
+    if (Array.isArray(w)) {                    // [lon,lat] (GeoJSON) or [lat,lon]
+      let a = parseFloat(w[0]), b = parseFloat(w[1]);
+      // GeoJSON order is [lon,lat]; detect by range
+      if (Math.abs(a) > 90 && Math.abs(b) <= 90) { lon = a; lat = b; }
+      else { lat = a; lon = b; }              // default lat,lon
+    } else if (w && typeof w === 'object') {
+      lat = parseFloat(w.lat ?? w.latitude ?? w.y);
+      lon = parseFloat(w.lon ?? w.lng ?? w.longitude ?? w.x);
+      name = w.name || w.label || w.id;
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { name: name || `WP${String(idx+1).padStart(2,'0')}`, lat, lon };
+  }
+
+  // ── Parser: pasted coordinate list ────────────────────────────────────────
+  function parseCoordinateList(text) {
+    const wps = [];
+    text.split(/\r?\n/).forEach((line, i) => {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) return;
+      const parts = t.split(/[,\t]|\s{2,}|\s(?=-?\d)/).map(s => s.trim()).filter(Boolean);
+      let name = null, nums = parts;
+      if (parts.length >= 3 && isNaN(parseFloat(parts[0]))) { name = parts[0]; nums = parts.slice(1); }
+      const a = parseFloat(nums[0]), b = parseFloat(nums[1]);
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+      let lat = a, lon = b;
+      if (Math.abs(a) > 90 && Math.abs(b) <= 90) { lon = a; lat = b; }  // lon,lat given
+      wps.push({ name: name || `WP${String(wps.length+1).padStart(2,'0')}`, lat, lon });
+    });
+    if (!wps.length) throw new Error('No valid "lat, lon" lines found.');
+    return { name: 'Imported route', waypoints: wps, _source: 'Pasted coordinates' };
+  }
+
+  // ── Parser: JSON mission file (IonShield payload or generic) ──────────────
+  function parseMissionJSON(obj) {
+    const m = { _source: 'JSON mission' };
+    m.name = obj.callsign || obj.mission_name || obj.name || obj.title || 'Imported mission';
+    m.mission_type = matchEnum(obj.mission_type || obj.type || obj.missionType, MISSION_TYPES);
+    m.gnss_dependence = matchEnum(obj.gnss_dependence || obj.gnss || obj.gnssDependence, GNSS_LEVELS);
+    m.comms_dependence = matchEnum(obj.comms_dependence || obj.comms || obj.commsDependence, COMMS_LEVELS);
+    m.risk_tolerance = matchEnum(obj.risk_tolerance || obj.risk || obj.riskTolerance || obj.tol, RISK_LEVELS);
+    m.time_window = matchEnum(obj.time_window || obj.window, WINDOWS);
+    m.equipment = matchEquipment(obj.equipment || obj.equipment_list || []);
+    m.notes = obj.notes || obj.objective || obj.description || '';
+    m.duration = obj.duration || obj.mission_duration || '';
+    const rawWps = obj.waypoints || obj.route || obj.points || [];
+    m.waypoints = rawWps.map(coerceWaypoint).filter(Boolean);
+    return m;
+  }
+
+  // ── Parser: GeoJSON ───────────────────────────────────────────────────────
+  function parseGeoJSON(obj) {
+    const wps = [];
+    const feats = obj.type === 'FeatureCollection' ? (obj.features || [])
+                : obj.type === 'Feature' ? [obj] : [];
+    for (const f of feats) {
+      const g = f.geometry || {}; const p = f.properties || {};
+      if (g.type === 'Point') { const w = coerceWaypoint(g.coordinates, wps.length); if (w) { if (p.name) w.name = p.name; wps.push(w); } }
+      else if (g.type === 'LineString' && !wps.length) { (g.coordinates||[]).forEach((c,i)=>{ const w = coerceWaypoint(c,i); if (w) wps.push(w); }); }
+    }
+    if (!wps.length) throw new Error('No Point or LineString features found in GeoJSON.');
+    return { name: obj.name || 'Imported GeoJSON route', waypoints: wps, _source: 'GeoJSON' };
+  }
+
+  // ── Parser: KML ───────────────────────────────────────────────────────────
+  function parseKML(text) {
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('KML is not valid XML.');
+    const wps = [];
+    doc.querySelectorAll('Placemark').forEach(pm => {
+      const nm = pm.querySelector('name')?.textContent?.trim();
+      const pt = pm.querySelector('Point > coordinates');
+      const ls = pm.querySelector('LineString > coordinates');
+      if (pt) { const [lon,lat] = pt.textContent.trim().split(',').map(parseFloat); if (Number.isFinite(lat)&&Number.isFinite(lon)) wps.push({name: nm || `WP${String(wps.length+1).padStart(2,'0')}`, lat, lon}); }
+      else if (ls && !wps.length) {
+        ls.textContent.trim().split(/\s+/).forEach((tok,i) => { const [lon,lat] = tok.split(',').map(parseFloat); if (Number.isFinite(lat)&&Number.isFinite(lon)) wps.push({name:`WP${String(i+1).padStart(2,'0')}`, lat, lon}); });
+      }
+    });
+    if (!wps.length) throw new Error('No Placemark Point/LineString coordinates found in KML.');
+    const docName = doc.querySelector('Document > name, kml > Document > name')?.textContent?.trim();
+    return { name: docName || 'Imported KML route', waypoints: wps, _source: 'KML' };
+  }
+
+  // ── Dispatch: sniff format from filename hint + content ───────────────────
+  function parseMission(text, filename) {
+    const t = text.trim();
+    const fn = (filename || '').toLowerCase();
+    if (fn.endsWith('.kml') || /^<\?xml|<kml[\s>]/.test(t)) return parseKML(t);
+    if (t.startsWith('{') || t.startsWith('[')) {
+      let obj; try { obj = JSON.parse(t); } catch (e) { throw new Error('Looks like JSON but failed to parse: ' + e.message); }
+      if (Array.isArray(obj)) return parseMissionJSON({ waypoints: obj });
+      if (obj.type === 'FeatureCollection' || obj.type === 'Feature') return parseGeoJSON(obj);
+      return parseMissionJSON(obj);
+    }
+    return parseCoordinateList(t);   // fallback: pasted coordinates
+  }
+
+  // ── Normalize + compute the review summary ────────────────────────────────
+  function finalizeImport(m) {
+    m.waypoints = (m.waypoints || []).filter(w => Number.isFinite(w.lat) && Number.isFinite(w.lon));
+    const missing = [];
+    if (!m.mission_type) missing.push('mission type');
+    if (!m.gnss_dependence) missing.push('GNSS dependence');
+    if (!m.comms_dependence) missing.push('comms dependence');
+    if (!m.risk_tolerance) missing.push('risk tolerance');
+    if (!m.equipment || !m.equipment.length) missing.push('equipment');
+    if (!m.waypoints.length) missing.push('waypoints');
+    m._missing = missing;
+    m._distanceKm = routeDistanceKm(m.waypoints);
+    // est duration: use provided, else ~30 km/h Group-1 UAS cruise + loiter
+    m._estMin = m.duration ? null : Math.round((m._distanceKm / 30) * 60 + m.waypoints.length * 3);
+    if (m.waypoints.length) {
+      const cLat = m.waypoints.reduce((s,w)=>s+w.lat,0)/m.waypoints.length;
+      const cLon = m.waypoints.reduce((s,w)=>s+w.lon,0)/m.waypoints.length;
+      m._center = { lat: cLat, lon: cLon };
+    }
+    return m;
+  }
+
+  function renderImportReview(m) {
+    const eqNames = (m.equipment || []).join(', ') || '—';
+    const dur = m.duration ? escapeHtml(String(m.duration))
+              : (m._estMin != null ? `~${m._estMin} min (est.)` : '—');
+    const area = m._center ? `~${m._center.lat.toFixed(3)}, ${m._center.lon.toFixed(3)}` : '—';
+    importReview.innerHTML = `
+      <div class="mp-review">
+        <h4>Mission Import Review</h4>
+        <div class="mp-review-src">Source: ${escapeHtml(m._source)} · review &amp; edit below before running</div>
+        <div class="mp-review-grid">
+          <span class="mp-review-k">Mission name</span><span class="mp-review-v">${escapeHtml(m.name || '—')}</span>
+          <span class="mp-review-k">Mission type</span><span class="mp-review-v">${m.mission_type || 'not specified → defaults to UAV'}</span>
+          <span class="mp-review-k">Waypoints</span><span class="mp-review-v">${m.waypoints.length}</span>
+          <span class="mp-review-k">Approx route distance</span><span class="mp-review-v">${m._distanceKm.toFixed(1)} km</span>
+          <span class="mp-review-k">Estimated duration</span><span class="mp-review-v">${dur}</span>
+          <span class="mp-review-k">Primary operating area</span><span class="mp-review-v">${area}</span>
+          <span class="mp-review-k">Equipment detected</span><span class="mp-review-v">${escapeHtml(eqNames)}</span>
+        </div>
+        ${m._missing.length ? `<div class="mp-review-missing">⚠ Needs your review (defaults applied): ${m._missing.join(', ')}.</div>` : ''}
+        ${m.notes ? `<div class="mp-review-missing" style="color:var(--text-3)">Notes: ${escapeHtml(String(m.notes).slice(0,160))}</div>` : ''}
+        <div class="mp-review-actions">
+          <button type="button" class="mp-import-btn" id="m-import-use">Use Imported Mission →</button>
+          <span class="mp-import-status">Pre-fills the planner; you can still edit everything.</span>
+        </div>
+      </div>`;
+    document.getElementById('m-import-use').addEventListener('click', () => useImportedMission(m));
+  }
+
+  // ── Use Imported Mission → pre-fill the SAME planner + run normal flow ─────
+  function useImportedMission(m) {
+    if (m.mission_type) document.getElementById('m-type').value = m.mission_type;
+    if (m.gnss_dependence) document.getElementById('m-gnss-dep').value = m.gnss_dependence;
+    if (m.comms_dependence) document.getElementById('m-comms-dep').value = m.comms_dependence;
+    if (m.risk_tolerance) document.getElementById('m-tolerance').value = m.risk_tolerance;
+    if (m.time_window) document.getElementById('m-window').value = m.time_window;
+    if (m.name) document.getElementById('m-callsign').value = m.name;
+    wpRoot.innerHTML = '';
+    m.waypoints.forEach(w => addWaypointRow(w.name, w.lat, w.lon));
+    // Equipment: use detected; else fall back to the mission-type defaults.
+    if (m.equipment && m.equipment.length) {
+      const want = new Set(m.equipment);
+      document.querySelectorAll('#m-equipment input[type=checkbox]').forEach(cb => { cb.checked = want.has(cb.value); });
+    } else {
+      applyEquipmentDefaults(document.getElementById('m-type').value);
+    }
+    activeScenario = '';                       // imported missions run on live data
+    document.getElementById('m-import').open = false;
+    document.getElementById('mission-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    runAssessment();                           // ← the SAME existing assessment flow
+  }
+
+  function doImport(text, filename) {
+    importReview.innerHTML = '';
+    if (!text || !text.trim()) { setImportStatus('Paste mission data or choose a file first.', true); return; }
+    try {
+      importedMission = finalizeImport(parseMission(text, filename));
+      setImportStatus(`Parsed ${importedMission.waypoints.length} waypoint(s) from ${importedMission._source}.`, false);
+      renderImportReview(importedMission);
+    } catch (e) {
+      setImportStatus('Could not parse: ' + e.message, true);
+    }
+  }
+
+  document.getElementById('m-import-parse').addEventListener('click',
+    () => doImport(document.getElementById('m-import-text').value, ''));
+  document.getElementById('m-import-clear').addEventListener('click', () => {
+    document.getElementById('m-import-text').value = '';
+    document.getElementById('m-import-file').value = '';
+    importReview.innerHTML = ''; setImportStatus('', false);
+  });
+  // Merge several parsed missions into one: concat all waypoints, union the
+  // equipment, and take the first non-empty value for each scalar field. Lets
+  // an operator drop a route file + an overlay/markers file together.
+  function mergeMissions(missions, names) {
+    const merged = { waypoints: [], equipment: [] };
+    const eq = new Set();
+    const scalars = ['mission_type', 'gnss_dependence', 'comms_dependence', 'risk_tolerance', 'time_window', 'name', 'duration', 'notes'];
+    missions.forEach(m => {
+      (m.waypoints || []).forEach(w => merged.waypoints.push(w));
+      (m.equipment || []).forEach(e => eq.add(e));
+      scalars.forEach(k => { if (merged[k] == null && m[k] != null) merged[k] = m[k]; });
+    });
+    merged.equipment = [...eq];
+    merged._source = names.length > 1 ? `${names.length} files (${names.join(', ')})` : (missions[0] && missions[0]._source) || names[0] || 'import';
+    return merged;
+  }
+
+  // Multi-file upload — fully client-side (air-gap safe). Reads every selected
+  // file, parses each, merges, and shows one review.
+  document.getElementById('m-import-file').addEventListener('change', async (ev) => {
+    const files = [...((ev.target && ev.target.files) || [])];
+    if (!files.length) return;
+    importReview.innerHTML = '';
+    setImportStatus(`Reading ${files.length} file(s) — offline…`, false);
+    try {
+      const texts = await Promise.all(files.map(f =>
+        (f.text ? f.text() : new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(new Error('read ' + f.name)); r.readAsText(f);
+        }))
+      ));
+      const missions = [], errs = [];
+      texts.forEach((t, i) => { try { missions.push(parseMission(t, files[i].name)); } catch (e) { errs.push(`${files[i].name}: ${e.message}`); } });
+      if (!missions.length) { setImportStatus('Could not parse any file. ' + errs.join('; '), true); return; }
+      if (files.length === 1) document.getElementById('m-import-text').value = texts[0];
+      const merged = missions.length > 1 ? mergeMissions(missions, files.map(f => f.name)) : missions[0];
+      importedMission = finalizeImport(merged);
+      const note = errs.length ? ` (${errs.length} file(s) skipped: ${errs.join('; ')})` : '';
+      setImportStatus(`Parsed ${importedMission.waypoints.length} waypoint(s) from ${missions.length} file(s) — fully offline, no connection used.${note}`, !!errs.length);
+      renderImportReview(importedMission);
+    } catch (e) {
+      setImportStatus('Could not read file(s): ' + e.message, true);
+    }
+  });
+
+  // ── Operational Feeds (authoritative source status: D-RAP, NANU, NOAA) ─────
+  function renderOperationalFeeds(assessment) {
+    const feeds = assessment.operational_feeds;
+    if (!feeds) return '';
+    const dq = assessment.data_quality || {};
+    const noaaCached = (dq.notes || []).some(n => /ADVISORY|cached/i.test(n));
+    // status pill text + class from a feed block's label/availability
+    const pill = (label) => ({
+      authoritative: ['LIVE', 'auth'], demo: ['DEMO', 'demo'],
+      unavailable: ['UNAVAILABLE', 'na'], cached: ['CACHED', 'cached'],
+    }[label] || ['UNAVAILABLE', 'na']);
+    const row = (name, purpose, label, updated, used, detail) => {
+      const [txt, cls] = pill(label);
+      return `<div class="mp-feed-row">
+        <span class="mp-feed-name">${escapeHtml(name)}</span>
+        <span class="mp-feed-pill ${cls}">${txt}</span>
+        <span class="mp-feed-used">${used ? 'used in this assessment' : 'not driving this assessment'}</span>
+        <div class="mp-feed-detail">${escapeHtml(purpose)}${detail ? ' · ' + escapeHtml(detail) : ''}${updated ? ' · updated ' + escapeHtml(String(updated).slice(0,16).replace('T',' ')) + 'Z' : ''}</div>
+      </div>`;
+    };
+    const d = feeds.drap || {}, n = feeds.nanu || {}, k = feeds.donki || {},
+          o = feeds.ovation || {}, w = feeds.wmm || {};
+    const drapDetail = d.route_hf_risk
+      ? `HF absorbed below ~${d.route_hf_risk.absorbed_to_mhz} MHz (${d.route_hf_risk.level})`
+      : (d.global_max_mhz != null ? `global max ${d.global_max_mhz} MHz` : '');
+    // NANU detail: live constellation health (NAVCEN) or advisory count (NANU mirror/demo)
+    const nc = n.constellation;
+    const nanuDetail = (nc
+      ? `${nc.operational_count}/${nc.nominal} healthy GPS SVs`
+        + (nc.degraded ? ' — below nominal' : ' — nominal')
+        + ((nc.unhealthy && nc.unhealthy.length) ? ` · unhealthy: ${nc.unhealthy.map(p=>'PRN-'+p).join(', ')}` : '')
+      : (n.advisory_count ? `${n.advisory_count} advisory(ies) active` : 'no active outage'));
+    const nanuName = n.source === 'NAVCEN GPS almanac' ? 'GPS availability — NAVCEN' : 'NANU — GPS outages';
+    const donkiDetail = (k.drivers && k.drivers.length)
+      ? k.drivers.slice(0, 2).join('; ')
+      : (k.event_count ? `${k.event_count} notices, no significant drivers` : 'no recent events');
+    const ovDetail = o.route_aurora_risk
+      ? `${o.route_aurora_risk.prob_pct}% aurora prob (${o.route_aurora_risk.level})`
+      : (o.max_prob != null ? `global max ${o.max_prob}%` : '');
+    const wmmDetail = w.declination
+      ? `${Math.abs(w.declination.declination_deg)}°${w.declination.direction} declination, compass ${(w.declination.route_compass_reliability || w.declination.compass_reliability || '').toLowerCase()}`
+      : '';
+    return `
+      <div class="mp-feeds">
+        <h4>Operational Feeds</h4>
+        ${row('NOAA / SWPC', 'Geomagnetic + solar drivers (modeled HF/GPS estimates)',
+              noaaCached ? 'cached' : 'authoritative', dq && assessment.generated_at, true,
+              'data quality ' + (dq.label || '—'))}
+        ${row('D-RAP — HF absorption', 'Authoritative HF blackout (replaces X-ray proxy)',
+              d.feed_label, d.valid_at || d.last_fetch, d.used_in_assessment, drapDetail)}
+        ${row(nanuName, 'Live GPS constellation availability (PNT readiness)',
+              n.feed_label, n.last_fetch, n.used_in_assessment, nanuDetail)}
+        ${row('DONKI — event drivers', 'NASA space-weather event log (cause of risk / timeline)',
+              k.feed_label, k.last_fetch, k.used_in_assessment, donkiDetail)}
+        ${row('OVATION — aurora', 'High-latitude GNSS scintillation + comms fades',
+              o.feed_label, o.observation_time || o.last_fetch, o.used_in_assessment, ovDetail)}
+        ${row('WMM — magnetic declination', 'Compass reliability + grid/magnetic azimuth (local model)',
+              w.feed_label, null, w.used_in_assessment, wmmDetail)}
+        <div class="mp-feeds-foot">Each output is labeled authoritative feed / modeled estimate / cached / demo / unavailable.
+          The World Magnetic Model is computed locally — no connectivity required, so it stays available in the air gap.</div>
+      </div>`;
+  }
+
+  // ── Route insights (post-assessment, derived from per-waypoint results) ────
+  function renderRouteInsights(assessment) {
+    const wps = (assessment.raw_decision || {}).waypoints || [];
+    if (wps.length < 2 || wps.every(w => w.risk_score == null)) return '';
+    const tol = Number((assessment.gnss || {}).tolerance_m ?? 0);
+    const distKm = routeDistanceKm(wps.map(w => ({ lat: w.lat, lon: w.lon })));
+    const affected = wps.filter(w => (tol > 0 && Number(w.gps_error_m) > tol) ||
+      !['NOMINAL','GO','LOW',''].includes(String(w.risk_level || '').toUpperCase()));
+    // highest-risk leg (avg of the two endpoint risk scores)
+    let segIdx = -1, segMax = -1;
+    for (let i = 1; i < wps.length; i++) {
+      const avg = ((Number(wps[i-1].risk_score)||0) + (Number(wps[i].risk_score)||0)) / 2;
+      if (avg > segMax) { segMax = avg; segIdx = i; }
+    }
+    const seg = segIdx > 0 ? `${escapeHtml(wps[segIdx-1].name)} → ${escapeHtml(wps[segIdx].name)}` : '—';
+    // objective waypoint: by name tag, else single highest-risk waypoint
+    const objRe = /AOI|OBJ|NAI|TGT|TARGET/i;
+    let obj = wps.find(w => objRe.test(w.name || ''));
+    if (!obj) obj = wps.reduce((a,b) => (Number(b.risk_score)||0) > (Number(a.risk_score)||0) ? b : a, wps[0]);
+    const objTxt = `${escapeHtml(obj.name)} — ${escapeHtml(String(obj.risk_level||'').toUpperCase()||'—')}, GPS ${(Number(obj.gps_error_m)||0).toFixed(1)} m`;
+    // mission phase: thirds → ingress / objective / egress
+    const phases = ['Ingress','Objective','Egress'];
+    const buckets = [[],[],[]];
+    wps.forEach((w,i) => buckets[Math.min(2, Math.floor(i / (wps.length/3)))].push(Number(w.risk_score)||0));
+    let pIdx = 0, pMax = -1;
+    buckets.forEach((b,i) => { const avg = b.length ? b.reduce((s,x)=>s+x,0)/b.length : 0; if (avg > pMax) { pMax = avg; pIdx = i; } });
+    return `
+      <div class="mp-route">
+        <h4>Route insights</h4>
+        <div class="mp-route-grid">
+          <span class="mp-route-k">Route distance assessed</span><span class="mp-route-v">${distKm.toFixed(1)} km · ${wps.length} waypoints</span>
+          <span class="mp-route-k">Waypoints affected</span><span class="mp-route-v">${affected.length} / ${wps.length}</span>
+          <span class="mp-route-k">Highest-risk segment</span><span class="mp-route-v">${seg}</span>
+          <span class="mp-route-k">Risk near objective area</span><span class="mp-route-v">${objTxt}</span>
+          <span class="mp-route-k">Mission phase most exposed</span><span class="mp-route-v">${phases[pIdx]}</span>
+        </div>
+      </div>`;
   }
 
   // ── Build the mission payload (operator language) ────────────────────────

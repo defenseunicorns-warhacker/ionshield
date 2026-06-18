@@ -1,0 +1,20 @@
+{
+  "mission_name": "DESERT SENTINEL",
+  "mission_type": "uav",
+  "objective": "Persistent ISR over three NAIs along a southern-range approach corridor; positive ID and grid accuracy for hand-off.",
+  "gnss_dependence": "high",
+  "comms_dependence": "medium",
+  "risk_tolerance": "low",
+  "time_window": "now",
+  "duration": "75 min on station",
+  "equipment": ["GPS single-frequency receiver", "Group 1 UAS (RQ-11 Raven)", "SINCGARS"],
+  "waypoints": [
+    { "name": "LP-1 SENTINEL",       "lat": 31.4700, "lon": -110.3800 },
+    { "name": "OP-1 HAWKEYE",        "lat": 31.4480, "lon": -110.3950 },
+    { "name": "NAI-1 WASH ALPHA",    "lat": 31.4280, "lon": -110.3820 },
+    { "name": "OP-2 RAPTOR",         "lat": 31.4150, "lon": -110.4050 },
+    { "name": "AOI BORDER APPROACH", "lat": 31.4050, "lon": -110.3700 },
+    { "name": "OP-3 FALCONER",       "lat": 31.4350, "lon": -110.3600 },
+    { "name": "RTB SENTINEL",        "lat": 31.4700, "lon": -110.3800 }
+  ]
+}

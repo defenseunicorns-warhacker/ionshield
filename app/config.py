@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     swpc_base_url: str = "https://services.swpc.noaa.gov"
     # NASA CDAWeb HAPI endpoint used only by historical backfill.
     hapi_base_url: str = "https://cdaweb.gsfc.nasa.gov/hapi"
+    # Optional NANU (GPS outage advisory) JSON endpoint. There is no public
+    # machine-readable NANU API, so this is empty by default → NANU reports
+    # "unavailable" (honest). Point at an internal/enclave NANU mirror to
+    # enable live ingest. (D-RAP uses SWPC_BASE_URL automatically.)
+    nanu_url: str = ""
+    # NASA DONKI (space-weather event notifications) API key. "DEMO_KEY" works
+    # but is heavily rate-limited; set a free api.nasa.gov key for real quota.
+    # DONKI goes direct to api.nasa.gov (not SWPC); in a strict air-gap it
+    # falls back to cache-and-carry like every other feed.
+    nasa_api_key: str = "DEMO_KEY"
 
     # Safety cap on route waypoints to prevent abuse
     max_route_waypoints: int = 200
@@ -73,6 +83,14 @@ class Settings(BaseSettings):
     cot_server_host: str = ""
     cot_server_port: int = 8087  # standard TAK server TCP CoT port
     cot_stale_minutes: int = 10  # CoT event stale time
+    # Publish every monitored location as a colored CoT marker, not just those
+    # in active alert. Gives a continuous TAK situational-awareness picture
+    # (markers always present, colored by live risk). Default: alerts only.
+    cot_push_all: bool = False
+    # Color the CoT markers off a replay scenario instead of live conditions
+    # (e.g. "gannon-2024" to show the May 2024 G5 storm impact). Empty = live.
+    # Demo/exercise use — the marker remarks still report the real Kp used.
+    cot_scenario: str = ""
 
     # ── Observation archive / replay ─────────────────────────────────────────
     # SQLite (default) or PostgreSQL via DATABASE_URL.

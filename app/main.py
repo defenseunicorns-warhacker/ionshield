@@ -84,15 +84,37 @@ def _reload_locations() -> None:
 
 
 async def _push_cot() -> None:
-    """Push CoT events for in-alert locations to the configured TAK server."""
+    """Push CoT events to the configured TAK server.
+
+    Default: only locations in active alert. With COT_PUSH_ALL=true, every
+    monitored location is published as a colored marker so the TAK picture is
+    continuous regardless of alert state (the markers carry the live risk
+    colour and an ⚠ALERT flag in remarks when a site is actually alerting).
+    """
+    from app.data.locations import assess_all, get_all
     from app.outputs.cot import push_cot_to_server
 
-    alerts = get_active_alerts()
-    if alerts:
+    # Optional: color markers off a replay storm (e.g. gannon-2024) for a demo.
+    scenario = (settings.cot_scenario or "").strip()
+    if scenario:
+        from app.models.replay_scenarios import REPLAY_SCENARIOS
+
+        scn = REPLAY_SCENARIOS.get(scenario)
+        if scn is not None:
+            assess_all(scn.kp)  # re-assess all sites under the storm's Kp
+
+    locations = get_all() if settings.cot_push_all else get_active_alerts()
+    if locations:
+        logger.info(
+            "cot_push: target=%s:%s locations=%d",
+            settings.cot_server_host,
+            settings.cot_server_port,
+            len(locations),
+        )
         await push_cot_to_server(
             settings.cot_server_host,
             settings.cot_server_port,
-            alerts,
+            locations,
             stale_minutes=settings.cot_stale_minutes,
         )
 
@@ -225,6 +247,10 @@ def _register_default_sources() -> None:
 
     from app.data.noaa import cache_snapshot as _noaa_status
     from app.data.ustec import cache_snapshot as _iono_status
+    from app.data import donki as _donki
+    from app.data import drap as _drap
+    from app.data import nanu as _nanu
+    from app.data import ovation as _ovation
 
     register(
         DataSource(
@@ -242,6 +268,51 @@ def _register_default_sources() -> None:
             cadence_seconds=settings.refresh_interval_seconds,
             fetch_async=lambda timeout: fetch_ionosphere(timeout=timeout),
             status_async=_iono_status,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # Authoritative HF absorption (replaces the X-ray-flux proxy where live).
+    register(
+        DataSource(
+            name="drap",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _drap.fetch_drap(timeout=timeout),
+            status_async=_drap.cache_snapshot,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # GPS availability: live constellation status from CelesTrak GPS-ops, or a
+    # NANU mirror when NANU_URL is set.
+    register(
+        DataSource(
+            name="nanu",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _nanu.fetch_nanu(timeout=timeout),
+            status_async=_nanu.cache_snapshot,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # NASA DONKI — space-weather event log (cause-of-risk / timeline).
+    register(
+        DataSource(
+            name="donki",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _donki.fetch_donki(timeout=timeout),
+            status_async=_donki.cache_snapshot,
+            timeout_seconds=settings.noaa_timeout_seconds,
+            breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
+        )
+    )
+    # OVATION aurora — high-latitude GNSS/comms scintillation indicator.
+    register(
+        DataSource(
+            name="ovation",
+            cadence_seconds=settings.refresh_interval_seconds,
+            fetch_async=lambda timeout: _ovation.fetch_ovation(timeout=timeout),
+            status_async=_ovation.cache_snapshot,
             timeout_seconds=settings.noaa_timeout_seconds,
             breaker_config=BreakerConfig(failure_threshold=4, cooldown_seconds=300),
         )
@@ -356,7 +427,17 @@ async def lifespan(app: FastAPI):
 
     state_cache.hydrate()
 
-    results = await run_all()
+    # ── Air-gap safety: bound the initial fetch so it can never stall startup ──
+    # With no internet (esp. the UDS CoreDNS-points-at-an-unreachable-upstream
+    # case), DNS/connect can hang past the per-source timeouts. Cap the whole
+    # initial fetch so the app always finishes startup and serves hydrated
+    # cache-and-carry state; the background refresh loop keeps retrying. (The
+    # probes hit /health, so pod health never depends on this completing.)
+    try:
+        results = await asyncio.wait_for(run_all(), timeout=25.0)
+    except Exception as exc:
+        logger.warning("Initial fetch did not complete (%s) — serving cached/advisory data.", exc)
+        results = {}
     _persist_feed_state(results)
     await archive_snapshot()
     await _fire_and_forget(_push_foundry, label="foundry_raw_initial")
