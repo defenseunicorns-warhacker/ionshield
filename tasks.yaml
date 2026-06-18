@@ -1,0 +1,159 @@
+# IonShield task runner — run with `uds run <task>` (maru-runner).
+#
+#   uds run --list            # show every task below
+#   uds run dev               # build + start the local docker-compose stack
+#   uds run build             # build the app image, tagged for local dev
+#   uds run uds-deploy        # build hardened image → Zarf package → deploy to cluster
+#   uds run demo              # stand up k3d + UDS Core, then deploy IonShield
+#
+# Override any variable per-run, e.g.:
+#   uds run package --set IMAGE_TAG=0.2.0
+#   uds run deploy  --set OFFLINE_MODE=true
+#
+# Zarf is invoked through the uds-vendored binary (`uds zarf …`) so the only
+# required tool is the uds CLI. Docker (with the Compose v2 plugin) is needed
+# for the local-development tasks.
+
+variables:
+  # Container image repository (matches deploy/chart + deploy/zarf).
+  - name: IMAGE
+    default: ghcr.io/ionshield/ionshield
+
+  # Tag for the LOCAL dev image built from the root Dockerfile (./Dockerfile).
+  - name: DEV_TAG
+    default: dev
+
+  # Tag for the HARDENED, cluster-bound image. Keep in sync with the IMAGE_TAG
+  # constant + images[] entry in deploy/zarf/zarf.yaml (currently 0.1.11).
+  - name: IMAGE_TAG
+    default: "0.1.11"
+
+  # Local UDS Core (k3d) bundle ref used by `uds run cluster` / `demo`.
+  - name: UDS_CORE_REF
+    default: k3d-core-slim-dev:1.6.0
+
+  # Air-gap toggle passed to the Zarf/UDS deploy (true = no external NOAA egress).
+  - name: OFFLINE_MODE
+    default: "false"
+
+tasks:
+  # ── Default ────────────────────────────────────────────────────────────────
+  - name: default
+    description: "Show the common tasks"
+    actions:
+      - cmd: |
+          echo "IonShield tasks — run with: uds run <task>"
+          echo
+          echo "  Local development (docker compose):"
+          echo "    dev          build + start the stack (detached)"
+          echo "    dev-logs     follow the api logs"
+          echo "    dev-down     stop + remove the stack"
+          echo "    dev-rebuild  force a clean rebuild + restart"
+          echo "    build        build the app image, tagged \${IMAGE}:\${DEV_TAG}"
+          echo
+          echo "  UDS / Zarf (cluster):"
+          echo "    cluster      deploy local k3d + UDS Core (\${UDS_CORE_REF})"
+          echo "    build-image  build the hardened image \${IMAGE}:\${IMAGE_TAG}"
+          echo "    package      create the Zarf package (embeds the image)"
+          echo "    deploy       deploy the Zarf package into the current cluster"
+          echo "    uds-deploy   build-image → package → deploy (one shot)"
+          echo "    bundle       create the UDS bundle (deploy/uds)"
+          echo "    bundle-deploy deploy the UDS bundle into the current cluster"
+          echo "    demo         cluster → uds-deploy (full local stand-up)"
+          echo "    clean        remove generated .tar.zst artifacts"
+          echo
+          echo "  uds run --list   # full list with descriptions"
+
+  # ── Local development (docker compose) ───────────────────────────────────────
+  - name: dev
+    description: "Build + start the local docker-compose stack (detached)"
+    actions:
+      - cmd: docker compose up -d --build
+      - cmd: 'echo "IonShield is up at http://localhost:8000 — mission planner /mission, globe /dashboard"'
+
+  - name: dev-logs
+    description: "Follow the api container logs"
+    actions:
+      - cmd: docker compose logs -f api
+
+  - name: dev-down
+    description: "Stop and remove the local stack"
+    actions:
+      - cmd: docker compose down
+
+  - name: dev-rebuild
+    description: "Force a clean rebuild and recreate the stack"
+    actions:
+      - cmd: docker compose up -d --build --force-recreate
+
+  # ── Local image build + tag ──────────────────────────────────────────────────
+  - name: build
+    description: "Build the app image from ./Dockerfile, tagged for local dev"
+    actions:
+      - cmd: docker build -t ${IMAGE}:${DEV_TAG} -t ionshield:${DEV_TAG} .
+      - cmd: echo "Built ${IMAGE}:${DEV_TAG} (also tagged ionshield:${DEV_TAG})"
+
+  # ── UDS / Zarf packaging + cluster deploy ────────────────────────────────────
+  - name: cluster
+    description: "Stand up a local k3d cluster with UDS Core (slim dev)"
+    actions:
+      - cmd: uds deploy ${UDS_CORE_REF} --confirm
+
+  - name: build-image
+    description: "Build the hardened image (deploy/docker/Dockerfile.hardened) for the cluster"
+    actions:
+      - cmd: docker build -f deploy/docker/Dockerfile.hardened -t ${IMAGE}:${IMAGE_TAG} .
+      - cmd: echo "Built hardened image ${IMAGE}:${IMAGE_TAG}"
+
+  - name: package
+    description: "Create the Zarf package (embeds the hardened image — air-gap ready)"
+    actions:
+      - task: build-image
+      - cmd: uds zarf package create . --confirm
+        dir: deploy/zarf
+        description: "zarf package create in deploy/zarf"
+      - cmd: ls -lh deploy/zarf/zarf-package-ionshield-*.tar.zst
+
+  - name: deploy
+    description: "Deploy the Zarf package into the current cluster (--set OFFLINE_MODE=true for air-gap)"
+    actions:
+      - cmd: uds zarf package deploy deploy/zarf/zarf-package-ionshield-*.tar.zst --set OFFLINE_MODE=${OFFLINE_MODE} --confirm
+
+  - name: uds-deploy
+    description: "One shot: build hardened image → create Zarf package → deploy to cluster"
+    actions:
+      - task: package
+      - task: deploy
+
+  # ── UDS bundle (uds-cli) — for delivering alongside other mission apps ────────
+  - name: bundle
+    description: "Create the UDS bundle (deploy/uds) wrapping the Zarf package"
+    actions:
+      - task: package
+      - cmd: uds create . --confirm
+        dir: deploy/uds
+        description: "uds create in deploy/uds"
+      - cmd: ls -lh deploy/uds/uds-bundle-ionshield-*.tar.zst
+
+  - name: bundle-deploy
+    description: "Deploy the UDS bundle into the current cluster"
+    actions:
+      - cmd: uds deploy deploy/uds/uds-bundle-ionshield-*.tar.zst --set OFFLINE_MODE=${OFFLINE_MODE} --confirm
+
+  # ── Full local stand-up ───────────────────────────────────────────────────────
+  - name: demo
+    description: "Full local demo: k3d + UDS Core, then build + package + deploy IonShield"
+    actions:
+      - task: cluster
+      - task: uds-deploy
+      - cmd: |
+          echo "IonShield deployed. If running UDS Core locally:"
+          echo "  https://ionshield.uds.dev"
+          echo "Or port-forward directly:"
+          echo "  uds zarf tools kubectl -n ionshield port-forward svc/ionshield 8000:8000"
+
+  # ── Housekeeping ───────────────────────────────────────────────────────────────
+  - name: clean
+    description: "Remove generated Zarf/UDS .tar.zst artifacts"
+    actions:
+      - cmd: rm -fv deploy/zarf/zarf-package-ionshield-*.tar.zst deploy/uds/uds-bundle-ionshield-*.tar.zst
