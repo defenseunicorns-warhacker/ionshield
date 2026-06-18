@@ -454,8 +454,8 @@
       Fires Support — AFATDS Coordinate Verification
     </button>
     <button class="mp-scenario" data-scenario="disconnected-ops">
-      <span class="lbl">DISCONNECTED</span>
-      Disconnected Ops — Manual Kp Entry
+      <span class="lbl">AIR-GAP</span>
+      Disconnected Ops — upload mission file(s) + manual Kp
     </button>
   </div>
   <div class="mp-scenarios mp-scenarios-alt" aria-label="Commercial demo scenarios">
@@ -476,16 +476,20 @@
 
   <!-- ── Mission File Import (import layer over the manual planner) ─── -->
   <details class="mp-import" id="m-import">
-    <summary>Import a mission file or pasted route</summary>
+    <summary>Import mission file(s) or a pasted route</summary>
     <div class="mp-import-sub">
       Already have a mission plan from somewhere else? Upload or paste it — IonShield
       extracts the route and mission context, pre-fills the planner below, and runs the
-      same assessment. You review and edit before it runs. <strong>Manual entry still
-      works exactly as before.</strong>
+      same assessment. You can select <strong>multiple files</strong> at once (routes +
+      overlays are merged). You review and edit before it runs.<br>
+      <strong>Works fully air-gapped:</strong> the translation engine runs entirely
+      in-browser — no internet, no server round-trip. Pair an uploaded mission with a
+      manual Kp from your weather brief (below) for a complete offline assessment.
+      <strong>Manual entry still works exactly as before.</strong>
     </div>
     <div class="mp-import-body">
       <div class="mp-import-row">
-        <input type="file" id="m-import-file" class="mp-import-file"
+        <input type="file" id="m-import-file" class="mp-import-file" multiple
                accept=".json,.geojson,.kml,.txt,application/json,application/geo+json,application/vnd.google-earth.kml+xml" />
       </div>
       <textarea id="m-import-text" placeholder="…or paste a JSON mission, GeoJSON, KML, or a coordinate list (one per line: name, lat, lon  — or just  lat, lon)"></textarea>
@@ -777,13 +781,16 @@
       applyEquipmentDefaults(s.type);
     }
     activeScenario = s.scenario || '';
-    // Disconnected-ops scenario: surface the manual Kp entry panel so the
-    // operator can enter a value from an approved brief.
+    // Disconnected/air-gap scenario: open BOTH the mission-file import (upload
+    // your route/overlay files — runs fully offline) and the manual Kp panel
+    // (enter a value from an approved brief). Together they give a complete
+    // assessment with no connectivity.
     if (s.manual) {
+      const imp = document.getElementById('m-import');
+      if (imp) imp.open = true;
       const panel = document.querySelector('.mp-manual');
-      if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-      const kp = document.getElementById('m-manual-kp');
-      if (kp) kp.focus();
+      if (panel) panel.open = true;
+      if (imp) imp.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
       document.getElementById('m-run').focus();
     }
@@ -1502,13 +1509,48 @@
     document.getElementById('m-import-file').value = '';
     importReview.innerHTML = ''; setImportStatus('', false);
   });
-  document.getElementById('m-import-file').addEventListener('change', (ev) => {
-    const f = ev.target.files && ev.target.files[0];
-    if (!f) return;
-    const rdr = new FileReader();
-    rdr.onload = () => { document.getElementById('m-import-text').value = rdr.result; doImport(String(rdr.result), f.name); };
-    rdr.onerror = () => setImportStatus('Could not read file.', true);
-    rdr.readAsText(f);
+  // Merge several parsed missions into one: concat all waypoints, union the
+  // equipment, and take the first non-empty value for each scalar field. Lets
+  // an operator drop a route file + an overlay/markers file together.
+  function mergeMissions(missions, names) {
+    const merged = { waypoints: [], equipment: [] };
+    const eq = new Set();
+    const scalars = ['mission_type', 'gnss_dependence', 'comms_dependence', 'risk_tolerance', 'time_window', 'name', 'duration', 'notes'];
+    missions.forEach(m => {
+      (m.waypoints || []).forEach(w => merged.waypoints.push(w));
+      (m.equipment || []).forEach(e => eq.add(e));
+      scalars.forEach(k => { if (merged[k] == null && m[k] != null) merged[k] = m[k]; });
+    });
+    merged.equipment = [...eq];
+    merged._source = names.length > 1 ? `${names.length} files (${names.join(', ')})` : (missions[0] && missions[0]._source) || names[0] || 'import';
+    return merged;
+  }
+
+  // Multi-file upload — fully client-side (air-gap safe). Reads every selected
+  // file, parses each, merges, and shows one review.
+  document.getElementById('m-import-file').addEventListener('change', async (ev) => {
+    const files = [...((ev.target && ev.target.files) || [])];
+    if (!files.length) return;
+    importReview.innerHTML = '';
+    setImportStatus(`Reading ${files.length} file(s) — offline…`, false);
+    try {
+      const texts = await Promise.all(files.map(f =>
+        (f.text ? f.text() : new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(new Error('read ' + f.name)); r.readAsText(f);
+        }))
+      ));
+      const missions = [], errs = [];
+      texts.forEach((t, i) => { try { missions.push(parseMission(t, files[i].name)); } catch (e) { errs.push(`${files[i].name}: ${e.message}`); } });
+      if (!missions.length) { setImportStatus('Could not parse any file. ' + errs.join('; '), true); return; }
+      if (files.length === 1) document.getElementById('m-import-text').value = texts[0];
+      const merged = missions.length > 1 ? mergeMissions(missions, files.map(f => f.name)) : missions[0];
+      importedMission = finalizeImport(merged);
+      const note = errs.length ? ` (${errs.length} file(s) skipped: ${errs.join('; ')})` : '';
+      setImportStatus(`Parsed ${importedMission.waypoints.length} waypoint(s) from ${missions.length} file(s) — fully offline, no connection used.${note}`, !!errs.length);
+      renderImportReview(importedMission);
+    } catch (e) {
+      setImportStatus('Could not read file(s): ' + e.message, true);
+    }
   });
 
   // ── Operational Feeds (authoritative source status: D-RAP, NANU, NOAA) ─────
