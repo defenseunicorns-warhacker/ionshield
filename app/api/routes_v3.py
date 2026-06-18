@@ -1756,10 +1756,13 @@ async def equipment_catalog(request: Request) -> dict:
     }
 
 
-@router_v3.post("/mission/assess")
-async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
+def run_mission_assessment(req: "_MissionRequestModel", with_grid: bool = True) -> dict:
     """
-    Operator-language mission assessment.
+    Operator-language mission assessment — reusable core.
+
+    Also called by the live mission-watch loop (re-evaluates a registered
+    mission each feed refresh). Returns the full MissionAssessment dict, plus a
+    per-segment × time degradation grid (segment_time_grid) when with_grid.
 
     Takes a mission profile (mission_type, GNSS/comms dependence, risk
     tolerance, waypoints) and returns the full operator-facing
@@ -1975,7 +1978,182 @@ async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
     # base verdict; only escalates (monotonic) and adds consequences/recs.
     out["operational_feeds"] = _apply_operational_feeds(out, mission, list(req.feeds_demo or []))
 
+    # Per-segment × time degradation grid (live monitor view). Skipped for
+    # replays (a recorded storm has no live forecast horizon to project).
+    if with_grid and replay is None:
+        out["segment_time_grid"] = _segment_time_grid(env, wp_inputs, platform)
+
     return out
+
+
+@router_v3.post("/mission/assess")
+async def mission_assess(request: Request, req: _MissionRequestModel) -> dict:
+    """Operator-language mission assessment (see run_mission_assessment)."""
+    return run_mission_assessment(req)
+
+
+_WP_RISK_ORDER = ["NOMINAL", "ELEVATED", "DEGRADED", "SEVERE"]
+
+
+def _wp_worst(levels: list[str]) -> str:
+    worst = "NOMINAL"
+    for level in levels:
+        if level in _WP_RISK_ORDER and _WP_RISK_ORDER.index(level) > _WP_RISK_ORDER.index(worst):
+            worst = level
+    return worst
+
+
+def _segment_time_grid(env, wp_inputs, platform) -> list[dict]:
+    """Per-waypoint risk across NOAA's Kp 3-day forecast windows.
+
+    Each window re-runs the route engine with that window's forecast Kp, so the
+    operator sees *when* and *where* the route degrades over the next ~3 days.
+    The live monitor recomputes this every refresh as the forecast updates.
+    """
+    from dataclasses import replace
+
+    from app.api.routes_v2 import _engine
+    from app.data.noaa import _cache as _noaa_cache
+    from app.models.forecast import parse_kp_forecast
+
+    entries = [e for e in parse_kp_forecast(_noaa_cache.get("kp_forecast") or []) if e.get("type") == "forecast"]
+    grid: list[dict] = []
+    for e in entries[:24]:  # ~3-day, 3-hourly horizon
+        try:
+            _rec, wps = _engine.route_risk(replace(env, kp=e["kp"]), wp_inputs, platform)
+        except Exception:
+            continue
+        segs = [
+            {
+                "name": w.name,
+                "lat": round(w.lat, 4),
+                "lon": round(w.lon, 4),
+                "risk_level": w.risk_level,
+                "risk_score": w.risk_score,
+                "gps_error_m": round(w.gps_error_m, 2),
+                "hf_viable": w.hf_viable,
+            }
+            for w in wps
+        ]
+        grid.append(
+            {
+                "time": e["time"].isoformat(),
+                "kp": e["kp"],
+                "overall_risk": _wp_worst([s["risk_level"] for s in segs]),
+                "segments": segs,
+            }
+        )
+    return grid
+
+
+# ── Live mission watch ────────────────────────────────────────────────────────
+
+
+@router_v3.post("/mission/watch")
+async def mission_watch_register(request: Request, req: _MissionRequestModel) -> dict:
+    """Register a mission for live monitoring.
+
+    Returns a watch_id + the initial assessment. The background refresh loop
+    re-evaluates the mission each cycle against the latest feeds; subscribe to
+    GET /mission/watch/{id}/stream (SSE) for live updates. Disabled in
+    OFFLINE_MODE — live monitoring needs live feeds.
+    """
+    from fastapi import HTTPException
+
+    from app.config import settings
+    from app.data import mission_watch
+
+    if settings.offline_mode:
+        raise HTTPException(
+            status_code=409,
+            detail="Live monitoring is unavailable in OFFLINE_MODE (no live feeds). Use a one-shot assessment.",
+        )
+    # run_mission_assessment validates equipment/scenario and raises 422 on bad input.
+    watch_id, assessment = mission_watch.register(req, run_mission_assessment)
+    return {
+        "watch_id": watch_id,
+        "version": 1,
+        "stream_url": f"/api/v3/mission/watch/{watch_id}/stream",
+        "refresh_seconds": settings.refresh_interval_seconds,
+        "assessment": assessment,
+    }
+
+
+@router_v3.get("/mission/watch/{watch_id}")
+async def mission_watch_get(request: Request, watch_id: str) -> dict:
+    """Current state of a watch (polling fallback for clients without SSE)."""
+    from fastapi import HTTPException
+
+    from app.data import mission_watch
+
+    w = mission_watch.get(watch_id)
+    if w is None:
+        raise HTTPException(status_code=404, detail="Unknown or expired watch_id.")
+    return {
+        "watch_id": watch_id,
+        "version": w["version"],
+        "updated_at": w["updated_at"],
+        "change": w["change"],
+        "assessment": w["assessment"],
+    }
+
+
+@router_v3.get("/mission/watch/{watch_id}/stream")
+async def mission_watch_stream(request: Request, watch_id: str):
+    """Server-Sent Events stream — pushes the assessment whenever the watch's
+    version changes (verdict escalates, consequence appears, forecast window
+    degrades). Emits the current state immediately on connect, then keepalives."""
+    import asyncio
+    import json
+
+    from fastapi import HTTPException
+    from fastapi.responses import StreamingResponse
+
+    from app.data import mission_watch
+
+    if mission_watch.get(watch_id) is None:
+        raise HTTPException(status_code=404, detail="Unknown or expired watch_id.")
+
+    async def _gen():
+        last = -1
+        while True:
+            if await request.is_disconnected():
+                return
+            w = mission_watch.get(watch_id)
+            if w is None:
+                yield 'event: end\ndata: {"reason":"watch stopped"}\n\n'
+                return
+            if w["version"] != last:
+                last = w["version"]
+                payload = {
+                    "watch_id": watch_id,
+                    "version": w["version"],
+                    "updated_at": w["updated_at"],
+                    "change": w["change"],
+                    "assessment": w["assessment"],
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+            else:
+                yield ": keepalive\n\n"
+            await asyncio.sleep(3)
+
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
+
+
+@router_v3.delete("/mission/watch/{watch_id}")
+async def mission_watch_delete(request: Request, watch_id: str) -> dict:
+    """Stop a live watch."""
+    from fastapi import HTTPException
+
+    from app.data import mission_watch
+
+    if not mission_watch.delete(watch_id):
+        raise HTTPException(status_code=404, detail="Unknown or expired watch_id.")
+    return {"stopped": watch_id, "active_watches": mission_watch.count()}
 
 
 _RISK_ORDER = ["CLEAR", "CAUTION", "HIGH_RISK", "DELAY"]
