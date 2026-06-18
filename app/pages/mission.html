@@ -366,7 +366,7 @@
         decision. Backed by the live IonShield decision engine.
       </p>
     </div>
-    <a class="alt-link" href="/dashboard">Technical / scientific view →</a>
+    <a class="alt-link" id="mp-globe-link" href="/dashboard">Open in globe view →</a>
   </div>
 
   <!-- ── Demo scenarios — defense/operator first ─────────────────── -->
@@ -598,6 +598,31 @@
     wpRoot.appendChild(wrap);
   }
   document.getElementById('m-wp-add').addEventListener('click', () => addWaypointRow());
+
+  // ── Handoff to the globe view ────────────────────────────────────────────
+  // Carry the current waypoints + mission profile over to /dashboard so the
+  // globe can render them and auto-run analytics without re-entry. The anchor's
+  // href still drives navigation; we just stash state first. buildMissionPayload
+  // is hoisted (function declaration), so it's safe to call here.
+  const globeLink = document.getElementById('mp-globe-link');
+  if (globeLink) {
+    globeLink.addEventListener('click', () => {
+      try {
+        const payload = buildMissionPayload();
+        if (payload.waypoints.length) {
+          localStorage.setItem(
+            'ionshield_mission_handoff',
+            JSON.stringify({ ...payload, ts: Date.now() })
+          );
+        } else {
+          // Nothing to carry — clear any stale handoff so the globe starts clean.
+          localStorage.removeItem('ionshield_mission_handoff');
+        }
+      } catch (e) {
+        /* localStorage unavailable — fall through to plain navigation */
+      }
+    });
+  }
 
   // Initial waypoint
   addWaypointRow('WP01', 38.8, -104.5);

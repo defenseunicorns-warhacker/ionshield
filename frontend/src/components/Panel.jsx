@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { useDecision }   from '../hooks/useDecision.js';
+import MissionAssessment from './MissionAssessment.jsx';
 import { getRiskStyle, getActionStyle, confScoreColor, confLabelText } from '../utils/riskColors.js';
 
 // ── Layer Toggles ─────────────────────────────────────────────────────────────
@@ -758,7 +759,12 @@ export default function Panel({
             </div>
           )}
           {loading && <div className="ion-loading">Computing decision…</div>}
-          <DecisionResult decision={decision} />
+          {/* Mission-aware assessment (handoff from /mission) renders the v3
+              MissionAssessment card; the normal click-to-place flow renders the
+              v2 DecisionResult. Branch on the v3-only mission_risk_level field. */}
+          {decision?.mission_risk_level
+            ? <MissionAssessment assessment={decision} />
+            : <DecisionResult decision={decision} />}
         </div>
 
       </div>

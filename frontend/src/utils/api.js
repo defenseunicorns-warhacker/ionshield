@@ -56,6 +56,18 @@ export const api = {
       body: JSON.stringify({ waypoints, platform }),
     }),
 
+    /**
+   * POST /api/v3/mission/assess — mission-aware assessment (same engine the
+   * Mission Planner uses). `payload` is the full mission profile: mission_type,
+   * gnss_dependence, comms_dependence, risk_tolerance, time_window, callsign,
+   * waypoints, equipment, scenario.
+   */
+  missionAssess: (payload) =>
+    apiFetch('/api/v3/mission/assess', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   /** GET /api/v2/comms-decision — HF/SATCOM comms recommendation */
   commsDecision: (lat, lon, destLat = null, destLon = null) => {
     let url = `/api/v2/comms-decision?lat=${lat}&lon=${lon}`;
