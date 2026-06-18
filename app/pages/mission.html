@@ -380,7 +380,15 @@
     .mp-cons-body { flex: 1; font-size: 12px; }
     .mp-cons-fn { font-weight: 600; color: var(--text-1, #e6ecf2); }
     .mp-cons-fail { color: var(--text-2); margin-top: 2px; line-height: 1.45; }
-    .mp-cons-none { font-size: 12px; color: var(--text-2); }
+    .mp-cons-profile { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px;
+                       margin: 0 0 8px; font-weight: 700; }
+    .mp-cons-intro { font-size: 12px; color: var(--text-2); margin: 0 0 8px; line-height: 1.45; }
+    .mp-cons-intro strong { color: var(--text-1); }
+    .mp-cons-none { font-size: 12px; color: var(--text-2); background: rgba(16,185,129,.06);
+                    border: 1px solid rgba(16,185,129,.3); border-radius: 8px; padding: 10px 12px; }
+    .mp-cons-none-title { color: var(--green, #10b981); font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .mp-cons-none-body { color: var(--text-2); line-height: 1.5; }
+    .mp-cons-none-watch { color: var(--text-3); font-size: 11px; margin-top: 6px; line-height: 1.45; }
     .mp-cons-foot { font-size: 10.5px; color: var(--text-3); margin-top: 9px; font-style: italic; }
 
     /* ── Disconnected-mode hero callout ─────────────────────────────────── */
@@ -876,6 +884,51 @@
     return (red || cons[0]).fail;
   }
 
+  // Human-readable mission profile from the echoed inputs, so the consequences
+  // section is framed by THIS mission's parameters.
+  const MISSION_TYPE_LABEL = {
+    'uav': 'UAV', 'bvlos': 'BVLOS UAS', 'precision-ag': 'Precision-ag', 'maritime': 'Maritime / SAR',
+    'defense-patrol': 'Defense patrol', 'surveying': 'Survey', 'autonomous-ground': 'Autonomous ground',
+    'fires-support': 'Fires support', 'sof-comms': 'SOF comms', 'cas-coordination': 'CAS coordination',
+    'ground-maneuver': 'Ground maneuver',
+  };
+  function missionProfile(inputs) {
+    const type = MISSION_TYPE_LABEL[inputs.mission_type] || inputs.mission_type || 'Mission';
+    const win = { 'now': 'live', 'next-1h': 'next 1 h', 'next-6h': 'next 6 h', 'next-24h': 'next 24 h' }[inputs.time_window] || inputs.time_window;
+    const parts = [];
+    if (inputs.gnss_dependence) parts.push(`${inputs.gnss_dependence} GPS`);
+    if (inputs.comms_dependence) parts.push(`${inputs.comms_dependence} comms`);
+    if (inputs.risk_tolerance) parts.push(`${inputs.risk_tolerance} risk tolerance`);
+    if (win) parts.push(`${win} window`);
+    return { type, detail: parts.join(' · ') };
+  }
+
+  // Characterize current space weather from the live operational feeds, so the
+  // empty state can state plainly that no significant event is active.
+  function spaceWeatherSummary(a) {
+    const f = a.operational_feeds || {};
+    const drivers = (a.event_drivers && a.event_drivers.length ? a.event_drivers : ((f.donki || {}).drivers || []));
+    const clear = [], active = [];
+    const d = f.drap || {};
+    if (d.route_hf_risk && d.route_hf_risk.level !== 'MINIMAL') active.push(`HF absorption ${String(d.route_hf_risk.level).toLowerCase()} (D-RAP)`);
+    else if (d.available) clear.push('HF absorption minimal');
+    const nc = (f.nanu || {}).constellation;
+    if (nc) {
+      // Only a below-nominal count is a driver; a single unhealthy SV with the
+      // constellation still at nominal is informational, not mission-driving.
+      if (nc.degraded) active.push(`GPS ${nc.operational_count}/${nc.nominal} healthy SVs (below nominal)`);
+      else {
+        const bad = (nc.unhealthy && nc.unhealthy.length) ? ` (PRN-${nc.unhealthy.join(', PRN-')} unhealthy)` : '';
+        clear.push(`GPS constellation nominal (${nc.operational_count}/${nc.nominal} SVs${bad})`);
+      }
+    }
+    const o = f.ovation || {};
+    if (o.route_aurora_risk && o.route_aurora_risk.level !== 'MINIMAL') active.push(`aurora ${o.route_aurora_risk.prob_pct}% over route`);
+    else if (o.available) clear.push('no auroral activity over route');
+    if (drivers.length) active.push(...drivers); else clear.push('no significant solar events (DONKI)');
+    return { drivers, clear, active, quiet: active.length === 0 };
+  }
+
   // Primary recommendation. The engine sometimes leads its action list with a
   // generic "all clear" line even when the mission verdict escalates (e.g. an
   // RTK mission delayed by tight tolerance under calm space weather). For any
@@ -938,6 +991,9 @@
     const primaryRec = primaryRecommendation(recs, disp.decision);
     const oneLineConsequence = consequenceSentence(consequences);
     const consChip = { RED: 'red', AMBER: 'amber', GREEN: 'green' };
+    const profile = missionProfile(inputs);
+    const sw = spaceWeatherSummary(assessment);
+    const drivenBy = sw.active.length ? `, driven by ${sw.active.slice(0, 3).join('; ')}` : '';
 
     const obs  = (prov.observations_used || []).join(', ') || '—';
     const fcs  = (prov.forecasts_used    || []).join(', ') || '—';
@@ -960,7 +1016,9 @@
       <!-- Mission Consequences (operator-facing, above technical detail) -->
       <div class="mp-cons">
         <h4>Mission Consequences</h4>
+        <div class="mp-cons-profile">${escapeHtml(profile.type)} mission${profile.detail ? ` · ${escapeHtml(profile.detail)}` : ''}</div>
         ${consequences.length ? `
+        <div class="mp-cons-intro">What could fail on <strong>this</strong> mission${escapeHtml(drivenBy)}:</div>
         <ul>${consequences.map(c => `
           <li>
             <span class="mp-cons-chip ${consChip[c.risk] || 'amber'}">${c.risk}</span>
@@ -969,7 +1027,14 @@
               <div class="mp-cons-fail">${escapeHtml(c.fail)}</div>
             </div>
           </li>`).join('')}</ul>` : `
-        <div class="mp-cons-none">No significant mission functions affected by current conditions.</div>`}
+        <div class="mp-cons-none">
+          <div class="mp-cons-none-title">✓ No active mission consequences</div>
+          <div class="mp-cons-none-body">No significant space-weather event is active, and this mission's
+            ${escapeHtml(inputs.gnss_dependence || '')} GPS and ${escapeHtml(inputs.comms_dependence || '')} comms
+            dependencies are within tolerance — nothing is currently degrading mission functions.</div>
+          ${sw.clear.length ? `<div class="mp-cons-none-watch">Current conditions: ${escapeHtml(sw.clear.join(' · '))}.</div>` : ''}
+          <div class="mp-cons-none-watch">IonShield keeps monitoring — consequences will appear here the moment conditions degrade.</div>
+        </div>`}
         <div class="mp-cons-foot">What could fail → which mission function → drives the decision above. Technical detail and audit trail below.</div>
       </div>
 

@@ -2056,24 +2056,20 @@ def _apply_operational_feeds(out: dict, mission, feeds_demo: list[str]) -> dict:
 
     # ── NANU / CelesTrak: GPS availability ────────────────────────────────────
     nanu_snap = _nanu.cache_snapshot()
-    nanu_used = _nanu.has_active_outage()
+    const = _nanu.constellation_status()
+    advs = _nanu.active_advisories()
+    degraded = bool(const and const["degraded"])
+    # A single unhealthy SV with the constellation still at nominal count is NOT
+    # a mission consequence — it's surfaced informationally in the feeds row.
+    # Only a below-nominal count or a real NANU outage advisory drives the
+    # assessment (and the Mission Consequences list).
+    nanu_used = degraded or bool(advs)
     if nanu_used:
-        const = _nanu.constellation_status()
-        advs = _nanu.active_advisories()
-        degraded = bool(const and const["degraded"])
-        if const and degraded:
-            # Healthy constellation below the nominal operational baseline.
+        if degraded:
             fail = (
                 f"NAVCEN GPS almanac: {const['operational_count']} healthy SVs vs nominal "
                 f"{const['nominal']} — reduced GPS constellation availability degrades "
                 "navigation confidence and DOP."
-            )
-        elif const and const.get("unhealthy"):
-            # Nominal count met, but specific SVs are set unhealthy/unusable now.
-            prns = ", ".join(f"PRN-{p}" for p in const["unhealthy"])
-            fail = (
-                f"NAVCEN GPS almanac: {prns} set unhealthy/unusable; {const['operational_count']} of "
-                f"{const['nominal']} nominal SVs healthy — localized DOP/availability impact possible."
             )
         else:
             fail = (
