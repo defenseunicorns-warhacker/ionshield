@@ -9,6 +9,19 @@ services:
         required: false   # allow startup without a .env (falls back to defaults)
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # ── Live CoT push to the local TAK server (see takserver below) ──────────
+      # The api reaches the TAK server by its compose service name on the shared
+      # network. Setting COT_SERVER_HOST is what enables the background pusher.
+      COT_SERVER_HOST: takserver
+      COT_SERVER_PORT: "8087"
+      # Publish ALL monitored locations as colored CoT markers, not just those
+      # in active alert — so markers always appear (quiet space weather would
+      # otherwise mean zero alerts → nothing on the map).
+      COT_PUSH_ALL: "true"
+      # Snappier demo loop: push/refresh every 2 min instead of 5.
+      REFRESH_INTERVAL_SECONDS: "120"
+    depends_on:
+      - takserver
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",
@@ -17,3 +30,24 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s   # give the initial NOAA fetch time to complete
+
+  # ── FreeTAKServer — local TAK server for live CoT ──────────────────────────
+  # Open-source TAK server. IonShield pushes Cursor-on-Target to its TCP CoT
+  # port (8087); iTAK/ATAK/WinTAK connect to the same port and see the markers.
+  # The image is linux/amd64 — on Apple Silicon it runs under emulation (fine
+  # for a demo, just slower to boot). First boot auto-generates FTSConfig.yaml
+  # into the persisted volume.
+  takserver:
+    image: ghcr.io/freetakteam/freetakserver:latest
+    platform: linux/amd64
+    ports:
+      - "8087:8087"     # TCP CoT stream — IonShield push + iTAK/ATAK Quick Connect
+      - "8089:8089"     # SSL CoT stream (optional, cert-based clients)
+      - "19023:19023"   # FTS REST API
+      - "8080:8080"     # data-package / mission server
+    volumes:
+      - takserver-data:/opt/fts   # persist FTSConfig.yaml + DB across restarts
+    restart: unless-stopped
+
+volumes:
+  takserver-data:

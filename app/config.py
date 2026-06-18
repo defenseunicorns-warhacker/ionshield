@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     cot_server_host: str = ""
     cot_server_port: int = 8087  # standard TAK server TCP CoT port
     cot_stale_minutes: int = 10  # CoT event stale time
+    # Publish every monitored location as a colored CoT marker, not just those
+    # in active alert. Gives a continuous TAK situational-awareness picture
+    # (markers always present, colored by live risk). Default: alerts only.
+    cot_push_all: bool = False
 
     # ── Observation archive / replay ─────────────────────────────────────────
     # SQLite (default) or PostgreSQL via DATABASE_URL.

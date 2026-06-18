@@ -84,15 +84,22 @@ def _reload_locations() -> None:
 
 
 async def _push_cot() -> None:
-    """Push CoT events for in-alert locations to the configured TAK server."""
+    """Push CoT events to the configured TAK server.
+
+    Default: only locations in active alert. With COT_PUSH_ALL=true, every
+    monitored location is published as a colored marker so the TAK picture is
+    continuous regardless of alert state (the markers carry the live risk
+    colour and an ⚠ALERT flag in remarks when a site is actually alerting).
+    """
+    from app.data.locations import get_all
     from app.outputs.cot import push_cot_to_server
 
-    alerts = get_active_alerts()
-    if alerts:
+    locations = get_all() if settings.cot_push_all else get_active_alerts()
+    if locations:
         await push_cot_to_server(
             settings.cot_server_host,
             settings.cot_server_port,
-            alerts,
+            locations,
             stale_minutes=settings.cot_stale_minutes,
         )
 
