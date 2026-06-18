@@ -22,6 +22,12 @@ import { useLayers }   from './hooks/useLayers.js';
 import { useForecast } from './hooks/useForecast.js';
 import { api }         from './utils/api.js';
 
+// Shared mission store — round-trips waypoints + profile with /mission.
+// Both surfaces read it on load and write it on change; a 30-min TTL keeps
+// it fresh so a stale visit doesn't silently reload an old mission.
+const MISSION_KEY = 'ionshield_mission';
+const MISSION_TTL_MS = 30 * 60 * 1000;
+
 // Platform preset lookup (shared with Panel — needed for auto-replay)
 const PLATFORM_PRESETS = {
   hmmwv:       { asset_type: 'GPS_L1',   criticality: 3, system_dependencies: [] },
@@ -44,6 +50,9 @@ export default function App() {
 
   // Platform lifted here so replay can use it without prop drilling through Panel
   const [platform, setPlatform] = useState('hmmwv');
+
+  // Transient note when waypoints arrive from the Mission Planner handoff
+  const [handoffNote, setHandoffNote] = useState(null);
 
   // ── Replay state ──────────────────────────────────────────────────────────
   const [replayOpen,     setReplayOpen]     = useState(false);
@@ -82,6 +91,83 @@ export default function App() {
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replaySnapshot]);                         // intentionally exclude waypoints/platform
+
+  // ── Mission Planner handoff ───────────────────────────────────────────────
+  // On first load, pick up the mission from the shared store, drop its
+  // waypoints on the globe, and auto-run the mission-aware assessment so the
+  // same analytics / recommended actions render without re-entry. The store
+  // persists (not one-shot) so the round-trip back to /mission is retained.
+  useEffect(() => {
+    let payload;
+    try {
+      const raw = localStorage.getItem(MISSION_KEY);
+      if (!raw) return;
+      payload = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!payload) return;
+
+    // Drop stale missions (> 30 min old) so an old visit doesn't reload.
+    if (payload.ts && Date.now() - payload.ts > MISSION_TTL_MS) {
+      try { localStorage.removeItem(MISSION_KEY); } catch {}
+      return;
+    }
+
+    const wps = (payload.waypoints || []).filter(
+      w => Number.isFinite(w.lat) && Number.isFinite(w.lon)
+    );
+    if (!wps.length) return;
+
+    setWaypoints(wps);
+    setHandoffNote(
+      `${wps.length} waypoint${wps.length > 1 ? 's' : ''} loaded from Mission Planner`
+    );
+
+    // Fly once the globe viewer is ready, then auto-run the assessment.
+    const flyTimer = setTimeout(() => globeRef.current?.flyToRoute(wps), 600);
+    const noteTimer = setTimeout(() => setHandoffNote(null), 6000);
+
+    let cancelled = false;
+    // Run the SAME mission-aware assessment the planner uses (v3), passing the
+    // full carried profile (mission_type, gnss/comms dependence, risk tolerance,
+    // equipment, scenario). The globe colors markers from decision.waypoints, but
+    // v3 nests the per-waypoint array under raw_decision.waypoints — lift it.
+    const { ts: _ts, ...profile } = payload; // drop the handoff timestamp
+    api.missionAssess({ ...profile, waypoints: wps })
+      .then(a => {
+        if (cancelled || !a) return;
+        setDecision({ ...a, waypoints: a.raw_decision?.waypoints ?? [] });
+      })
+      .catch(() => {}); // errors surface via Panel when the user re-runs
+
+    return () => {
+      cancelled = true;
+      clearTimeout(flyTimer);
+      clearTimeout(noteTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
+
+  // ── Persist waypoints back to the shared store ────────────────────────────
+  // So edits made on the globe survive the trip back to /mission. Merge into
+  // any existing profile (mission_type, dependencies, …) rather than replacing
+  // it. Skip the first render so we don't clobber a stored mission before the
+  // load effect above has read it.
+  const didHydrate = useRef(false);
+  useEffect(() => {
+    if (!didHydrate.current) { didHydrate.current = true; return; }
+    try {
+      let existing = {};
+      try { existing = JSON.parse(localStorage.getItem(MISSION_KEY)) || {}; } catch {}
+      if (waypoints.length) {
+        localStorage.setItem(MISSION_KEY, JSON.stringify({ ...existing, waypoints, ts: Date.now() }));
+      } else if (localStorage.getItem(MISSION_KEY)) {
+        // All waypoints cleared on the globe — reflect that, keep the profile.
+        localStorage.setItem(MISSION_KEY, JSON.stringify({ ...existing, waypoints: [], ts: Date.now() }));
+      }
+    } catch { /* localStorage unavailable — non-fatal */ }
+  }, [waypoints]);
 
   // ── Map interaction ───────────────────────────────────────────────────────
   const handleMapClick = useCallback(({ lat, lon }) => {
@@ -160,6 +246,13 @@ export default function App() {
             clickMode={clickMode}
             forecastKp={forecastKp}
           />
+
+          {/* Mission Planner handoff confirmation */}
+          {handoffNote && (
+            <div className="globe-hint" role="status">
+              {handoffNote}
+            </div>
+          )}
 
           {/* Click-mode hint */}
           {clickMode && (

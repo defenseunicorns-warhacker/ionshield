@@ -25,6 +25,18 @@
     }
     .mp-header .alt-link:hover { color: var(--blue-hi); border-color: var(--blue-hi); }
 
+    /* Prominent, opaque globe CTA inside the result card (post-assessment) */
+    .mp-globe-cta {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--blue); color: #fff; font-size: 13px; font-weight: 700;
+      letter-spacing: .01em; text-decoration: none; text-align: center;
+      padding: 12px 16px; border-radius: 8px; border: 1px solid var(--blue);
+      box-shadow: 0 2px 10px rgba(59,130,246,.35); cursor: pointer;
+      transition: background .15s, box-shadow .15s, transform .05s;
+    }
+    .mp-globe-cta:hover  { background: var(--blue-hi); box-shadow: 0 3px 14px rgba(96,165,250,.5); }
+    .mp-globe-cta:active { transform: translateY(1px); }
+
     /* Scenario chips row */
     .mp-scenarios { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 24px; }
     .mp-scenarios-alt { margin: -12px 0 24px; align-items: center; }
@@ -432,7 +444,7 @@
         decision. Backed by the live IonShield decision engine.
       </p>
     </div>
-    <a class="alt-link" href="/dashboard">Technical / scientific view →</a>
+    <a class="alt-link" id="mp-globe-link" href="/dashboard">Open in globe view →</a>
   </div>
 
   <!-- ── Demo scenarios — defense/operator first ─────────────────── -->
@@ -698,8 +710,70 @@
   }
   document.getElementById('m-wp-add').addEventListener('click', () => addWaypointRow());
 
-  // Initial waypoint
-  addWaypointRow('WP01', 38.8, -104.5);
+  // ── Mission state persistence (shared with the globe view) ────────────────
+  // A single localStorage key holds the current mission so waypoints + profile
+  // survive the round-trip between /mission and /dashboard. Both surfaces read
+  // it on load and write it on change; a 30-min TTL keeps it fresh. saveMissionState
+  // accepts an optional pre-built payload to avoid rebuilding it. buildMissionPayload
+  // is hoisted (function declaration), so it's safe to reference here.
+  const MISSION_KEY = 'ionshield_mission';
+  const MISSION_TTL_MS = 30 * 60 * 1000;
+
+  function saveMissionState(payload) {
+    try {
+      payload = payload || buildMissionPayload();
+      if (payload.waypoints.length) {
+        localStorage.setItem(MISSION_KEY, JSON.stringify({ ...payload, ts: Date.now() }));
+      }
+    } catch (e) { /* localStorage unavailable — navigation still works */ }
+  }
+
+  // Stash the current mission before handing off to the globe — both the header
+  // link and the post-assessment CTA (rendered into #m-result) route here.
+  const globeLink = document.getElementById('mp-globe-link');
+  if (globeLink) globeLink.addEventListener('click', () => saveMissionState());
+  document.addEventListener('click', (e) => {
+    if (e.target.closest && e.target.closest('#mp-globe-cta')) saveMissionState();
+  });
+
+  // ── Restore a saved mission on load (round-trip from the globe) ────────────
+  // Sets the profile selects + waypoint rows; equipment is deferred to the
+  // catalog loader (checkboxes render async) via pendingEquipment.
+  function restoreMissionState() {
+    let saved;
+    try {
+      const raw = localStorage.getItem(MISSION_KEY);
+      if (!raw) return false;
+      saved = JSON.parse(raw);
+    } catch (e) { return false; }
+    if (!saved) return false;
+    if (saved.ts && Date.now() - saved.ts > MISSION_TTL_MS) {
+      try { localStorage.removeItem(MISSION_KEY); } catch (e) {}
+      return false;
+    }
+    const wps = (saved.waypoints || [])
+      .filter(w => Number.isFinite(w.lat) && Number.isFinite(w.lon));
+    if (!wps.length) return false;
+
+    const setVal = (id, v) => {
+      if (v != null && v !== '') { const el = document.getElementById(id); if (el) el.value = v; }
+    };
+    setVal('m-type', saved.mission_type);
+    setVal('m-gnss-dep', saved.gnss_dependence);
+    setVal('m-comms-dep', saved.comms_dependence);
+    setVal('m-tolerance', saved.risk_tolerance);
+    setVal('m-window', saved.time_window);
+    setVal('m-callsign', saved.callsign);
+
+    wpRoot.innerHTML = '';
+    wps.forEach(w => addWaypointRow(w.name || 'WP', w.lat, w.lon));
+
+    activeScenario = saved.scenario || '';
+    if (Array.isArray(saved.equipment) && saved.equipment.length) {
+      pendingEquipment = saved.equipment.slice();
+    }
+    return true;
+  }
 
   // ── Scenario presets ─────────────────────────────────────────────────────
   // The defense/operator scenarios replay the REAL measured conditions of the
@@ -805,6 +879,9 @@
   // Catalog + per-mission defaults come from the server (single source of
   // truth in app/models/equipment.py); the UI only renders checkboxes.
   let EQUIPMENT_DEFAULTS = {};
+  // Equipment ids restored from a saved mission, applied once the catalog
+  // checkboxes have rendered (set by restoreMissionState).
+  let pendingEquipment = null;
 
   async function loadEquipmentCatalog() {
     try {
@@ -820,7 +897,15 @@
             <span class="nom">${escapeHtml(e.nomenclature)}</span>
           </span>
         </label>`).join('');
-      applyEquipmentDefaults(document.getElementById('m-type').value);
+      if (pendingEquipment) {
+        // Restored mission: honor the saved equipment selection over defaults.
+        const want = new Set(pendingEquipment);
+        document.querySelectorAll('#m-equipment input[type=checkbox]')
+          .forEach(cb => { cb.checked = want.has(cb.value); });
+        pendingEquipment = null;
+      } else {
+        applyEquipmentDefaults(document.getElementById('m-type').value);
+      }
     } catch (e) { /* equipment readout is additive — page works without it */ }
   }
 
@@ -832,6 +917,10 @@
 
   document.getElementById('m-type').addEventListener('change',
     e => { applyEquipmentDefaults(e.target.value); activeScenario = ''; });
+
+  // Restore a mission carried back from the globe; otherwise seed a default WP.
+  // Runs before loadEquipmentCatalog() so pendingEquipment is honored on render.
+  if (!restoreMissionState()) addWaypointRow('WP01', 38.8, -104.5);
   loadEquipmentCatalog();
 
   // ── Decision framing (presentation only — backend verdict unchanged) ──────
@@ -1019,6 +1108,11 @@
         <div class="mp-primary-rec"><span class="mp-primary-rec-k">Primary recommendation:</span> ${escapeHtml(primaryRec)}</div>
         <div class="summary">${escapeHtml(oneLineConsequence)}</div>
       </div>
+
+      <!-- Globe view CTA — carries this mission to /dashboard for the 3D analytics -->
+      <a class="mp-globe-cta" id="mp-globe-cta" href="/dashboard">
+        🌐 Open this mission in the globe view →
+      </a>
 
       <!-- Mission Consequences (operator-facing, above technical detail) -->
       <div class="mp-cons">
@@ -1689,6 +1783,9 @@
       root.innerHTML = '<div class="mp-error">Add at least one waypoint with valid lat/lon.</div>';
       return;
     }
+
+    // Persist so the mission survives a reload here and a hop to the globe.
+    saveMissionState(payload);
 
     btn.disabled = true; btn.textContent = 'Assessing…';
     root.innerHTML = '<div class="mp-loading"></div><div style="text-align:center;color:var(--text-3);font-size:12px;margin-top:14px;">Running mission assessment…</div>';
