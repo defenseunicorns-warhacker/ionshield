@@ -385,6 +385,20 @@ async def _refresh_loop() -> None:
         if settings.cot_push_enabled:
             await _fire_and_forget(_push_cot, label="cot_push")
 
+        # Live mission watches: re-evaluate each registered mission against the
+        # fresh feeds and bump versions so subscribed dashboards update in place.
+        if not settings.offline_mode:
+            try:
+                from app.api.routes_v3 import run_mission_assessment
+                from app.data import mission_watch
+
+                if mission_watch.count():
+                    changed = mission_watch.reassess_all(run_mission_assessment)
+                    if changed:
+                        logger.info("mission_watch: %d watch(es) updated this cycle", len(changed))
+            except Exception as exc:
+                logger.warning("mission_watch reassess error: %s", exc)
+
 
 def _persist_feed_state(results: dict) -> None:
     """Cache-and-carry: persist feed state after a successful live cycle.

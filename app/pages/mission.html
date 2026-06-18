@@ -147,6 +147,43 @@
     .mp-verdict.no_go   .level { color: var(--red); }
     .mp-verdict .summary { font-size: 14px; color: var(--text-1); line-height: 1.5; }
 
+    .mp-livebar { display: flex; align-items: center; gap: 12px; margin: 14px 0; flex-wrap: wrap; }
+    .mp-live-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--blue, #3b82f6);
+                   background: var(--blue, #3b82f6); color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .mp-live-btn.on { background: transparent; color: var(--red, #ef4444); border-color: var(--red, #ef4444); }
+    .mp-live-status { font-size: 12px; color: var(--text-2); }
+    .mp-live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red, #ef4444);
+                   margin-right: 6px; animation: mp-pulse 1.4s ease-in-out infinite; }
+    @keyframes mp-pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+    .mp-live-change { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+                      background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.4); color: var(--text-1, #e6ecf2); }
+    .mp-live-change.flash { animation: mp-flash 1.2s ease-out; }
+    @keyframes mp-flash { 0% { background: rgba(245,158,11,.35); } 100% { background: rgba(245,158,11,.1); } }
+
+    /* Mission forecast + live monitor — its own section below the decision */
+    .mp-forecast { margin: 14px 0; border: 1px solid var(--line, #1f2a36); border-left: 3px solid var(--blue-hi, #60a5fa);
+                   border-radius: 10px; padding: 12px 14px; }
+    .mp-forecast-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .mp-forecast-head h4 { margin: 0; font-size: 13px; color: var(--text-1, #e6ecf2); }
+
+    .mp-fc-summary { font-size: 12.5px; color: var(--text-1, #e6ecf2); line-height: 1.5; margin: 8px 0 12px; }
+    .mp-fc-summary strong { color: var(--text-1); }
+    .mp-fc { display: flex; flex-direction: column; gap: 5px; }
+    .mp-fc-row { display: flex; align-items: center; gap: 10px; }
+    .mp-fc-label { flex: 0 0 96px; text-align: right; font-size: 11px; font-weight: 600; color: var(--text-2);
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mp-fc-track { flex: 1; display: flex; gap: 2px; }
+    .mp-fc-cell { flex: 1; height: 18px; border-radius: 3px; min-width: 6px; }
+    .mp-fc-cell.green  { background: rgba(16,185,129,.85); }
+    .mp-fc-cell.amber  { background: rgba(245,158,11,.9); }
+    .mp-fc-cell.orange { background: rgba(249,115,22,.95); }
+    .mp-fc-cell.red    { background: var(--red, #ef4444); }
+    .mp-fc-axis { flex: 1; display: flex; gap: 2px; }
+    .mp-fc-tick { flex: 1; font-size: 9px; color: var(--text-3); text-align: left; white-space: nowrap; overflow: visible; }
+    .mp-grid-legend { display: flex; gap: 12px; margin-top: 10px; font-size: 10px; color: var(--text-3); flex-wrap: wrap; }
+    .mp-grid-legend span::before { content: '■ '; }
+    .mp-grid-foot { font-size: 10.5px; color: var(--text-3); margin-top: 8px; font-style: italic; }
+
     /* Reliability scores */
     .mp-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .mp-score {
@@ -1103,7 +1140,7 @@
     root.innerHTML = `
       ${replayBanner}
       <!-- Decision verdict (operator-first) -->
-      <div class="mp-verdict ${disp.cls}">
+      <div class="mp-verdict ${disp.cls}" id="m-verdict">
         <div class="level">MISSION RISK: ${disp.label} — ${disp.decision}</div>
         <div class="mp-primary-rec"><span class="mp-primary-rec-k">Primary recommendation:</span> ${escapeHtml(primaryRec)}</div>
         <div class="summary">${escapeHtml(oneLineConsequence)}</div>
@@ -1138,6 +1175,18 @@
         </div>`}
         <div class="mp-cons-foot">What could fail → which mission function → drives the decision above. Technical detail and audit trail below.</div>
       </div>
+
+      <!-- Mission forecast + live monitor (forward-looking; below the decision) -->
+      ${(assessment.segment_time_grid && assessment.segment_time_grid.length) || !inputs.scenario ? `
+      <div class="mp-forecast">
+        <div class="mp-forecast-head">
+          <h4>Mission forecast &amp; live monitor</h4>
+          ${inputs.scenario ? '' : `<button type="button" class="mp-live-btn" id="m-live-toggle">▶ Monitor this mission live</button>`}
+        </div>
+        <span class="mp-live-status" id="m-live-status"></span>
+        <div id="m-live-change"></div>
+        <div id="m-grid">${renderForecastGrid(assessment.segment_time_grid)}</div>
+      </div>` : ''}
 
       <!-- Reliability scores -->
       <div class="mp-scores">
@@ -1483,7 +1532,8 @@
     const doc = new DOMParser().parseFromString(text, 'application/xml');
     if (doc.querySelector('parsererror')) throw new Error('KML is not valid XML.');
     const wps = [];
-    doc.querySelectorAll('Placemark').forEach(pm => {
+    const placemarks = [...doc.querySelectorAll('Placemark')];
+    placemarks.forEach(pm => {
       const nm = pm.querySelector('name')?.textContent?.trim();
       const pt = pm.querySelector('Point > coordinates');
       const ls = pm.querySelector('LineString > coordinates');
@@ -1492,7 +1542,32 @@
         ls.textContent.trim().split(/\s+/).forEach((tok,i) => { const [lon,lat] = tok.split(',').map(parseFloat); if (Number.isFinite(lat)&&Number.isFinite(lon)) wps.push({name:`WP${String(i+1).padStart(2,'0')}`, lat, lon}); });
       }
     });
-    if (!wps.length) throw new Error('No Placemark Point/LineString coordinates found in KML.');
+    // Fallback: no Point/LineString route — derive waypoints from Polygon
+    // footprints. IonShield's own risk-overlay exports (and many AO/zone KMLs)
+    // are polygons, not routes; use each polygon's centroid as a waypoint and
+    // collapse near-identical footprints so a time-window overlay (the same AO
+    // repeated per window) yields a single AO-center waypoint rather than dozens.
+    if (!wps.length) {
+      const seen = new Set();
+      placemarks.forEach(pm => {
+        const ring = pm.querySelector('Polygon coordinates');
+        if (!ring) return;
+        const pts = ring.textContent.trim().split(/\s+/).map(t => t.split(',').map(parseFloat)).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+        if (!pts.length) return;
+        const closed = pts.length > 1 && pts[0][0] === pts[pts.length-1][0] && pts[0][1] === pts[pts.length-1][1];
+        const ringPts = closed ? pts.slice(0,-1) : pts;
+        const lon = ringPts.reduce((s,c)=>s+c[0],0)/ringPts.length;
+        const lat = ringPts.reduce((s,c)=>s+c[1],0)/ringPts.length;
+        const key = lat.toFixed(2)+','+lon.toFixed(2);   // ~1 km dedup grid
+        if (seen.has(key)) return; seen.add(key);
+        const nm = pm.querySelector('name')?.textContent?.trim();
+        // overlay placemark names are state/Kp/time labels, not waypoint names
+        const clean = (nm && !/kp|·|–|—|\bZ\b|\d{2}:\d{2}/i.test(nm)) ? nm
+                    : (seen.size === 1 ? 'AO center' : `AO ${seen.size} center`);
+        wps.push({ name: clean, lat: +lat.toFixed(5), lon: +lon.toFixed(5) });
+      });
+    }
+    if (!wps.length) throw new Error('No Placemark Point, LineString, or Polygon coordinates found in KML.');
     const docName = doc.querySelector('Document > name, kml > Document > name')?.textContent?.trim();
     return { name: docName || 'Imported KML route', waypoints: wps, _source: 'KML' };
   }
@@ -1775,10 +1850,116 @@
   }
 
   // ── Submit handler ───────────────────────────────────────────────────────
+  const _GRID_RISK_CLASS = { NOMINAL: 'green', ELEVATED: 'amber', DEGRADED: 'orange', SEVERE: 'red' };
+  const _RISK_ORD = { NOMINAL: 0, ELEVATED: 1, DEGRADED: 2, SEVERE: 3 };
+  const _RISK_WORD = { NOMINAL: 'nominal', ELEVATED: 'elevated', DEGRADED: 'degraded', SEVERE: 'severe' };
+  function _relLabel(h) { return h <= 0 ? 'Now' : (h % 24 === 0 ? `+${h / 24}d` : (h >= 24 ? `+${Math.round(h / 24 * 10) / 10}d` : `+${h}h`)); }
+
+  // Plain-English takeaway: what the route looks like now, when it first
+  // degrades, and the peak — so an operator gets it at a glance.
+  function forecastSummary(grid, relH) {
+    const now = grid[0];
+    let peak = grid[0];
+    grid.forEach(w => { if (_RISK_ORD[w.overall_risk] > _RISK_ORD[peak.overall_risk]) peak = w; });
+    const maxKp = Math.max(...grid.map(w => w.kp));
+    if (_RISK_ORD[peak.overall_risk] <= _RISK_ORD[now.overall_risk]) {
+      return `Route stays <strong>${_RISK_WORD[now.overall_risk]}</strong> across the next ~3 days (Kp ≤ ${maxKp}).`;
+    }
+    const firstWorse = grid.find(w => _RISK_ORD[w.overall_risk] > _RISK_ORD[now.overall_risk]);
+    let s = `Route is <strong>${_RISK_WORD[now.overall_risk]}</strong> now.`;
+    if (firstWorse) s += ` Degrades to <strong>${_RISK_WORD[firstWorse.overall_risk]}</strong> ${_relLabel(relH(firstWorse.time))} (Kp ${firstWorse.kp}).`;
+    s += ` Peak <strong>${_RISK_WORD[peak.overall_risk]}</strong> ${_relLabel(relH(peak.time))} (Kp ${peak.kp}).`;
+    return s;
+  }
+
+  function renderForecastGrid(grid) {
+    if (!grid || !grid.length) return '';
+    const segs = (grid[0].segments || []).map(s => s.name);
+    if (!segs.length) return '';
+    const t0 = new Date(grid[0].time).getTime();
+    const relH = (t) => Math.round((new Date(t).getTime() - t0) / 3.6e6);
+    const rows = segs.map((name, i) => `<div class="mp-fc-row">
+      <div class="mp-fc-label" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+      <div class="mp-fc-track">${grid.map(w => {
+        const s = (w.segments || [])[i] || {};
+        const c = _GRID_RISK_CLASS[s.risk_level] || 'green';
+        return `<span class="mp-fc-cell ${c}" title="${escapeHtml(name)} · ${_relLabel(relH(w.time))} (${escapeHtml(w.time.slice(11, 16))}Z) · Kp ${w.kp} · ${s.risk_level || 'NOMINAL'}"></span>`;
+      }).join('')}</div></div>`).join('');
+    // sparse time axis: a label every 2 windows (~6 h)
+    const axis = grid.map((w, i) => `<div class="mp-fc-tick">${i % 2 === 0 ? _relLabel(relH(w.time)) : ''}</div>`).join('');
+    return `<div class="mp-grid-wrap">
+      <div class="mp-fc-summary">${forecastSummary(grid, relH)}</div>
+      <div class="mp-fc">
+        ${rows}
+        <div class="mp-fc-row"><div class="mp-fc-label"></div><div class="mp-fc-axis">${axis}</div></div>
+      </div>
+      <div class="mp-grid-legend"><span style="color:var(--green)">Nominal</span><span style="color:var(--yellow)">Elevated</span><span style="color:var(--orange)">Degraded</span><span style="color:var(--red)">Severe</span></div>
+      <div class="mp-grid-foot">Each segment's predicted risk over NOAA's Kp forecast (3-hourly, ~3 days). Hover any cell for its time + Kp. Recomputed live while monitoring.</div>
+    </div>`;
+  }
+
+  // ── Live mission watch (server-side; SSE updates) ──────────────────────────
+  const _watch = { id: null, es: null };
+  function setLiveStatus(html, isErr) {
+    const el = document.getElementById('m-live-status'); if (!el) return;
+    el.innerHTML = html; el.style.color = isErr ? 'var(--red)' : 'var(--text-2)';
+  }
+  function setLiveMode(on) {
+    const btn = document.getElementById('m-live-toggle'); if (!btn) return;
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? '■ Stop monitoring' : '▶ Monitor this mission live';
+  }
+  function stopWatch() {
+    if (_watch.es) { try { _watch.es.close(); } catch (e) {} _watch.es = null; }
+    if (_watch.id) { fetch('/api/v3/mission/watch/' + _watch.id, { method: 'DELETE' }).catch(() => {}); _watch.id = null; }
+    setLiveMode(false);
+  }
+  async function startWatch() {
+    try {
+      const r = await fetch('/api/v3/mission/watch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lastPayload || buildMissionPayload()),
+      });
+      if (r.status === 409) { setLiveStatus('Live monitoring is unavailable in air-gap / OFFLINE_MODE — use a one-shot assessment.', true); return; }
+      if (!r.ok) { setLiveStatus('Could not start monitor (HTTP ' + r.status + ').', true); return; }
+      const j = await r.json();
+      _watch.id = j.watch_id;
+      const es = new EventSource(j.stream_url); _watch.es = es;
+      es.onmessage = (ev) => { try { onWatchUpdate(JSON.parse(ev.data)); } catch (e) {} };
+      es.onerror = () => setLiveStatus('<span class="mp-live-dot"></span>LIVE — stream reconnecting…', false);
+      setLiveMode(true);
+      const secs = j.refresh_seconds || 300;
+      setLiveStatus(`<span class="mp-live-dot"></span>LIVE — re-evaluating every ${secs >= 60 ? Math.round(secs / 60) + ' min' : secs + ' s'} against live feeds.`, false);
+    } catch (e) { setLiveStatus('Network error: ' + e.message, true); }
+  }
+  function toggleWatch() { if (_watch.id) stopWatch(); else startWatch(); }
+  function onWatchUpdate(msg) {
+    const a = msg.assessment; if (!a) return;
+    const gridEl = document.getElementById('m-grid'); if (gridEl) gridEl.innerHTML = renderForecastGrid(a.segment_time_grid);
+    const level = a.mission_risk_level || 'CLEAR';
+    const disp = RISK_DISPLAY[level] || RISK_DISPLAY.CLEAR;
+    const v = document.getElementById('m-verdict');
+    if (v) { v.className = 'mp-verdict ' + disp.cls; const lv = v.querySelector('.level'); if (lv) lv.textContent = `MISSION RISK: ${disp.label} — ${disp.decision}`; }
+    const cb = document.getElementById('m-live-change');
+    if (cb && msg.change && msg.change.length) {
+      cb.innerHTML = `<strong>⚠ Update ${(msg.updated_at || '').slice(11, 19)}Z (v${msg.version}):</strong> ${msg.change.map(escapeHtml).join(' · ')}`;
+      cb.className = 'mp-live-change'; void cb.offsetWidth; cb.className = 'mp-live-change flash';
+    }
+    setLiveStatus(`<span class="mp-live-dot"></span>LIVE — last update ${(msg.updated_at || '').slice(11, 19)}Z (v${msg.version}).`, false);
+  }
+  // The toggle button is (re)created on each render — bind via delegation once.
+  document.getElementById('m-result').addEventListener('click', (ev) => {
+    if (ev.target && ev.target.id === 'm-live-toggle') toggleWatch();
+  });
+
+  let lastPayload = null;
+
   async function runAssessment() {
+    stopWatch();   // a fresh assessment supersedes any running watch
     const root = document.getElementById('m-result');
     const btn  = document.getElementById('m-run');
     const payload = buildMissionPayload();
+    lastPayload = payload;
     if (!payload.waypoints.length) {
       root.innerHTML = '<div class="mp-error">Add at least one waypoint with valid lat/lon.</div>';
       return;
