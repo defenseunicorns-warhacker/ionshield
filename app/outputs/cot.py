@@ -137,34 +137,45 @@ async def push_cot_to_server(
     """
     Push CoT events to a TAK server over TCP (standard port 8087).
 
-    TAK Server expects newline-terminated CoT XML strings on the TCP stream.
-    This function is best-effort — any exception is logged and swallowed so
-    the caller's event loop is never disrupted.
+    One event per TCP connection. FreeTAKServer's stream parser rejects
+    multiple ``<event>`` documents concatenated on a single connection
+    (it tries to wrap them as ``multiEvent`` and fails with a tag mismatch),
+    so each event is sent on its own short-lived connection — which both
+    TAK Server and FreeTAKServer accept. The server then broadcasts each
+    event to connected clients (ATAK/iTAK/WinTAK), which hold the marker
+    until its stale time.
+
+    Best-effort: a connection-level failure aborts the batch (the server is
+    down); a per-event error is logged and the batch continues. Nothing
+    propagates to the caller's event loop.
     """
     if not locations:
         return
 
-    xml_events = [build_cot_event(loc, stale_minutes) for loc in locations]
-
-    try:
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port),
-            timeout=connect_timeout,
-        )
-        for xml in xml_events:
+    sent = 0
+    for loc in locations:
+        xml = build_cot_event(loc, stale_minutes)
+        try:
+            _reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port),
+                timeout=connect_timeout,
+            )
             writer.write((xml + "\n").encode("utf-8"))
-        await writer.drain()
-        writer.close()
-        await writer.wait_closed()
-        logger.info(
-            "CoT push: sent %d event(s) to %s:%d",
-            len(xml_events),
-            host,
-            port,
-        )
-    except asyncio.TimeoutError:
-        logger.warning("CoT push: connection to %s:%d timed out", host, port)
-    except OSError as exc:
-        logger.warning("CoT push: connection to %s:%d failed — %s", host, port, exc)
-    except Exception as exc:
-        logger.warning("CoT push: unexpected error — %s", exc)
+            await writer.drain()
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:  # server may reset on close — event already sent
+                pass
+            sent += 1
+        except asyncio.TimeoutError:
+            logger.warning("CoT push: connection to %s:%d timed out", host, port)
+            break
+        except OSError as exc:
+            logger.warning("CoT push: connection to %s:%d failed — %s", host, port, exc)
+            break
+        except Exception as exc:
+            logger.warning("CoT push: error pushing %s — %s", loc.get("id"), exc)
+
+    if sent:
+        logger.info("CoT push: sent %d event(s) to %s:%d (one conn/event)", sent, host, port)
