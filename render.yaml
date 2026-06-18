@@ -34,6 +34,13 @@ services:
       - key: CONTACT_RATE_LIMIT
         value: "5/hour"       # tighter in production
 
+      # ── Space-weather feeds ──────────────────────────────────────────────────
+      # NASA api.nasa.gov key for the DONKI event feed. DEMO_KEY is rate-limited
+      # (http_429); paste your real key in the Render dashboard. All other feeds
+      # (D-RAP, NAVCEN GPS almanac, OVATION, WMM) need no key.
+      - key: NASA_API_KEY
+        sync: false           # set manually in Render dashboard — never commit
+
       # ── Database (SQLite on persistent disk, mounted at /data) ───────────────
       - key: DATABASE_URL
         value: sqlite+aiosqlite:////data/ionshield.db

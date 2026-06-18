@@ -3,7 +3,7 @@
 
 image:
   repository: ghcr.io/ionshield/ionshield
-  tag: 0.1.5
+  tag: 0.1.11
   # Always: we iterate on the same tag during WarHacker prep; a redeploy must
   # pick up the freshly pushed image, not the node's cached layers.
   pullPolicy: Always
@@ -41,6 +41,11 @@ config:
   # Point at an in-enclave SWPC mirror/relay when one exists:
   swpcBaseUrl: "https://services.swpc.noaa.gov"
   hapiBaseUrl: "https://cdaweb.gsfc.nasa.gov/hapi"
+  # NASA api.nasa.gov key for the DONKI event feed. "DEMO_KEY" works but is
+  # heavily rate-limited (http_429 → DONKI falls back to cache). Get a free
+  # key at https://api.nasa.gov and set it here, or override at deploy time
+  # (Zarf: --set NASA_API_KEY=...). Leave default to run DONKI on DEMO_KEY.
+  nasaApiKey: "DEMO_KEY"
 
   # ── ATAK CoT push (in-cluster or enclave TAK server) ──────────────────────
   cotServerHost: ""     # e.g. tak-server.tak.svc.cluster.local

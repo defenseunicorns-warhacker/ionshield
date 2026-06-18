@@ -23,12 +23,16 @@ metadata:
 
 constants:
   - name: IMAGE_TAG
-    value: "0.1.5"
+    value: "0.1.11"
 
 variables:
   - name: OFFLINE_MODE
     description: "true = air-gapped (no external fetches); false = live NOAA ingestion"
     default: "false"
+  - name: NASA_API_KEY
+    description: "NASA api.nasa.gov key for the DONKI event feed (DEMO_KEY is rate-limited)"
+    default: "DEMO_KEY"
+    sensitive: true
   - name: UDS_PACKAGE_ENABLED
     description: "Render the UDS Package CR (requires UDS Core in the cluster)"
     default: "true"
@@ -49,7 +53,7 @@ components:
     images:
       # Zarf pulls this at package-create time and embeds it in the tarball.
       # Point at wherever you pushed the hardened image.
-      - "ghcr.io/ionshield/ionshield:0.1.5"
+      - "ghcr.io/ionshield/ionshield:0.1.11"
     actions:
       onDeploy:
         after:

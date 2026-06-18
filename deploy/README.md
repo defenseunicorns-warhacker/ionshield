@@ -7,8 +7,20 @@ autonomy-dependent missions. This directory takes it from "runs on Render" to
 
 Written for a founder, not a platform engineer. Follow top to bottom.
 
-> **Current deployed image tag:** `0.1.5` (data-quality resilience + no-cache headers + reframe). Bump
+> **Current deployed image tag:** `0.1.11` (operational feeds: D-RAP, live GPS
+> availability via NAVCEN GPS almanac, NASA DONKI, OVATION aurora, local WMM). Bump
 > this on every backend or UI change — see *Updating a running deployment* below.
+>
+> **Optional env — `NASA_API_KEY`:** the DONKI event feed defaults to NASA's
+> shared `DEMO_KEY`, which is heavily rate-limited (you will see `http_429` and
+> the feed will fall back to last-good cache). For a real quota, get a free key
+> at <https://api.nasa.gov> and set `NASA_API_KEY` in the deployment env. All
+> other feeds (D-RAP, NAVCEN, OVATION, WMM) need no key; WMM is computed
+> locally and works fully air-gapped.
+>
+> **GPS availability source:** the public default is the USCG NAVCEN current
+> YUMA almanac (authoritative, data-center-reachable). For a deployed unit with
+> a true NANU mirror, set `NANU_URL` to that JSON endpoint and it takes priority.
 
 ---
 

@@ -29,11 +29,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.config import settings
-from app.data import noaa, ustec
+from app.data import donki, drap, nanu, noaa, ovation, ustec
 
 logger = logging.getLogger(__name__)
 
-STATE_VERSION = 1
+# v2 adds drap + nanu; v3 adds donki + ovation to the carried state.
+# (WMM needs no carry — it is computed locally with zero connectivity.)
+STATE_VERSION = 3
 
 # Forecast horizon of the carried state: NOAA's Kp forecast product covers
 # 3 days from issue. Past saved_at + 72h the advisory window is over.
@@ -42,6 +44,24 @@ ADVISORY_HORIZON_HOURS = 72
 # Module flag: True when the current in-memory caches came from disk rather
 # than a live fetch this process. Cleared by the next successful live fetch.
 _hydrated_from: str | None = None  # ISO timestamp the carried state was saved
+
+
+def _ovation_serializable() -> dict:
+    """OVATION's grid is keyed by (lat, lon) tuples — not JSON-safe. Flatten
+    the grid to [lat, lon, prob] rows for persistence; everything else copies."""
+    out = {k: v for k, v in ovation._cache.items() if k != "grid"}
+    grid = ovation._cache.get("grid") or {}
+    out["grid_rows"] = [[la, lo, p] for (la, lo), p in grid.items()]
+    return out
+
+
+def _restore_ovation(saved: dict) -> None:
+    """Inverse of _ovation_serializable: rebuild the tuple-keyed grid."""
+    for k, v in saved.items():
+        if k == "grid_rows":
+            ovation._cache["grid"] = {(int(r[0]), int(r[1])): float(r[2]) for r in (v or [])}
+        elif k in ovation._cache:
+            ovation._cache[k] = v
 
 
 def _path() -> Path | None:
@@ -63,6 +83,10 @@ def save_state() -> bool:
         "saved_at": datetime.now(timezone.utc).isoformat(),
         "noaa": {k: v for k, v in noaa._cache.items()},
         "ionosphere": {k: v for k, v in ustec._cache.items()},
+        "drap": {k: v for k, v in drap._cache.items()},
+        "nanu": {k: v for k, v in nanu._cache.items()},
+        "donki": {k: v for k, v in donki._cache.items()},
+        "ovation": _ovation_serializable(),
     }
     try:
         fd, tmp = tempfile.mkstemp(dir=str(path.parent) or ".", suffix=".tmp")
@@ -101,11 +125,12 @@ def hydrate() -> bool:
     if state is None:
         return False
 
-    for module, key in ((noaa, "noaa"), (ustec, "ionosphere")):
+    for module, key in ((noaa, "noaa"), (ustec, "ionosphere"), (drap, "drap"), (nanu, "nanu"), (donki, "donki")):
         saved = state.get(key) or {}
         for k, v in saved.items():
             if k in module._cache:
                 module._cache[k] = v
+    _restore_ovation(state.get("ovation") or {})
     noaa._cache["fetch_source"] = "cached"
     _hydrated_from = state.get("saved_at")
     logger.info(
