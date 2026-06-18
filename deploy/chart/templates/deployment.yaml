@@ -92,21 +92,24 @@ spec:
               mountPath: /config
               readOnly: true
             {{- end }}
+          # Probes hit /health — cheap, unauthenticated, no NOAA I/O and no
+          # dependency on live data — so the pod stays up with NO internet
+          # (air-gap). /api/status is auth-gated + data-dependent and must NOT
+          # gate pod health, or a connectivity loss kills the pod.
           startupProbe:
-            # Initial NOAA fetch (or offline bootstrap) can take ~30 s
             httpGet:
-              path: /api/status
+              path: /health
               port: http
             failureThreshold: 30
             periodSeconds: 5
           livenessProbe:
             httpGet:
-              path: /api/status
+              path: /health
               port: http
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /api/status
+              path: /health
               port: http
             periodSeconds: 15
           resources:

@@ -105,6 +105,12 @@ async def _push_cot() -> None:
 
     locations = get_all() if settings.cot_push_all else get_active_alerts()
     if locations:
+        logger.info(
+            "cot_push: target=%s:%s locations=%d",
+            settings.cot_server_host,
+            settings.cot_server_port,
+            len(locations),
+        )
         await push_cot_to_server(
             settings.cot_server_host,
             settings.cot_server_port,
@@ -421,7 +427,17 @@ async def lifespan(app: FastAPI):
 
     state_cache.hydrate()
 
-    results = await run_all()
+    # ── Air-gap safety: bound the initial fetch so it can never stall startup ──
+    # With no internet (esp. the UDS CoreDNS-points-at-an-unreachable-upstream
+    # case), DNS/connect can hang past the per-source timeouts. Cap the whole
+    # initial fetch so the app always finishes startup and serves hydrated
+    # cache-and-carry state; the background refresh loop keeps retrying. (The
+    # probes hit /health, so pod health never depends on this completing.)
+    try:
+        results = await asyncio.wait_for(run_all(), timeout=25.0)
+    except Exception as exc:
+        logger.warning("Initial fetch did not complete (%s) — serving cached/advisory data.", exc)
+        results = {}
     _persist_feed_state(results)
     await archive_snapshot()
     await _fire_and_forget(_push_foundry, label="foundry_raw_initial")

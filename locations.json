@@ -1,9 +1,9 @@
 [
-  { "id":"schriever",      "name":"Schriever SFB (CO)",                "lat":38.8,  "lon":-104.5, "asset_type":"GPS_L1L2",      "alert_threshold":"ELEVATED" },
-  { "id":"thule",          "name":"Thule AB (Pituffik, GL)",           "lat":76.5,  "lon":-68.7,  "asset_type":"HF",            "alert_threshold":"DEGRADED" },
-  { "id":"diego-garcia",   "name":"Diego Garcia (BIOT)",               "lat":-7.3,  "lon":72.4,   "asset_type":"SATCOM_L",      "alert_threshold":"ELEVATED" },
-  { "id":"yokota",         "name":"Yokota AB (JP)",                    "lat":35.7,  "lon":139.3,  "asset_type":"GPS_L1L2",      "alert_threshold":"ELEVATED" },
-  { "id":"alaska-eielson", "name":"Eielson AFB (AK)",                  "lat":64.7,  "lon":-147.1, "asset_type":"HF",            "alert_threshold":"DEGRADED" },
-  { "id":"north-plains",   "name":"North Plains RTK reference (US)",   "lat":45.7,  "lon":-100.1, "asset_type":"RTK_GPS",       "alert_threshold":"ELEVATED" },
-  { "id":"polar-route",    "name":"Polar route waypoint (CA)",         "lat":63.0,  "lon":-93.5,  "asset_type":"GNSS_AIRBORNE", "alert_threshold":"DEGRADED" }
+  { "id":"nbsd",          "name":"Naval Base San Diego",        "lat":32.681, "lon":-117.121, "asset_type":"SATCOM_L",      "alert_threshold":"ELEVATED" },
+  { "id":"north-island",  "name":"NAS North Island",            "lat":32.699, "lon":-117.215, "asset_type":"GPS_L1L2",      "alert_threshold":"ELEVATED" },
+  { "id":"miramar",       "name":"MCAS Miramar",                "lat":32.868, "lon":-117.142, "asset_type":"HF",            "alert_threshold":"DEGRADED" },
+  { "id":"point-loma",    "name":"NB Point Loma",               "lat":32.684, "lon":-117.242, "asset_type":"RTK_GPS",       "alert_threshold":"ELEVATED" },
+  { "id":"coronado",      "name":"NAB Coronado",                "lat":32.673, "lon":-117.171, "asset_type":"GNSS_AIRBORNE", "alert_threshold":"ELEVATED" },
+  { "id":"gaslamp-ops",   "name":"Gaslamp Ops (Petco)",         "lat":32.707, "lon":-117.157, "asset_type":"GPS_L1",       "alert_threshold":"ELEVATED" },
+  { "id":"imperial-beach","name":"Imperial Beach (HF site)",    "lat":32.584, "lon":-117.117, "asset_type":"HF",            "alert_threshold":"DEGRADED" }
 ]

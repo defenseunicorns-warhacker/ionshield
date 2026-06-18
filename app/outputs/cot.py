@@ -27,13 +27,24 @@ logger = logging.getLogger(__name__)
 # red markers that render correctly AND stay tappable:
 #   n = neutral  → GREEN    f = friendly → BLUE
 #   u = unknown  → YELLOW   h = hostile  → RED
+# Use the Ground-Unit-Combat dimension (…-G-U-C) so iTAK treats the marker as
+# a selectable contact (full detail card with remarks), not a bare spot atom.
+# The affiliation letter still drives the colour.
 _RISK_COT_TYPE = {
-    "NOMINAL": "a-n-G",  # green — nominal
-    "ELEVATED": "a-u-G",  # yellow — watch
-    "DEGRADED": "a-h-G",  # red — degraded
-    "SEVERE": "a-h-G",  # red — severe
+    "NOMINAL": "a-n-G-U-C",  # green — nominal
+    "ELEVATED": "a-u-G-U-C",  # yellow — watch
+    "DEGRADED": "a-h-G-U-C",  # red — degraded
+    "SEVERE": "a-h-G-U-C",  # red — severe
 }
-_COT_TYPE = "a-u-G"  # fallback
+_COT_TYPE = "a-u-G-U-C"  # fallback
+
+# ATAK __group team colour per risk — also tints the contact marker.
+_RISK_GROUP = {
+    "NOMINAL": "Green",
+    "ELEVATED": "Yellow",
+    "DEGRADED": "Red",
+    "SEVERE": "Red",
+}
 
 
 def _argb(r: int, g: int, b: int) -> int:
@@ -112,12 +123,19 @@ def build_cot_event(location: dict, stale_minutes: int = 10) -> str:
             "le": "9999999.0",
         },
     )
+    group = _RISK_GROUP.get(risk_level, "White")
     detail = ET.SubElement(event, "detail")
-    ET.SubElement(detail, "contact", {"callsign": callsign})
+    # endpoint marks this as a contact → iTAK opens the full detail card on tap
+    # (the same card the scenario markers show), where <remarks> is displayed.
+    ET.SubElement(detail, "contact", {"callsign": callsign, "endpoint": "*:-1:stcp"})
+    # __group team colour also tints the contact marker to match the risk.
+    ET.SubElement(detail, "__group", {"name": group, "role": "Team Member"})
+    # takv + track make iTAK treat it as a live SA contact (selectable card).
+    ET.SubElement(detail, "takv", {"device": "IonShield", "platform": "IonShield", "os": "0", "version": "1.0"})
+    ET.SubElement(detail, "track", {"course": "0.0", "speed": "0.0"})
+    ET.SubElement(detail, "status", {"battery": "100"})
     ET.SubElement(detail, "remarks").text = remarks
     ET.SubElement(detail, "color", {"argb": str(argb)})
-    # archive => ATAK persists it as a normal selectable map item; precisionlocation
-    # with valid sources keeps the marker fully interactive (radial menu on tap).
     ET.SubElement(detail, "archive")
     ET.SubElement(detail, "precisionlocation", {"geopointsrc": "USER", "altsrc": "DTED0"})
 
